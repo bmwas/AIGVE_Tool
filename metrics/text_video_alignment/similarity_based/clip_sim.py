@@ -69,52 +69,6 @@ def calculate_clip_score(video_path, text, model, tokenizer):
     return clip_score_frames_avg
 
 
-def calculate_clip_temp_score(video_path, model):
-    ''' time score: frame[i] <-> frame[i+1] cosine similarity score
-    '''
-    # Load the video
-    cap = cv2.VideoCapture(video_path)
-    to_tensor = transforms.ToTensor()
-    # Extract frames from the video 
-    frames = []
-    SD_images = []
-    resize = transforms.Resize([224,224])
-    while cap.isOpened():
-        ret, frame = cap.read()
-        if not ret:
-            break
-        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        # resized_frame = cv2.resize(frame,(224,224))  # Resize the frame to match the expected input size
-        frames.append(frame)
-    
-    tensor_frames = torch.stack([resize(torch.from_numpy(frame).permute(2, 0, 1).float()) for frame in frames])
-
-    # tensor_frames = [extracted_frames[i] for i in range(extracted_frames.size()[0])]
-    concatenated_frame_features = []
-
-    # Generate embeddings for each frame and concatenate the features
-    with torch.no_grad():  
-        for frame in tensor_frames: # Too many frames in a video, must split before CLIP embedding, limited by the memory
-            frame_input = frame.unsqueeze(0).to(device)  # Add batch dimension and move the frame to the device
-            frame_feature = model.get_image_features(frame_input)
-            concatenated_frame_features.append(frame_feature)
-
-    concatenated_frame_features = torch.cat(concatenated_frame_features, dim=0)
-
-    # Calculate the similarity scores
-    clip_temp_score = []
-    concatenated_frame_features = concatenated_frame_features / concatenated_frame_features.norm(p=2, dim=-1, keepdim=True)
-    # ipdb.set_trace()
-
-    for i in range(concatenated_frame_features.size()[0]-1):
-        clip_temp_score.append(concatenated_frame_features[i].unsqueeze(0) @ concatenated_frame_features[i+1].unsqueeze(0).T)
-    clip_temp_score=torch.cat(clip_temp_score, dim=0)
-    # Calculate the average CLIP score across all frames, reflects temporal consistency 
-    clip_temp_score_avg = clip_temp_score.mean().item()
-
-    return clip_temp_score_avg
-
-
 def read_text_file(file_path):
     with open(file_path, 'r') as f:
         return f.read().strip()
@@ -177,8 +131,6 @@ if __name__ == '__main__':
             # ipdb.set_trace()
             if metric == 'clip_score':
                 score = calculate_clip_score(video_path, text, clip_model, clip_tokenizer)
-            elif metric == 'clip_temp_score':
-                score = calculate_clip_temp_score(video_path,clip_model)
             else:
                 raise ValueError('invalid metric choice')
             count+=1
