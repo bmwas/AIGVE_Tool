@@ -78,7 +78,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--dir_videos", type=str, default='./video', help="Specify the path of generated videos")
     parser.add_argument("--dir_prompts", type=str, default='./prompts', help="Specify the path of generated videos")
-    parser.add_argument("--metric", type=str, default='clip_temp_score', help="Specify the metric to be used")
+    parser.add_argument("--metric", type=str, default='clip_score', help="Specify the metric to be used")
     args = parser.parse_args()
 
     dir_videos = args.dir_videos
