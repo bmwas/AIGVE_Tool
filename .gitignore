@@ -1,0 +1,8 @@
+# global
+**/__pycached__ 
+**/_ignore
+**/output
+**/tmp
+**/work_dirs
+
+venv

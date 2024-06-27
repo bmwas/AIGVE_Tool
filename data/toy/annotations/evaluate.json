@@ -1,0 +1,54 @@
+{
+    "metainfo":
+        {
+            "source": "vbench lavie 'by dimension' dataset 'appearance_style' folder",
+            "length": 11
+        },
+    "datset_list":
+        [
+            {
+                "prompt_gt": "A beautiful coastal beach in spring, waves lapping on sand, animated style",
+                "video_path_pd": "A beautiful coastal beach in spring, waves lapping on sand, animated style-0.mp4"
+            },
+            {
+                "prompt_gt": "A beautiful coastal beach in spring, waves lapping on sand, black and white",
+                "video_path_pd": "A beautiful coastal beach in spring, waves lapping on sand, black and white-0.mp4"
+            },
+            {
+                "prompt_gt": "A beautiful coastal beach in spring, waves lapping on sand by Hokusai, in the style of Ukiyo",
+                "video_path_pd": "A beautiful coastal beach in spring, waves lapping on sand by Hokusai, in the style of Ukiyo-0.mp4"
+            },
+            {
+                "prompt_gt": "A beautiful coastal beach in spring, waves lapping on sand, chalk drawing",
+                "video_path_pd": "A beautiful coastal beach in spring, waves lapping on sand, chalk drawing-0.mp4"
+            },
+            {
+                "prompt_gt": "A beautiful coastal beach in spring, waves lapping on sand, Claude Monet style",
+                "video_path_pd": "A beautiful coastal beach in spring, waves lapping on sand, Claude Monet style-0.mp4"
+            },
+            {
+                "prompt_gt": "A beautiful coastal beach in spring, waves lapping on sand, in cyberpunk style",
+                "video_path_pd": "A beautiful coastal beach in spring, waves lapping on sand, in cyberpunk style-0.mp4"
+            },
+            {
+                "prompt_gt": "A beautiful coastal beach in spring, waves lapping on sand, oil painting",
+                "video_path_pd": "A beautiful coastal beach in spring, waves lapping on sand, oil painting-0.mp4"
+            },
+            {
+                "prompt_gt": "A beautiful coastal beach in spring, waves lapping on sand, pixel art-0.mp4",
+                "video_path_pd": "A beautiful coastal beach in spring, waves lapping on sand, pixel art-0.mp4"
+            },
+            {
+                "prompt_gt": "A beautiful coastal beach in spring, waves lapping on sand, surrealism style",
+                "video_path_pd": "A beautiful coastal beach in spring, waves lapping on sand, surrealism style-0.mp4"
+            },
+            {
+                "prompt_gt": "A beautiful coastal beach in spring, waves lapping on sand, Van Gogh style",
+                "video_path_pd": "A beautiful coastal beach in spring, waves lapping on sand, Van Gogh style-0.mp4"
+            },
+            {
+                "prompt_gt": "A beautiful coastal beach in spring, waves lapping on sand, watercolor painting",
+                "video_path_pd": "A beautiful coastal beach in spring, waves lapping on sand, watercolor painting-0.mp4"
+            }
+        ]
+}
