@@ -7,5 +7,16 @@ with read_base():
     from .._base_.default import *
 
 val_evaluator = dict(
-    type= 
+    type= 'LLMScore',
+    openai_key = 'OPENAI_KEY',
+)
+
+val_dataloader = dict(
+    batch_size=1,
+    num_workers=2,
+    dataset=dict(
+        type=ToyDataset,
+        modality=dict(use_video=False, use_text=True, use_image=True),
+        image_frame=1,
+    )
 )

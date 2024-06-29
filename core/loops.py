@@ -1,12 +1,13 @@
 # Copyright (c) IFM Lab. All rights reserved.
 
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 from core.registry import LOOPS
-from mmengine.runner import BaseLoop
-from mmengine.logging import print_log
+from mmengine.runner import BaseLoop, autocast
+from mmengine.logging import HistoryBuffer, print_log
 import torch
 from torch.utils.data import DataLoader
 from mmengine.evaluator import Evaluator
+import logging
 
 @LOOPS.register_module()
 class VQALoop(BaseLoop):
@@ -80,14 +81,15 @@ class VQALoop(BaseLoop):
         self.runner.call_hook(
             'before_val_iter', batch_idx=idx, data_batch=data_batch)
         # outputs should be sequence of BaseDataElement
-        with autocast(enabled=self.fp16):
-            outputs = self.runner.model.val_step(data_batch)
+        # with autocast(enabled=self.fp16):
+        #     outputs = self.runner.model.val_step(data_batch)
+        outputs = data_batch
 
         # outputs, self.val_loss = _update_losses(outputs, self.val_loss)
 
-        self.evaluator.process(data_samples=outputs, data_batch=data_batch)
+        self.evaluator.process(data_batch=data_batch, data_samples=outputs)
         self.runner.call_hook(
             'after_val_iter',
             batch_idx=idx,
             data_batch=data_batch,
-            outputs=outputs))
+            outputs=outputs)

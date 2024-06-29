@@ -22,7 +22,8 @@ class ToyDataset(BaseDataset):
                  metainfo: Optional[dict] = None,
                  data_prefix: dict = None,
                  pipeline: List[Union[Callable, dict]] = [],
-                 modality: dict = dict(use_video=True, use_text=True),
+                 modality: dict = dict(use_video=True, use_text=True, use_image=False),
+                 image_frame: int = None,
                  **kwargs) -> None:
         super().__init__(
             data_root=data_root,
@@ -33,6 +34,7 @@ class ToyDataset(BaseDataset):
             **kwargs
         )
         self.modality = modality
+        self.image_frame = image_frame
         assert self.modality['use_video'] or self.modality['use_text'], (
             'Please specify the `modality` (`use_video` '
             f', `use_text`) for {self.__class__.__name__}')
@@ -40,13 +42,16 @@ class ToyDataset(BaseDataset):
     def parse_data_info(self, raw_data_info: dict) -> dict:
         """Parse raw data info."""
         info = {}
+        info['img_frame'] = None
         if self.modality['use_text']:
             info['prompt_gt'] = osp.join(self.data_prefix.get('video', ''), 
                                          raw_data_info['prompt_gt'])
 
-        if self.modality['use_video']:
+        if self.modality['use_video'] or self.modality['use_image']:
             info['video_path_pd'] = osp.join(self.data_prefix.get('video', ''), 
                                      raw_data_info['video_path_pd'])
+            if self.modality['use_image']:
+                info['img_frame'] = self.image_frame
                                      
         return info
 

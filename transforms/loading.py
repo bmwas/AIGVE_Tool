@@ -12,7 +12,7 @@ import torch
 
 
 @TRANSFORMS.register_module()
-class (BaseTransformation):
+class LoadVideoFromFile(BaseTransformation):
     """Load a video from file.
 
     Required Keys:
@@ -84,14 +84,14 @@ class (BaseTransformation):
                 video_reader = VideoReader(video_path, width=self.width, height=self.height, num_threads=1)
             else:
                 video_reader = VideoReader(video_path, num_threads=1)
-            frames = video_reader.get_batch(range(len(video_reader)))  # (T, H, W, C), torch.uint8
-            buffer = frames.asnumpy().astype(np.uint8) # (T, H, W, C), np.uint8
+            frames = video_reader.get_batch(range(len(video_reader)))  # (F, H, W, C), torch.uint8
+            buffer = frames.asnumpy().astype(np.uint8) # (F, H, W, C), np.uint8
         else:
             raise NotImplementedError
 
         frames = torch.Tensor(buffer)
-        frames = frames.permute(0, 3, 1, 2) # (T, C, H, W), torch.uint8
-        results['video_path_pd'] = frames
+        frames = frames.permute(0, 3, 1, 2) # (F, C, H, W), torch.uint8
+        results['video_pd'] = frames
 
         return results
 

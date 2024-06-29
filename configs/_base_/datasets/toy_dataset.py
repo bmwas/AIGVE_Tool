@@ -21,6 +21,8 @@ val_dataloader = dict(
         data_prefix=dict(video='evaluate'),
         pipeline=eva_pipeline,
         backend_args=None,
-        modality=dict(use_video=True, use_text=True),
-        test_mode=True)
+        modality=dict(use_video=True, use_text=True, use_image=False),
+        image_frame=None,
+        test_mode=True,
+    )
 )
