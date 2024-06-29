@@ -13,7 +13,7 @@ def parse_args():
     parser.add_argument("config", help="evaluation metric config file path")
     return args
 
-def = main():
+def main():
     args = parse_args()
 
     # load config

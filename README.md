@@ -5,4 +5,5 @@ a Video Quality Analysis Toolkit
 
 ## To-do:
 
-1. ...
+Frameworks written on Detectron2 frameworks:
+1. LLM_Score 
