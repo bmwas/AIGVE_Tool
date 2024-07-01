@@ -1,5 +1,7 @@
 torch
 mmengine
 decord
-PIL
+pillow
 numpy
+scipy
+h5py

@@ -7,7 +7,6 @@ from core.registry import DATASETS
 from mmengine.dataset import BaseDataset
 
 
-
 @DATASETS.register_module()
 class ToyDataset(BaseDataset):
     """ToyDataset for testing.

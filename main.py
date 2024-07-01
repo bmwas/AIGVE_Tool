@@ -11,6 +11,7 @@ from mmengine.runner import Runner
 def parse_args():
     parser = argparse.ArgumentParser(description="VQA Toolkit")
     parser.add_argument("config", help="evaluation metric config file path")
+    args = parser.parse_args()
     return args
 
 def main():
