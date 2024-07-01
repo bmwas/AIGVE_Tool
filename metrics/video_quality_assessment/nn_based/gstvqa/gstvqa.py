@@ -13,8 +13,6 @@ import numpy as np
 from scipy import stats
 # metric_path = '/metrics/video_quality_assessment/nn_based/gstvqa'
 
-
-
 @METRICS.register_module()
 class GSTVQA(BaseMetric):
     """The GSTVQA evaluation metric. https://arxiv.org/pdf/2012.13936

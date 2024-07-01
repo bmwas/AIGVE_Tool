@@ -11,6 +11,7 @@ with read_base():
 train_index=4
 
 # details: https://github.com/Baoliang93/GSTVQA/blob/8463c9c3e5720349606d8efae7a5aa274bf69e7c/TCSVT_Release/GVQA_Release/GVQA_Cross/cross_test.py#L30
+# need to download their dataset first, which is listed in their page
 if train_index==1:    
     datainfo_path = "../datas/CVD2014info.mat"   
     test_index = [i for i in range(234)]
