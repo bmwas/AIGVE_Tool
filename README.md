@@ -32,7 +32,7 @@ The loop generally consists of two parts: Dataloader and Evaluator. Inheritted f
 
 #### 2.1 Identify its classcifation. (e.g. text_video_alignment or video_quality_assessment), create files in its directoy.
 
-#### 2.2 Re-implement the metrics from the source by inheriting the `[BaseMetric](https://github.com/open-mmlab/mmengine/blob/main/mmengine/evaluator/metric.py#L16)` class. (Example: [GSTVQA](./configs/gstvqa.py), under its original source [code](https://github.com/Baoliang93/GSTVQA/blob/8463c9c3e5720349606d8efae7a5aa274bf69e7c/TCSVT_Release/GVQA_Release/GVQA_Cross/cross_test.py#L204))
+#### 2.2 Re-implement the metrics from the source by inheriting the [BaseMetric](https://github.com/open-mmlab/mmengine/blob/main/mmengine/evaluator/metric.py#L16) class. (Example: [GSTVQA](./configs/gstvqa.py), under its original source [code](https://github.com/Baoliang93/GSTVQA/blob/8463c9c3e5720349606d8efae7a5aa274bf69e7c/TCSVT_Release/GVQA_Release/GVQA_Cross/cross_test.py#L204))
 
 #### 2.3 Implement the metric config files in `\config` folder. (Example: [gstvqa_dataset](./configs/gstvqa.py)) 
 
