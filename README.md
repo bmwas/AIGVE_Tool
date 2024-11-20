@@ -11,6 +11,15 @@ a Video Quality Analysis Toolkit
 1. [Toy dataset](./configs/_base_/datasets/toy_dataset.py) 
 
 
+## Environment
+
+conda env remove --name vqa
+```
+conda env create -f environment.yml
+conda activate vqa
+```
+
+
 ## For developers:
 ### 0. Review the code of [VQALoop](./core/loops.py).
 
@@ -46,7 +55,8 @@ python main.py {metric_config_file}.py
 Take Examples:
 
 ``
-python main.py /home/xinhao/VQA_Toolkit/configs/gstvqa.py
+cd VQA_Toolkit
+python main.py /home/xinhao/VQA_Toolkit/configs/gstvqa.py --work-dir ./output
 ``
 
 

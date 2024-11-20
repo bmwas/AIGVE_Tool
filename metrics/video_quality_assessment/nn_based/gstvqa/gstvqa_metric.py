@@ -11,6 +11,7 @@ import torch
 import torch.nn as nn
 import numpy as np
 from scipy import stats
+import h5py
 # metric_path = '/metrics/video_quality_assessment/nn_based/gstvqa'
 
 @METRICS.register_module()
@@ -25,6 +26,7 @@ class GSTVQA(BaseMetric):
             Default: None.
         metric_path (str): the file path of the metric 
         train_index (int): The specific model used. Details on: https://github.com/Baoliang93/GSTVQA/blob/main/TCSVT_Release/GVQA_Release/GVQA_Cross/cross_test.py#L162
+        datainfo_path (str): the file path of the dataset
     """
 
     default_prefix: Optional[str] = 'llm_score'
@@ -34,7 +36,7 @@ class GSTVQA(BaseMetric):
                  prefix: Optional[str] = None, 
                  metric_path: str = '',
                  model_path: str = '',
-                 scale: int = 1,
+                 datainfo_path: str = '',
                  test_index: int = None,
                 #  train_index: int = 4
                  ) -> None:
@@ -42,7 +44,7 @@ class GSTVQA(BaseMetric):
         # self.train_index = train_index
         self.metric_path = metric_path
         self.model_path = model_path
-        self.scale = scale
+        self.datainfo_path = datainfo_path
         self.test_index = test_index
         if not submodule_exists(self.metric_path):
             add_git_submodule(repo_url='https://github.com/Baoliang93/GSTVQA.git', submodule_path=self.metric_path)
@@ -52,6 +54,10 @@ class GSTVQA(BaseMetric):
         self.model.load_state_dict(torch.load(model_path))
         self.model.eval()
         self.criterion = nn.L1Loss().to(self.device)
+
+        print(f"=====datainfo_path=====: {datainfo_path}")
+        Info = h5py.File(name=datainfo_path, mode='r') # Runtime Error otherwise
+        self.scale = Info['scores'][0, :].max()  
 
 
     # def process(self, data_batch: dict, data_samples: Sequence[dict]) -> None:

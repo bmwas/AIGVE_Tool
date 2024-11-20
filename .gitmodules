@@ -1,0 +1,3 @@
+[submodule "metrics/video_quality_assessment/nn_based/gstvqa/GSTVQA"]
+	path = metrics/video_quality_assessment/nn_based/gstvqa/GSTVQA
+	url = https://github.com/Baoliang93/GSTVQA.git

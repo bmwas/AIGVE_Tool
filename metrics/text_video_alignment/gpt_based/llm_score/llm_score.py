@@ -7,10 +7,10 @@ from core.registry import METRICS
 from mmengine.logging import MMLogger
 
 import os, time
-from .global_descriptor import GlobalDescriptor
-from .local_descriptor import LocalDescriptor
-from utils import read_image_detectron2
-from grit.predictor import VisualizationDemo
+# from .global_descriptor import GlobalDescriptor
+# from .local_descriptor import LocalDescriptor
+# from utils import read_image_detectron2
+# from grit.predictor import VisualizationDemo
 
 
 

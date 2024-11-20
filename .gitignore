@@ -6,3 +6,4 @@
 **/work_dirs
 
 venv
+**__pycache__**

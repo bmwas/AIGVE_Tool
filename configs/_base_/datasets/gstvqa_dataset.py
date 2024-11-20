@@ -1,4 +1,5 @@
 # Copyright (c) IFM Lab. All rights reserved.
+# Deprecated
 
 from mmengine.dataset.sampler import DefaultSampler
 from datasets import Test_VQADataset
