@@ -13,11 +13,22 @@ a Video Quality Analysis Toolkit
 
 ### Dataset:
 1. [Toy dataset](./configs/_base_/datasets/toy_dataset.py) 
+2. [Kinetics dataset]() 
 
 ## Under progress:
 
 ### Models:
-1. [StarVQA](./configs/starvqa.py)
+
+
+### Dataset:
+
+
+## Implementing Suspended: 
+
+### Models:
+1. [StarVQA](./configs/starvqa.py): The pretrained model shared from author is out-of-date
+
+### Dataset:
 
 
 ## Environment
@@ -83,3 +94,8 @@ Frameworks written on Detectron2 frameworks:
 ## Acknowledge
 
 The Toolkit is build top the top of [MMEngine](https://github.com/open-mmlab/mmengine)
+
+We acknowledge original repositories of various VQA methods:
+[GSTVQA](https://github.com/Baoliang93/GSTVQA),
+[CLIPSim](https://github.com/zhengxu-1997/),
+<!-- [StarVQA](https://github.com/GZHU-DVL/StarVQA) -->

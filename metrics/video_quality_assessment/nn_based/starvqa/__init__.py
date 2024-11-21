@@ -1,6 +1,7 @@
 # Copyright (c) IFM Lab. All rights reserved.
 
-from .gstvqa_metric import GSTVQA
-from .GSTVQA.TCSVT_Release.GVQA_Release.GVQA_Cross.cross_test import Test_VQADataset
+from .starvqa_metric import StarVQA
+from .StarVQA.lib.datasets import Kinetics
+from .StarVQA.lib.config.defaults import get_cfg
 
-__all__ = ['GSTVQA', 'Test_VQADataset']
+__all__ = ['StarVQA', 'Kinetics', 'get_cfg']

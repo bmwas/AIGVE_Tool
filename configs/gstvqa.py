@@ -33,14 +33,6 @@ if train_index==4:
     model_path = "metrics/video_quality_assessment/nn_based/gstvqa/GSTVQA/TCSVT_Release/GVQA_Release/GVQA_Cross/models/training-all-data-GSTVQA-konvid-EXP0-best"
     feature_path ="metrics/video_quality_assessment/nn_based/gstvqa/GSTVQA/TCSVT_Release/GVQA_Release/VGG16_mean_std_features/VGG16_cat_features_KoNViD_original_resolution/"  
 
-val_evaluator = dict(
-    type=GSTVQA,
-    metric_path='/metrics/video_quality_assessment/nn_based/gstvqa',
-    model_path=model_path,
-    datainfo_path=datainfo_path,
-    test_index=test_index,
-)
-
 val_dataloader = dict(
     batch_size=1,
     num_workers=2,
@@ -55,4 +47,12 @@ val_dataloader = dict(
         feat_dim=2944,
         datainfo_path=datainfo_path,
     )
+)
+
+val_evaluator = dict(
+    type=GSTVQA,
+    metric_path='/metrics/video_quality_assessment/nn_based/gstvqa',
+    model_path=model_path,
+    datainfo_path=datainfo_path,
+    test_index=test_index,
 )

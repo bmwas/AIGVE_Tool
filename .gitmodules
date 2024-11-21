@@ -1,3 +1,6 @@
 [submodule "metrics/video_quality_assessment/nn_based/gstvqa/GSTVQA"]
 	path = metrics/video_quality_assessment/nn_based/gstvqa/GSTVQA
 	url = https://github.com/Baoliang93/GSTVQA.git
+[submodule "/home/xinhao/VQA_Toolkit/metrics/video_quality_assessment/nn_based/starvqa/StarVQA"]
+	path = /home/xinhao/VQA_Toolkit/metrics/video_quality_assessment/nn_based/starvqa/StarVQA
+	url = https://github.com/GZHU-DVL/StarVQA.git

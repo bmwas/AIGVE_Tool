@@ -1,5 +1,5 @@
 # Copyright (c) IFM Lab. All rights reserved.
-
+# Implementing Suspended: The pretrained model shared from author is out-of-date
 from typing import Dict, List, Optional, Sequence, Union
 from mmengine.evaluator import BaseMetric
 from core.registry import METRICS
@@ -8,10 +8,16 @@ import torch
 import torch.nn as nn
 import numpy as np
 
+import os
+from metrics.video_quality_assessment.nn_based.starvqa import get_cfg
+from utils import add_git_submodule, submodule_exists
+
+from .StarVQA.lib.models import ResNet, SlowFast
+from .StarVQA.lib.models.vit import vit_base_patch16_224, TimeSformer
 
 @METRICS.register_module()
-class GSTVQA(BaseMetric):
-    """The GSTVQA evaluation metric. https://arxiv.org/pdf/2012.13936
+class StarVQA(BaseMetric):
+    """The StarVQA evaluation metric. https://arxiv.org/pdf/2108.09635
     
     Args:
         collect_device (str): Device used for collecting results from workers.
@@ -22,31 +28,52 @@ class GSTVQA(BaseMetric):
         metric_path (str): the file path of the metric 
         train_index (int): The specific model used. Details on: https://github.com/Baoliang93/GSTVQA/blob/main/TCSVT_Release/GVQA_Release/GVQA_Cross/cross_test.py#L162
         datainfo_path (str): the file path of the dataset
+
+    Details: https://github.com/GZHU-DVL/StarVQA/blob/main/tools/test_net.py
     """
 
     def __init__(self,
                  collect_device: str = 'cpu',
                  prefix: Optional[str] = None, 
-                 metric_path: str = '',
-                 model_path: str = '',
-                 datainfo_path: str = '',
-                 test_index: int = None,
-                #  train_index: int = 4
+                 cfg_path:str='',
+                 model_name:str='vit_base_patch16_224'
                  ) -> None:
         super().__init__(collect_device=collect_device, prefix=prefix)
-        # self.train_index = train_index
-        self.metric_path = metric_path
-        self.model_path = model_path
-        self.datainfo_path = datainfo_path
-        self.test_index = test_index
-        if not submodule_exists(self.metric_path):
-            add_git_submodule(repo_url='https://github.com/Baoliang93/GSTVQA.git', submodule_path=self.metric_path)
+        self.cfg_path = os.getcwd() + '/metrics/video_quality_assessment/nn_based/starvqa/' + cfg_path
+        self.cfg = get_cfg() # Get default config. See details in https://github.com/GZHU-DVL/StarVQA/blob/main/lib/config/defaults.py
+        if self.cfg_path is not None:
+            self.cfg.merge_from_file(self.cfg_path) # Merge from config file. See details in https://github.com/GZHU-DVL/StarVQA/blob/main/configs/Kinetics/TimeSformer_divST_8x32_224.yaml
 
+
+        
+
+        self.submodel_path = 'metrics/video_quality_assessment/nn_based/gstvqa'
+        if not submodule_exists(self.submodel_path):
+            add_git_submodule(
+                repo_url='https://github.com/GZHU-DVL/StarVQA.git', 
+                submodule_path=self.submodel_path
+            )
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.model = GSTVQA_model().to(self.device)
-        self.model.load_state_dict(torch.load(model_path))
+        self.model_name = model_name
+        assert self.model_name in ['vit_base_patch16_224','timesformer','slowfast','resnet']
+        if self.model_name == 'vit_base_patch16_224':
+            self.model = vit_base_patch16_224(
+                cfg=self.cfg,
+
+            ).to(self.device)
+        elif self.model_name == 'timesformer':
+            self.model = TimeSformer().to(self.device)
+        elif self.model_name == 'slowfast':
+            self.model = SlowFast().to(self.device)
+        elif self.model_name == 'resnet':
+            self.model = ResNet().to(self.device)
+        else:
+            raise NotImplementedError
+
+        
+        # self.model.load_state_dict(torch.load('')) # The pretrained model shared from author is out-of-date
         self.model.eval()
-        self.criterion = nn.L1Loss().to(self.device)
+        # self.criterion = nn.L1Loss().to(self.device)
 
         print(f"=====datainfo_path=====: {datainfo_path}")
         Info = h5py.File(name=datainfo_path, mode='r') # Runtime Error otherwise

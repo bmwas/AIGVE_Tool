@@ -13,9 +13,6 @@ from metrics.video_quality_assessment.nn_based.gstvqa import Test_VQADataset
 import h5py
 
 
-# DATASETS.register_module(module=Test_VQADataset, force=True)
-
-
 @DATASETS.register_module()
 class GSTVQADataset(Dataset):
     """Dataset used in GSTVQA
