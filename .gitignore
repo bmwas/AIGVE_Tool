@@ -6,4 +6,5 @@
 **/work_dirs
 
 venv
-**__pycache__**
+**/__pycache__/
+**/VGG16_cat_features_KoNViD_original_resolution*/*

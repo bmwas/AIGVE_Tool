@@ -30,12 +30,13 @@ if train_index==3:
 if train_index==4:
     datainfo_path = "data/KoNViD-1kinfo-original.mat" 
     test_index = [i for i in range(1200)]
-    model_path = "./models/training-all-data-GSTVQA-konvid-EXP0-best"
+    model_path = "metrics/video_quality_assessment/nn_based/gstvqa/GSTVQA/TCSVT_Release/GVQA_Release/GVQA_Cross/models/training-all-data-GSTVQA-konvid-EXP0-best"
     feature_path ="metrics/video_quality_assessment/nn_based/gstvqa/GSTVQA/TCSVT_Release/GVQA_Release/VGG16_mean_std_features/VGG16_cat_features_KoNViD_original_resolution/"  
+
 val_evaluator = dict(
     type=GSTVQA,
     metric_path='/metrics/video_quality_assessment/nn_based/gstvqa',
-    train_index=train_index,
+    model_path=model_path,
     datainfo_path=datainfo_path,
     test_index=test_index,
 )

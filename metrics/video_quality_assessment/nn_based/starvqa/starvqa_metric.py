@@ -8,11 +8,6 @@ import torch
 import torch.nn as nn
 import numpy as np
 
-from utils import add_git_submodule, submodule_exists
-from .GSTVQA.TCSVT_Release.GVQA_Release.GVQA_Cross.cross_test import GSTVQA as GSTVQA_model
-from scipy import stats
-import h5py
-# metric_path = '/metrics/video_quality_assessment/nn_based/gstvqa'
 
 @METRICS.register_module()
 class GSTVQA(BaseMetric):
@@ -29,8 +24,6 @@ class GSTVQA(BaseMetric):
         datainfo_path (str): the file path of the dataset
     """
 
-    default_prefix: Optional[str] = 'llm_score'
-
     def __init__(self,
                  collect_device: str = 'cpu',
                  prefix: Optional[str] = None, 
@@ -46,12 +39,8 @@ class GSTVQA(BaseMetric):
         self.model_path = model_path
         self.datainfo_path = datainfo_path
         self.test_index = test_index
-        self.submodel_path = 'metrics/video_quality_assessment/nn_based/gstvqa'
-        if not submodule_exists(self.submodel_path):
-            add_git_submodule(
-                repo_url='https://github.com/Baoliang93/GSTVQA.git', 
-                submodule_path=self.submodel_path
-            )
+        if not submodule_exists(self.metric_path):
+            add_git_submodule(repo_url='https://github.com/Baoliang93/GSTVQA.git', submodule_path=self.metric_path)
 
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.model = GSTVQA_model().to(self.device)
@@ -76,22 +65,12 @@ class GSTVQA(BaseMetric):
             data_samples (Sequence): A batch of data samples that
                 contain annotations and predictions.
         """
-        # print(f"Type of data_samples: {type(data_samples)}")
-        # print(f"Content of data_samples: {data_samples}")
 
         result = dict()
 
         features, length, label, mean_var,std_var,mean_mean,std_mean = data_samples
         # # prompt_gt = data_sample['prompt_gt'] # str
         # video_pd = data_sample['video_pd'] # torch.uint8(F, C, H, W)
-
-        features = torch.tensor(features[0]).unsqueeze(1)
-        length = torch.tensor(length[0])
-        label = torch.tensor(label[0])  # Extract the tensor if it's a single-element tuple
-        mean_var = torch.tensor(mean_var[0])
-        std_var = torch.tensor(std_var[0])
-        mean_mean = torch.tensor(mean_mean[0])
-        std_mean = torch.tensor(std_mean[0])
 
         result['y_test'] = self.scale * label.item()
 
@@ -101,14 +80,6 @@ class GSTVQA(BaseMetric):
         std_var = std_var.to(self.device).float()
         mean_mean = mean_mean.to(self.device).float()
         std_mean = std_mean.to(self.device).float()
-
-        # print(f"features shape: {features.shape}")   # torch.Size([500, 1, 2944])
-        # print(f"length shape: {length.shape}")        # torch.Size([1])
-        # print(f"labels shape: {label.shape}")        # torch.Size([1])
-        # print(f"mean_var shape: {mean_var.shape}")   # torch.Size([1472])
-        # print(f"std_var shape: {std_var.shape}")     # torch.Size([1472])
-        # print(f"mean_mean shape: {mean_mean.shape}") # torch.Size([1472])
-        # print(f"std_mean shape: {std_mean.shape}")   # torch.Size([1472])
 
         outputs = self.model(features, length.float(),mean_var,std_var,mean_mean,std_mean)
         result['y_pred'] = self.scale * outputs.item()
@@ -127,10 +98,9 @@ class GSTVQA(BaseMetric):
             Dict[str, float]: The computed metrics. The keys are the names of
             the metrics, and the values are corresponding results.
         """
-        metric_results = dict()
         logger: MMLogger = MMLogger.get_current_instance()
 
-        assert len(self.test_index) == len(results)
+        assert self.test_index == len(results)
         test_loss = sum(result.get('loss', 0) for result in results) / len(results)
         y_pred_np = np.zeros(len(self.test_index))
         y_test_np = np.zeros(len(self.test_index))
@@ -144,13 +114,3 @@ class GSTVQA(BaseMetric):
         KROCC = stats.stats.kendalltau(y_pred_np, y_test_np)[0]
         print("Test results: test loss={:.4f}, SROCC={:.4f}, KROCC={:.4f}, PLCC={:.4f}, RMSE={:.4f}"
                 .format(test_loss, SROCC, KROCC, PLCC, RMSE))
-        
-        metric_results['PLCC'] = PLCC
-        metric_results['SROCC'] = SROCC
-        metric_results['RMSE'] = RMSE
-        metric_results['KROCC'] = KROCC
-
-        return metric_results
-
-
-

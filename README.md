@@ -14,6 +14,11 @@ a Video Quality Analysis Toolkit
 ### Dataset:
 1. [Toy dataset](./configs/_base_/datasets/toy_dataset.py) 
 
+## Under progress:
+
+### Models:
+1. [StarVQA](./configs/starvqa.py)
+
 
 ## Environment
 

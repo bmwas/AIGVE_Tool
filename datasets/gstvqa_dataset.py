@@ -49,7 +49,6 @@ class GSTVQADataset(Dataset):
             feat_dim=self.feat_dim, 
             scale=self.scale
         )
-        self.dataset.__init__()
 
     def __len__(self):
         return self.dataset.__len__()
