@@ -1,5 +1,5 @@
 # Copyright (c) IFM Lab. All rights reserved.
 
-from clipscore.clipsim import CLIPSimScore
+from .clipscore import CLIPSimScore
 
 __all__ = ['CLIPSimScore']

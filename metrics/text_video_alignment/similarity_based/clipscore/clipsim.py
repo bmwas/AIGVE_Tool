@@ -49,13 +49,23 @@ class CLIPSimScore(BaseMetric):
 
         result = dict()
 
-        prompt_input, tensor_frames = data_samples
+        prompt_input, tensor_frames = data_samples  
+
+        # Ensure prompt_input is a tensor
+        if isinstance(prompt_input, tuple):
+            prompt_input = prompt_input[0]
+
         text_input = prompt_input.to(self.device)
 
         # Initialize an empty tensor to store the concatenated features
         concatenated_features = torch.tensor([], device=self.device)
         with torch.no_grad():
             for frame in tensor_frames:
+
+                # If frame is a tuple, extract the tensor. Assume tensor is the first element.
+                if isinstance(frame, tuple):
+                    frame = frame[0]
+
                 frame_input = frame.unsqueeze(0).to(self.device)  # Add batch dimension and move the frame to the device
                 frame_features = self.model.get_image_features(frame_input)
                 concatenated_features = torch.cat((concatenated_features, frame_features), dim=0)

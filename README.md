@@ -5,7 +5,11 @@ a Video Quality Analysis Toolkit
 ## Implemented:
 
 ### Models:
+#### NN based methods:
 1. [GSTVQA](./configs/gstvqa.py) 
+
+#### Text-video alignment based methods:
+1. [CLIPSim](./configs/clipsim.py) 
 
 ### Dataset:
 1. [Toy dataset](./configs/_base_/datasets/toy_dataset.py) 
@@ -54,11 +58,16 @@ python main.py {metric_config_file}.py
 
 Take Examples:
 
+For GSTVQA:
 ``
 cd VQA_Toolkit
 python main.py /home/xinhao/VQA_Toolkit/configs/gstvqa.py --work-dir ./output
 ``
 
+For CLIPSim:
+``
+python main.py /home/xinhao/VQA_Toolkit/configs/clipsim.py --work-dir ./output
+``
 
 ## To-do:
 

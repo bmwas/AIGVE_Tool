@@ -1,3 +1,3 @@
-from clipsim import CLIPSimScore
+from .clipsim import CLIPSimScore
 
 __all__ = ['CLIPSimScore']

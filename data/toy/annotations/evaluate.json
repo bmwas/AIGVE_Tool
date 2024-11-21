@@ -8,7 +8,8 @@
         [
             {
                 "prompt_gt": "A beautiful coastal beach in spring, waves lapping on sand, animated style",
-                "video_path_pd": "A beautiful coastal beach in spring, waves lapping on sand, animated style-0.mp4"
+                "video_path_pd": "A beautiful coastal beach in spring, waves lapping on sand, animated style-0.mp4",
+                "video_path_gt": "A beautiful coastal beach in spring, waves lapping on sand, animated style-0-gt.mp4"
             },
             {
                 "prompt_gt": "A beautiful coastal beach in spring, waves lapping on sand, black and white",
