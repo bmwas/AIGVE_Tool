@@ -7,3 +7,6 @@
 [submodule "data/kinetics"]
 	path = data/kinetics
 	url = https://github.com/cvdfoundation/kinetics-dataset.git
+[submodule "/home/xinhao/VQA_Toolkit/metrics/video_quality_assessment/nn_based/modular_bvqa/ModularBVQA"]
+	path = /home/xinhao/VQA_Toolkit/metrics/video_quality_assessment/nn_based/modular_bvqa/ModularBVQA
+	url = https://github.com/winwinwenwen77/ModularBVQA.git
