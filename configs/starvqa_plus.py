@@ -1,7 +1,7 @@
 # Copyright (c) IFM Lab. All rights reserved.
 from mmengine.config import read_base
 from mmengine.dataset import DefaultSampler
-from metrics.video_quality_assessment.nn_based import StarVQA
+from metrics.video_quality_assessment.nn_based import StarVQAplus
 from datasets import KineticsDataset
 
 with read_base():
@@ -15,14 +15,15 @@ val_dataloader = dict(
     sampler=dict(type=DefaultSampler, shuffle=False),
     dataset=dict(
         type=KineticsDataset,
-        cfg_path='StarVQA/configs/Kinetics/TimeSformer_divST_8x32_224.yaml',
+        cfg_path='StarVQA_PLUS/configs/Kinetics/TimeSformer_divST_8x32_224.yaml',
         mode='test',
-        num_retries=10
+        num_retries=10,
+        data_dir='StarVQA_PLUS/dataset_csv/LSVQcsv/',
     )
 )
 
 val_evaluator = dict(
-    type=StarVQA,
-    cfg_path='StarVQA/configs/Kinetics/TimeSformer_divST_8x32_224.yaml',
+    type=StarVQAplus,
+    cfg_path='StarVQA_PLUS/configs/Kinetics/TimeSformer_divST_8x32_224.yaml',
     model_name='vit_base_patch16_224',
 )

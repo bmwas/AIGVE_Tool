@@ -1,5 +1,5 @@
 # Copyright (c) IFM Lab. All rights reserved.
-# Implementing Suspended: The pretrained model shared from author is out-of-date
+
 from typing import Dict, List, Optional, Sequence, Union
 from mmengine.evaluator import BaseMetric
 from core.registry import METRICS
@@ -16,8 +16,8 @@ from .StarVQA.lib.models import ResNet, SlowFast
 from .StarVQA.lib.models.vit import vit_base_patch16_224, TimeSformer
 
 @METRICS.register_module()
-class StarVQA(BaseMetric):
-    """The StarVQA evaluation metric. https://arxiv.org/pdf/2108.09635
+class StarVQAplus(BaseMetric):
+    """The StarVQAplus evaluation metric. https://arxiv.org/pdf/2306.12298
     
     Args:
         collect_device (str): Device used for collecting results from workers.
@@ -25,11 +25,8 @@ class StarVQA(BaseMetric):
         prefix (str, optional): The prefix that will be added in the metric
             names to disambiguate homonymous metrics of different evaluators.
             Default: None.
-        metric_path (str): the file path of the metric 
-        train_index (int): The specific model used. Details on: https://github.com/Baoliang93/GSTVQA/blob/main/TCSVT_Release/GVQA_Release/GVQA_Cross/cross_test.py#L162
-        datainfo_path (str): the file path of the dataset
 
-    Details: https://github.com/GZHU-DVL/StarVQA/blob/main/tools/test_net.py
+    Details: https://github.com/GZHU-DVL/CoSTA/blob/main/tools/test_net.py
     """
 
     def __init__(self,
@@ -40,17 +37,17 @@ class StarVQA(BaseMetric):
                  ) -> None:
         super().__init__(collect_device=collect_device, prefix=prefix)
         self.cfg_path = os.getcwd() + '/metrics/video_quality_assessment/nn_based/starvqa/' + cfg_path
-        self.cfg = get_cfg() # Get default config. See details in https://github.com/GZHU-DVL/StarVQA/blob/main/lib/config/defaults.py
+        self.cfg = get_cfg() # Get default config. See details in https://github.com/GZHU-DVL/CoSTA/blob/main/build/lib/lib/config/defaults.py
         if self.cfg_path is not None:
-            self.cfg.merge_from_file(self.cfg_path) # Merge from config file. See details in https://github.com/GZHU-DVL/StarVQA/blob/main/configs/Kinetics/TimeSformer_divST_8x32_224.yaml
+            self.cfg.merge_from_file(self.cfg_path) # Merge from config file. See details in https://github.com/GZHU-DVL/CoSTA/blob/main/configs/Kinetics/TimeSformer_divST_8x32_224.yaml
 
 
         
 
-        self.submodel_path = 'metrics/video_quality_assessment/nn_based/gstvqa'
+        self.submodel_path = 'metrics/video_quality_assessment/nn_based/starvqa_plus'
         if not submodule_exists(self.submodel_path):
             add_git_submodule(
-                repo_url='https://github.com/GZHU-DVL/StarVQA.git', 
+                repo_url='https://github.com/GZHU-DVL/CoSTA.git', 
                 submodule_path=self.submodel_path
             )
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")

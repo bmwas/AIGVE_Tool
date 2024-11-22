@@ -13,20 +13,25 @@ a Video Quality Analysis Toolkit
 
 ### Dataset:
 1. [Toy dataset](./configs/_base_/datasets/toy_dataset.py) 
-2. [Kinetics dataset]() 
+
 
 ## Under progress:
 
 ### Models:
 
 
+
 ### Dataset:
+
+
 
 
 ## Implementing Suspended: 
 
 ### Models:
-1. [StarVQA](./configs/starvqa.py): The pretrained model shared from author is out-of-date
+1. [StarVQA](./configs/starvqa.py): The pretrained model shared from author is out-of-date.
+
+2. [StarVQA_plus](./configs/starvqa.py): need [Kinetics]() (60 GB for test split) and [LSVQ]() (need request from author) dataset. 
 
 ### Dataset:
 
@@ -66,6 +71,12 @@ The loop generally consists of two parts: Dataloader and Evaluator. Inheritted f
 #### 2.3 Implement the metric config files in `\config` folder. (Example: [gstvqa_dataset](./configs/gstvqa.py)) 
 
 ### 3. Finally, don't forget to add any new modules in its corresponding n`__init__.py` files.
+
+### Useful operations:
+
+``
+git submodule add <github-repository-url> <folder-name>
+``
 
 ## Run:
 ``
