@@ -7,6 +7,8 @@ from mmengine.config import Config, DictAction
 from mmengine.logging import print_log
 from mmengine.registry import RUNNERS
 from mmengine.runner import Runner
+# from mmengine.registry import RUNNERS
+
 
 def parse_args():
     parser = argparse.ArgumentParser(description="VQA Toolkit")
@@ -18,6 +20,7 @@ def parse_args():
 def main():
     args = parse_args()
 
+    print("CFG: ", args.config)
     # load config
     cfg = Config.fromfile(args.config)
 
