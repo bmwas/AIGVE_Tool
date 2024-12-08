@@ -5,4 +5,4 @@ from .clipsim_dataset import CLIPSimDataset
 from .kinetics_dataset import KineticsDataset
 from .konvid_1k_dataset import KONVID1KDataset_ModularBVQA
 
-__all__ = ['ToyDataset', 'GSTVQADataset', 'CLIPSimDataset', 'KineticsDataset', 'KONVID1KDataset_ModularBVQA']
+__all__ = ['ToyDataset', 'GSTVQADataset', 'CLIPSimDataset', 'KineticsDataset', 'KONVID1KDataset_ModularBVQA', 'VideoPhyDataset']
