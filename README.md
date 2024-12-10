@@ -7,6 +7,7 @@ a Video Quality Analysis Toolkit
 ### Models:
 #### NN based methods:
 1. [GSTVQA](./configs/gstvqa.py) 
+2. [ModularBVQA]()
 
 #### Text-video alignment based methods:
 1. [CLIPSim](./configs/clipsim.py) 
@@ -18,10 +19,13 @@ a Video Quality Analysis Toolkit
 ## Under progress:
 
 ### Models:
-
+1. [StarVQA](./configs/starvqa.py)
+2. [StarVQA_plus](./configs/starvqa.py)
 
 
 ### Dataset:
+1. [KoNViD-1k](https://database.mmsp-kn.de/konvid-1k-database.html): 2.3GB
+2. [Kinetics](https://github.com/cvdfoundation/kinetics-dataset): 63GB
 
 
 
@@ -31,7 +35,7 @@ a Video Quality Analysis Toolkit
 ### Models:
 1. [StarVQA](./configs/starvqa.py): The pretrained model shared from author is out-of-date.
 
-2. [StarVQA_plus](./configs/starvqa.py): need [Kinetics]() (60 GB for test split) and [LSVQ]() (need request from author) dataset. 
+2. [StarVQA_plus](./configs/starvqa.py): need [Kinetics]() (63 GB for test split) and [LSVQ](https://github.com/baidut/PatchVQ) (need request from author) dataset. 
 
 ### Dataset:
 
@@ -109,4 +113,5 @@ The Toolkit is build top the top of [MMEngine](https://github.com/open-mmlab/mme
 We acknowledge original repositories of various VQA methods:
 [GSTVQA](https://github.com/Baoliang93/GSTVQA),
 [CLIPSim](https://github.com/zhengxu-1997/),
+[ModularBVQA](https://github.com/winwinwenwen77/ModularBVQA),
 <!-- [StarVQA](https://github.com/GZHU-DVL/StarVQA) -->
