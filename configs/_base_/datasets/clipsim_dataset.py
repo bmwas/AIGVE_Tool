@@ -5,15 +5,15 @@ from datasets import CLIPSimDataset
 
 
 val_dataloader = dict(
-    batch_size=1,
+    batch_size=4,
     num_workers=2,
     persistent_workers=True,
     drop_last=False,
     sampler=dict(type=DefaultSampler, shuffle=False),
     dataset=dict(
         type=CLIPSimDataset,
-        tokenizer_name='openai/clip-vit-base-patch32',
-        video_dir='/storage/drive_1/zizhong/vqa_toolkit/VQA_Toolkit-main/data/toy/evaluate/',
-        prompt_dir='/storage/drive_1/zizhong/vqa_toolkit/VQA_Toolkit-main/data/toy/annotations/evaluate.json',
+        processor_name='openai/clip-vit-base-patch32',
+        video_dir='/home/exouser/VQA_tool/VQA_Toolkit/data/toy/evaluate/',
+        prompt_dir='/home/exouser/VQA_tool/VQA_Toolkit/data/toy/annotations/evaluate.json',
     )
 )
