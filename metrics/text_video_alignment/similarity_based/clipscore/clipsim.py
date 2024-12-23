@@ -9,7 +9,7 @@ import numpy as np
 
 from core.registry import METRICS
 from typing import Dict, Optional, Sequence, Union
-from transformers import CLIPProcessor, CLIPModel
+from transformers import AutoProcessor, CLIPModel
 
 from mmengine.evaluator import BaseMetric
 from mmengine.logging import MMLogger
@@ -21,15 +21,18 @@ class CLIPSimScore(BaseMetric):
     """
     """
     def __init__(self,
+                 processor_name: str = "openai/clip-vit-base-patch32",
                  model_name: str = "openai/clip-vit-base-patch32",
-                 test_index: int = None,
+                 logit_scale: bool = False,
                 #  train_index: int = 4
                  ) -> None:
         super().__init__()
+        self.processor_name = processor_name
         self.model_name = model_name
-        self.test_index = test_index
+        self.logit_scale = logit_scale
 
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.processor = AutoProcessor.from_pretrained(self.processor_name)
         self.model = CLIPModel.from_pretrained(self.model_name).to(self.device)
         self.model.eval()
 
@@ -49,37 +52,38 @@ class CLIPSimScore(BaseMetric):
 
         result = dict()
 
-        prompt_input, tensor_frames = data_samples  
+        input_prompts, input_videos = data_samples
+        bsz = len(input_prompts)
 
         # Ensure prompt_input is a tensor
-        if isinstance(prompt_input, tuple):
-            prompt_input = prompt_input[0]
-
-        text_input = prompt_input.to(self.device)
-
-        # Initialize an empty tensor to store the concatenated features
-        concatenated_features = torch.tensor([], device=self.device)
+        if isinstance(input_prompts, tuple):
+            input_prompts = list(input_prompts)
+        
+        if isinstance(input_videos, tuple):
+            input_videos = list(input_videos)
+        
+        # Initialize an empty list to store each similarity score
+        clip_score_sum, clip_score_cnt = 0, 0
+        logit_scale = self.model.logit_scale.exp() if self.logit_scale else 1
         with torch.no_grad():
-            for frame in tensor_frames:
+            for input_prompt, input_frames in zip(input_prompts, input_videos):
+                input_prompt = input_prompt.to(self.device)
+                text_feature = self.model.get_text_features(input_prompt) # [bsz, hid_dim]
+                text_feature = text_feature / torch.norm(text_feature, dim=-1, keepdim=True)
 
-                # If frame is a tuple, extract the tensor. Assume tensor is the first element.
-                if isinstance(frame, tuple):
-                    frame = frame[0]
+                input_frames = input_frames.to(self.device)  # Add batch dimension and move the frame to the device
+                frame_feature = self.model.get_image_features(input_frames)
+                frame_feature = frame_feature / torch.norm(frame_feature, dim=-1, keepdim=True)
 
-                frame_input = frame.unsqueeze(0).to(self.device)  # Add batch dimension and move the frame to the device
-                frame_features = self.model.get_image_features(frame_input)
-                concatenated_features = torch.cat((concatenated_features, frame_features), dim=0)
+                clip_score = logit_scale * (frame_feature @ text_feature.T).mean().item()
+                print('current clip similarity score', clip_score)
+                clip_score_sum += clip_score
+                clip_score_cnt += 1
 
-        with torch.no_grad():
-            text_features = self.model.get_text_features(text_input)
-
-        concatenated_features = concatenated_features / concatenated_features.norm(p=2, dim=-1, keepdim=True)
-        text_features = text_features / text_features.norm(p=2, dim=-1, keepdim=True)
-        clip_score_frames = concatenated_features @ text_features.T
-        # Calculate the average CLIP score across all frames, reflects temporal consistency 
-        clip_score_frames_avg = clip_score_frames.mean().item()
+        # Calculate the average CLIP score across all frames
+        clip_score_videos_avg = clip_score_sum/clip_score_cnt
        
-        result['clip_sim_score'] = clip_score_frames_avg
+        result['clip_sim_score'] = clip_score_videos_avg
 
         self.results.append(result)
 
@@ -105,6 +109,4 @@ class CLIPSimScore(BaseMetric):
         print("Test results: clip similarity score={:.4f}"
               .format(clip_sim_mean))
 
-
-
-
+        return result
