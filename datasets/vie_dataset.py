@@ -13,9 +13,9 @@ os.environ["OPENAI_API_KEY"] = ''
 import cv2
 import json
 from torch.utils.data import Dataset
-# from core.registry import DATASETS
+from core.registry import DATASETS
 
-# @DATASETS.register_module()
+@DATASETS.register_module()
 class VIEDataset(Dataset):
     def __init__(self, video_dir, prompt_dir):
         super(VIEDataset, self).__init__()
