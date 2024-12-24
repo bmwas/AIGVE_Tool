@@ -8,7 +8,7 @@ LAST_SCRIPT_DIR = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
 sys.path.append(os.path.dirname(SCRIPT_DIR))
 sys.path.append(os.path.dirname(LAST_SCRIPT_DIR))
 
-os.environ["OPENAI_API_KEY"] = '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'
+os.environ["OPENAI_API_KEY"] = ''
 
 import cv2
 import json
