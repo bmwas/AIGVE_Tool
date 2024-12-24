@@ -1,0 +1,118 @@
+# encoding = utf-8
+import os
+import sys
+
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+LAST_SCRIPT_DIR = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
+sys.path.append(os.path.dirname(SCRIPT_DIR))
+sys.path.append(os.path.dirname(LAST_SCRIPT_DIR))
+
+import torch
+import numpy as np
+from core.registry import METRICS
+from VIESCORE.viescore import VIEScore
+from PIL import Image
+from typing import Sequence, Dict
+
+from mmengine.evaluator import BaseMetric
+from mmengine.logging import MMLogger
+
+from metrics.text_video_alignment.gpt_based.dsg.DSG.dsg.openai_utils import openai_completion
+from metrics.text_video_alignment.gpt_based.TIFA.tifa.tifascore import get_question_and_answers, filter_question_and_answers, UnifiedQAModel, tifa_score_single, VQAModel
+
+@METRICS.register_module()
+class VIEEvalScore(BaseMetric):
+    '''
+    '''
+    def __init__(self,
+                 llm_backbone: str = "gpt4o",
+                 api_key_path: str = '/home/exouser/VQA_tool/VQA_Toolkit/metrics/text_video_alignment/gpt_based/VIE/api_key.txt',
+                 task: str = 't2v',
+                 ):
+        super().__init__()
+        
+        self.api_key_path = api_key_path
+        self.llm_backbone = llm_backbone
+        self.task = task
+        
+        self.vie_score = VIEScore(backbone=self.llm_backbone, task=self.task, key_path=self.api_key_path)
+        
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    
+    def process(self, data_batch: Sequence, data_samples: Sequence) -> None:
+        """VIEScore process
+        Process one batch of data samples and predictions. The processed
+        results should be stored in ``self.results``, which will be used to
+        compute the metrics when all batches have been processed.
+
+        Args:
+            data_batch (Sequence): A batch of data from the dataloader.
+            data_samples (Sequence): A batch of data samples that
+                contain annotations and predictions.
+        """
+
+        result = dict()
+
+        input_prompts, input_videos = data_samples
+        bsz = len(input_prompts)
+
+        # Ensure prompt_input is a tensor
+        if isinstance(input_prompts, tuple):
+            input_qid_lists = list(input_qid_lists)
+        
+        if isinstance(input_videos, tuple):
+            input_videos = list(input_videos)
+        
+        average_vie_score_list = []
+        for input_prompt, input_video in zip(input_prompts, input_videos):
+            vie_score = []
+            for index, frame_path in enumerate(input_video):
+                pil_image = Image.open(frame_path)
+                score_list = vie_score.evaluate(pil_image, input_prompt)
+                sementics_score, quality_score, overall_score = score_list
+                vie_score.append(overall_score)
+            average_vie_score = sum(vie_score)/len(vie_score)
+            average_vie_score_list.append(average_vie_score)
+    
+        result['vie_score'] = sum(average_vie_score_list)/len(average_vie_score_list)
+
+        self.results.append(result)
+
+
+    def compute_metrics(self, results: list) -> Dict[str, float]:
+        """Compute the metrics from processed results.
+
+        Args:
+            results (list): The processed results of each batch.
+
+        Returns:
+            Dict[str, float]: The computed metrics. The keys are the names of
+            the metrics, and the values are corresponding results.
+        """
+        logger: MMLogger = MMLogger.get_current_instance()
+
+        vie_score_np = np.zeros(len(results))
+        for i, result in enumerate(results):
+            vie_score_np[i] = result['vie_score']
+        
+        vie_score_np_mean = np.mean(vie_score_np) 
+
+        print("Test results: vie score with dependency={:.4f}"
+              .format(vie_score_np_mean))
+
+        return result
+
+
+# backbone = "gpt4o"
+# key_path = '/home/exouser/VQA_tool/VQA_Toolkit/metrics/text_video_alignment/gpt_based/VIE/api_key.txt'
+# vie_score = VIEScore(backbone=backbone, task="t2v", key_path=key_path)
+
+# text_prompt = 'A beautiful coastal beach in spring, waves lapping on sand, animated style'
+# image_dir = '/home/exouser/VQA_tool/VQA_Toolkit/data/toy/evaluate/A beautiful coastal beach in spring, waves lapping on sand, animated style-0/0.jpg'
+
+# pil_image = Image.open(image_dir)
+
+# score_list = vie_score.evaluate(pil_image, text_prompt)
+# sementics_score, quality_score, overall_score = score_list
+# print(score_list)
