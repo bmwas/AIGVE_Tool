@@ -2,6 +2,13 @@
 # code based on: https://github.com/j-min/DSG/tree/main
 
 import os
+import sys
+
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+LAST_SCRIPT_DIR = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
+sys.path.append(os.path.dirname(SCRIPT_DIR))
+sys.path.append(os.path.dirname(LAST_SCRIPT_DIR))
+
 import torch
 import cv2
 import time
@@ -18,21 +25,23 @@ from mmengine.evaluator import BaseMetric
 from mmengine.logging import MMLogger
 from tqdm import tqdm
 
-from DSG.dsg.query_utils import generate_dsg
-from DSG.dsg.parse_utils import parse_tuple_output, parse_dependency_output, parse_question_output
-from DSG.dsg.vqa_utils import MPLUG, InstructBLIP
+from metrics.text_video_alignment.gpt_based.dsg.DSG.dsg.vqa_utils import MPLUG, InstructBLIP
 
 @METRICS.register_module()
 class DSGScore(BaseMetric):
     '''
     '''
     def __init__(self, 
-                 vqa_model: str = "InstructBLIP",
+                 vqa_model_name: str = "InstructBLIP",
                  verbose: bool = False):
         super().__init__()
         
-        self.vqa_model = vqa_model
-        assert self.vqa_model in ["InstructBLIP", "MPLUG"]
+        self.vqa_model_name = vqa_model_name
+        assert self.vqa_model_name in ["InstructBLIP", "MPLUG"]
+        if self.vqa_model_name == 'InstructBLIP':
+            self.vqa_model = InstructBLIP()
+        else:
+            self.vqa_model = MPLUG()
 
         self.verbose = verbose
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -69,10 +78,13 @@ class DSGScore(BaseMetric):
         qid2validity = {}
         qid2scores_after_filtering = deepcopy(qid2scores)
 
+        # print('qid2scores', qid2scores)
+        # print('qid2dependency', qid2dependency)
         for id, parent_ids in qid2dependency.items():
             # zero-out scores if parent questions are answered 'no'
             any_parent_answered_no = False
             for parent_id in parent_ids:
+                parent_id = list(parent_id)[0]
                 if parent_id == 0:
                     continue
                 if qid2scores[parent_id] == 0:
@@ -116,7 +128,7 @@ class DSGScore(BaseMetric):
 
     
     def process(self, data_batch: Sequence, data_samples: Sequence) -> None:
-        """CLIPSimScore process
+        """DSGScore process
         Process one batch of data samples and predictions. The processed
         results should be stored in ``self.results``, which will be used to
         compute the metrics when all batches have been processed.
@@ -131,6 +143,7 @@ class DSGScore(BaseMetric):
 
         input_qid_lists, input_videos = data_samples
         bsz = len(input_qid_lists)
+        # print('input_qid_lists: ', input_qid_lists)
 
         # Ensure prompt_input is a tensor
         if isinstance(input_qid_lists, tuple):
@@ -140,10 +153,11 @@ class DSGScore(BaseMetric):
             input_videos = list(input_videos)
         
         average_dep_score_list, average_wo_dep_score_list = [], []
-        for input_qid_list, input_video in zip(input_qid_lists, input_videos):
+        for input_qid_list, input_video in zip([input_qid_lists], input_videos):
             evaluate_dict_list = []
             dep_score, wo_dep_score = [], []
             for index, frame in enumerate(input_video):
+                # print('input_qid_list: ', input_qid_list)
                 evaluate_dict = self.evaluate_image_dsg(qid_list=input_qid_list, 
                                                         frame_index=index, 
                                                         frame=frame)
