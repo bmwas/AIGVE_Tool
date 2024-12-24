@@ -10,15 +10,13 @@ sys.path.append(os.path.dirname(LAST_SCRIPT_DIR))
 import torch
 import numpy as np
 from core.registry import METRICS
-from VIESCORE.viescore import VIEScore
 from PIL import Image
 from typing import Sequence, Dict
 
 from mmengine.evaluator import BaseMetric
 from mmengine.logging import MMLogger
 
-from metrics.text_video_alignment.gpt_based.dsg.DSG.dsg.openai_utils import openai_completion
-from metrics.text_video_alignment.gpt_based.TIFA.tifa.tifascore import get_question_and_answers, filter_question_and_answers, UnifiedQAModel, tifa_score_single, VQAModel
+from metrics.text_video_alignment.gpt_based.VIE.VIESCORE.viescore import VIEScore
 
 @METRICS.register_module()
 class VIEEvalScore(BaseMetric):
@@ -59,20 +57,20 @@ class VIEEvalScore(BaseMetric):
 
         # Ensure prompt_input is a tensor
         if isinstance(input_prompts, tuple):
-            input_qid_lists = list(input_qid_lists)
+            input_prompts = list(input_prompts)
         
         if isinstance(input_videos, tuple):
             input_videos = list(input_videos)
         
         average_vie_score_list = []
         for input_prompt, input_video in zip(input_prompts, input_videos):
-            vie_score = []
+            vie_score_list = []
             for index, frame_path in enumerate(input_video):
                 pil_image = Image.open(frame_path)
-                score_list = vie_score.evaluate(pil_image, input_prompt)
+                score_list = self.vie_score.evaluate(pil_image, input_prompt)
                 sementics_score, quality_score, overall_score = score_list
-                vie_score.append(overall_score)
-            average_vie_score = sum(vie_score)/len(vie_score)
+                vie_score_list.append(overall_score)
+            average_vie_score = sum(vie_score_list)/len(vie_score_list)
             average_vie_score_list.append(average_vie_score)
     
         result['vie_score'] = sum(average_vie_score_list)/len(average_vie_score_list)
@@ -102,17 +100,3 @@ class VIEEvalScore(BaseMetric):
               .format(vie_score_np_mean))
 
         return result
-
-
-# backbone = "gpt4o"
-# key_path = '/home/exouser/VQA_tool/VQA_Toolkit/metrics/text_video_alignment/gpt_based/VIE/api_key.txt'
-# vie_score = VIEScore(backbone=backbone, task="t2v", key_path=key_path)
-
-# text_prompt = 'A beautiful coastal beach in spring, waves lapping on sand, animated style'
-# image_dir = '/home/exouser/VQA_tool/VQA_Toolkit/data/toy/evaluate/A beautiful coastal beach in spring, waves lapping on sand, animated style-0/0.jpg'
-
-# pil_image = Image.open(image_dir)
-
-# score_list = vie_score.evaluate(pil_image, text_prompt)
-# sementics_score, quality_score, overall_score = score_list
-# print(score_list)
