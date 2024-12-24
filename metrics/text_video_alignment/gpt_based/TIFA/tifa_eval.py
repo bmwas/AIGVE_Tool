@@ -2,6 +2,7 @@
 # code based on: https://github.com/j-min/DSG/tree/main
 
 import os
+os.environ["OPENAI_API_KEY"] = ''
 import torch
 import cv2
 import time
@@ -26,14 +27,16 @@ class TIFAScore(BaseMetric):
     def __init__(self, 
                  openai_key,
                  llm_model: str = 'gpt-3.5-turbo',
-                 unifiedqa_model: str = 'allenai/unifiedqa-v2-t5-large-1363200',
-                 vqa_model: str = 'mplug-large'):
+                 unifiedqa_model_name: str = 'allenai/unifiedqa-v2-t5-large-1363200',
+                 vqa_model_name: str = 'mplug-large'):
         super().__init__()
         
         self.openai_key = openai_key
         self.llm_model = llm_model
-        self.unifiedqa_model = unifiedqa_model
-        self.vqa_model = vqa_model
+        self.unifiedqa_model_name = unifiedqa_model_name
+        self.unifiedqa_model = UnifiedQAModel(self.unifiedqa_model_name)
+        self.vqa_model_name = vqa_model_name
+        self.vqa_model = VQAModel(self.vqa_model_name)
         
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -53,7 +56,7 @@ class TIFAScore(BaseMetric):
 
     
     def process(self, data_batch: Sequence, data_samples: Sequence) -> None:
-        """CLIPSimScore process
+        """TIFAScore process
         Process one batch of data samples and predictions. The processed
         results should be stored in ``self.results``, which will be used to
         compute the metrics when all batches have been processed.
@@ -71,7 +74,7 @@ class TIFAScore(BaseMetric):
 
         # Ensure prompt_input is a tensor
         if isinstance(input_prompts, tuple):
-            input_qid_lists = list(input_qid_lists)
+            input_prompts = list(input_prompts)
         
         if isinstance(input_videos, tuple):
             input_videos = list(input_videos)
@@ -79,14 +82,16 @@ class TIFAScore(BaseMetric):
         average_tifa_score_list = []
         for input_prompt, input_video in zip(input_prompts, input_videos):
             tifa_score = []
+            # Generate questions with GPT-3.5-turbo
+            gpt3_questions = get_question_and_answers(input_prompt)
+            # print(gpt3_questions)
+            # Filter questions with UnifiedQA
+            filtered_questions = filter_question_and_answers(self.unifiedqa_model, gpt3_questions)
             for index, frame_path in enumerate(input_video):
-                # Generate questions with GPT-3.5-turbo
-                gpt3_questions = get_question_and_answers(input_prompt)
-                # Filter questions with UnifiedQA
-                filtered_questions = filter_question_and_answers(self.unifiedqa_model, gpt3_questions)
                 # calucluate TIFA score
                 result = tifa_score_single(self.vqa_model, filtered_questions, frame_path)
-                tifa_score.append(result)
+                # print(result)
+                tifa_score.append(result['tifa_score'])
             average_tifa_score = sum(tifa_score)/len(tifa_score)
             average_tifa_score_list.append(average_tifa_score)
     
@@ -113,8 +118,7 @@ class TIFAScore(BaseMetric):
         
         tifa_score_np_mean = np.mean(tifa_score_np) 
 
-        print("Test results: tifa score with dependency={:.4f}"
+        print("Test results: tifa score={:.4f}"
               .format(tifa_score_np_mean))
 
         return result
-
