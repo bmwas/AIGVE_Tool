@@ -1,6 +1,8 @@
 # Copyright (c) IFM Lab. All rights reserved.
 
-from .llm_score import LLMScore
+from .dsg import DSGScore
+from .TIFA import TIFAScore
+from .VIE import VIEEvalScore
 
 
-__all__ = ['LLMScore']
+__all__ = ['DSGScore', 'TIFAScore', 'VIEEvalScore']
