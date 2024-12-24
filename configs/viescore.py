@@ -1,9 +1,10 @@
 # Copyright (c) IFM Lab. All rights reserved.
 from mmengine.config import read_base
+from mmengine.dataset.sampler import DefaultSampler
 from metrics.text_video_alignment.gpt_based import VIEEvalScore
 
 with read_base():
-    from ._base_.datasets.viescore_dataset import *
+    from ._base_.datasets.viescore_dataset import VIEDataset
     from ._base_.default import *
 
 val_evaluator = dict(
