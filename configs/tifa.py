@@ -6,10 +6,9 @@ with read_base():
     from ._base_.datasets.tifa_dataset import *
     from ._base_.default import *
 
-openai_key = ''
-
 val_evaluator = dict(
     type=TIFAScore,
+    openai_key = '',
 )
 
 val_dataloader = dict(
