@@ -44,9 +44,19 @@ class VideoPhyDataset(Dataset):
             self.processor = MplugOwlProcessor(self.image_processor, self.tokenizer)
 
     def __len__(self):
+        """
+        Returns:
+            int: Length of the dataset
+        """
         return self.dataset['metainfo']['length']
 
     def __getitem__(self, idx):
+        """
+        Args:
+            idx (int): Index of the dataset
+        Returns:
+            dict: Dictionary containing the video, text, video path and caption
+        """
         data = self.dataset['dataset_list'][idx]
         videopath = os.path.join(self.video_root_path, data['video_path_pd'])
         caption = data['prompt_gt']
@@ -57,6 +67,13 @@ class VideoPhyDataset(Dataset):
         return item
 
     def _extract_text_token_from_conversation(self, data, max_length, index):
+        """
+        Extracts the text tokens from the conversation
+        Args:
+            data (str): Conversation
+            max_length (int): Maximum length of the input sequence
+            index (int): Index of the dataset
+        """
         # output enc_chunk
         enc_chunk = []
 

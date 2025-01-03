@@ -28,9 +28,20 @@ class VideoPhy(BaseMetric):
                 datainfo_path: str = None,
                 test_index: int = None,
                  **kwargs):
+
+        """
+        This function is used to initialize the VideoPhy metric
+        Args:
+            collect_device (str or torch.device): The device to use for collecting the data
+            prefix (str): The prefix to use for the metric name
+            metric_path (str): The path to the metric
+            model_path (str): The path to the model
+            datainfo_path (str): The path to the data info
+            test_index (int): The index of the test
+        """
+
         super().__init__(collect_device=collect_device, prefix=prefix)
         # self.train_index = train_index
-        # TODO: ARE THERE PARAMETERS REQUIRED FOR THIS METRIC?
         self.metric_path = metric_path
         self.model_path = model_path
         self.datainfo_path = datainfo_path
@@ -55,6 +66,12 @@ class VideoPhy(BaseMetric):
         self.model.eval()
 
     def get_entail(self, logits, input_ids):
+        """
+        This function is used to get the entailment scores
+        Args:
+            logits (torch.Tensor): A tensor containing the logits
+            input_ids (torch.Tensor): A tensor containing the input IDs
+        """
         softmax = nn.Softmax(dim=2)
         logits = softmax(logits)
         token_id_yes = self.tokenizer.encode('Yes', add_special_tokens=False)[0]
@@ -116,8 +133,11 @@ class VideoPhy(BaseMetric):
 
 
     def compute_metrics(self, results: list) -> dict:
-        # print("Results: ", results)
-        # print("Self results: ", self.results)
+        """
+        This function is used to compute the metrics
+        Args:
+            results (list): A list of results
+        """
         return {
             'entailment': float(np.mean(results))
         }

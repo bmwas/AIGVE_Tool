@@ -22,9 +22,16 @@ class VideoScore(BaseMetric):
                 model_path: str = 'TIGER-Lab/VideoScore-v1.1',
                 datainfo_path: str = None,
                 test_index: int = None,
-                regression_query_prompt: str = None,
-                max_num_frames: int = None,
                  **kwargs):
+        """
+        Args:
+            collect_device (Optional[Union[str, torch.device]]): The device to collect the data on.
+            prefix (Optional[str]): The prefix to use for the metric.
+            metric_path (str): The path to the metric file.
+            model_path (str): The path to the model file.
+            datainfo_path (str): The path to the datainfo file.
+            test_index (int): The index of the test data.
+        """
         super().__init__(collect_device=collect_device, prefix=prefix)
         # self.train_index = train_index
         # TODO: ARE THERE PARAMETERS REQUIRED FOR THIS METRIC?
@@ -33,37 +40,48 @@ class VideoScore(BaseMetric):
         self.datainfo_path = datainfo_path
         self.test_index = test_index
 
-        if regression_query_prompt is not None:
-            self.regression_query_prompt = regression_query_prompt
-        else:
-            self.regression_query_prompt = '''
-                Suppose you are an expert in judging and evaluating the quality of AI-generated videos,
-                please watch the following frames of a given video and see the text prompt for generating the video,
-                then give scores from 5 different dimensions:
-                (1) visual quality: the quality of the video in terms of clearness, resolution, brightness, and color
-                (2) temporal consistency, both the consistency of objects or humans and the smoothness of motion or movements
-                (3) dynamic degree, the degree of dynamic changes
-                (4) text-to-video alignment, the alignment between the text prompt and the video content
-                (5) factual consistency, the consistency of the video content with the common-sense and factual knowledge
-                for each dimension, output a float number from 1.0 to 4.0,
-                the higher the number is, the better the video performs in that sub-score, 
-                the lowest 1.0 means Bad, the highest 4.0 means Perfect/Real (the video is like a real video)
-                Here is an output example:
-                visual quality: 3.2
-                temporal consistency: 2.7
-                dynamic degree: 4.0
-                text-to-video alignment: 2.3
-                factual consistency: 1.8
-                For this video, the text prompt is "{text_prompt}",
-                all the frames of video are as follows:
-            '''
-        if max_num_frames is not None:
-            self.max_num_frames = max_num_frames
-        else:
-            self.max_num_frames = 48
 
         self.model = Idefics2ForSequenceClassification.from_pretrained(self.model_path, torch_dtype=torch.bfloat16).eval()
         self.device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
         self.model.to(self.device)
 
         self.results = []
+
+    def process(self, data_batch: Any, data_samples: Sequence[dict]) -> None:
+        """
+        Args:
+            data_batch (Any): The data batch to process.
+            data_samples (Sequence[dict]): The data samples to process.
+        """
+
+
+        data_batch = {k: v[0].to(self.model.device) for k, v in data_batch.items()}
+
+        with torch.no_grad():
+            outputs = self.model(**data_batch)
+
+        logits = outputs.logits.cpu().detach().to(torch.float32).numpy()
+        num_aspects = logits.shape[-1]
+
+        aspect_scores = []
+        for i in range(num_aspects):
+            aspect_scores.append(round(logits[0, i].item(), 3))
+
+        self.results.append(aspect_scores)
+
+    def compute_metrics(self, results: list) -> dict:
+        """
+        Args:
+            results (list): The results to compute the metrics from.
+        """
+        results = np.array(results)
+        mean_scores = np.mean(results, axis=1)
+
+        return {'visual_quailty': results[:, 0].tolist(),
+                'temporal_consistency': results[:, 1].tolist(),
+                'dynamic_degree': results[:, 2].tolist(),
+                'text-to-video_alignment': results[:, 3].tolist(),
+                'factual_consistency': results[:, 4].tolist(),
+                'summary': {'visual_quality': mean_scores[0], 'temporal_consistency': mean_scores[1],
+                            'dynamic_degree': mean_scores[2], 'text-to-video_alignment': mean_scores[3],
+                            'factual_consistency': mean_scores[4]}}
