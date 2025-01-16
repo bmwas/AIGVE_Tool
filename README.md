@@ -8,6 +8,8 @@ a Video Quality Analysis Toolkit
 #### NN based methods:
 1. [GSTVQA](./configs/gstvqa.py) 
 2. [ModularBVQA]()
+3. [VideoPhy]()
+4. [FID]()
 
 #### Text-video alignment based methods:
 1. [CLIPSim](./configs/clipsim.py) 
@@ -96,6 +98,11 @@ python main.py /home/xinhao/VQA_Toolkit/configs/gstvqa.py --work-dir ./output
 ``
 
 For CLIPSim:
+``
+python main.py /home/xinhao/VQA_Toolkit/configs/clipsim.py --work-dir ./output
+``
+
+For VideoPhy:
 ``
 python main.py /home/xinhao/VQA_Toolkit/configs/clipsim.py --work-dir ./output
 ``
