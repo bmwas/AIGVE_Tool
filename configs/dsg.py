@@ -1,18 +1,27 @@
 # Copyright (c) IFM Lab. All rights reserved.
+from mmengine.config import read_base
+from metrics.text_video_alignment.gpt_based import DSGScore
 
-from mmengine.dataset.sampler import DefaultSampler
-from datasets import CLIPSimDataset
+with read_base():
+    from ._base_.datasets.dsg_dataset import *
+    from ._base_.default import *
 
+openai_key = ''
+
+val_evaluator = dict(
+    type=DSGScore,
+    vqa_model_name = "InstructBLIP",
+)
 
 val_dataloader = dict(
-    batch_size=4,
+    batch_size=1, 
     num_workers=2,
     persistent_workers=True,
     drop_last=False,
     sampler=dict(type=DefaultSampler, shuffle=False),
     dataset=dict(
-        type=CLIPSimDataset,
-        processor_name='openai/clip-vit-base-patch32',
+        type=DSGDataset,
+        openai_key=openai_key,
         video_dir='/home/exouser/VQA_tool/VQA_Toolkit/data/toy/evaluate/',
         prompt_dir='/home/exouser/VQA_tool/VQA_Toolkit/data/toy/annotations/evaluate.json',
     )

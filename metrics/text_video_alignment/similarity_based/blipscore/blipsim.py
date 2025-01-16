@@ -9,7 +9,7 @@ import numpy as np
 
 from core.registry import METRICS
 from typing import Dict, Optional, Sequence, Union
-from transformers import AutoProcessor, CLIPModel
+from transformers import BlipForImageTextRetrieval
 
 from mmengine.evaluator import BaseMetric
 from mmengine.logging import MMLogger
@@ -17,29 +17,25 @@ from tqdm import tqdm
 
 
 @METRICS.register_module()
-class CLIPSimScore(BaseMetric):
+class BlipSimScore(BaseMetric):
     """
     """
     def __init__(self,
-                 processor_name: str = "openai/clip-vit-base-patch32",
-                 model_name: str = "openai/clip-vit-base-patch32",
+                 model_name: str = "Salesforce/blip-itm-base-coco",
                  logit_scale: bool = False,
-                #  train_index: int = 4
                  ) -> None:
         super().__init__()
-        self.processor_name = processor_name
         self.model_name = model_name
         self.logit_scale = logit_scale
 
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.processor = AutoProcessor.from_pretrained(self.processor_name)
-        self.model = CLIPModel.from_pretrained(self.model_name).to(self.device)
+        self.model = BlipForImageTextRetrieval.from_pretrained(self.model_name).to(self.device)
         self.model.eval()
 
 
 # def process(self, data_batch: dict, data_samples: Sequence[dict]) -> None:
     def process(self, data_batch: Sequence, data_samples: Sequence) -> None:
-        """CLIPSimScore process
+        """BLIPSimScore process
         Process one batch of data samples and predictions. The processed
         results should be stored in ``self.results``, which will be used to
         compute the metrics when all batches have been processed.
@@ -52,7 +48,7 @@ class CLIPSimScore(BaseMetric):
 
         result = dict()
 
-        input_prompts, input_videos = data_samples
+        input_prompts, input_videos = data_samples  
         bsz = len(input_prompts)
 
         # Ensure prompt_input is a tensor
@@ -61,29 +57,36 @@ class CLIPSimScore(BaseMetric):
         
         if isinstance(input_videos, tuple):
             input_videos = list(input_videos)
-        
-        # Initialize an empty list to store each similarity score
-        clip_score_sum, clip_score_cnt = 0, 0
+
+
+        # Initialize an empty tensor to store the concatenated features
+        blip_score_sum, blip_score_cnt = 0, 0
         logit_scale = self.model.logit_scale.exp() if self.logit_scale else 1
         with torch.no_grad():
             for input_prompt, input_frames in zip(input_prompts, input_videos):
+                # If frame is a tuple, extract the tensor. Assume tensor is the first element.
+                # if isinstance(input_prompt_frame_pair, tuple):
+                #     input_prompt_frame_pair = input_prompt_frame_pair[0]
+                
+                # for key, value in input_prompt_frame_pair.items():
+                #     if isinstance(value, list):
+                #         input_prompt_frame_pair[key] = value[0]
+
+                # input_prompt_frame_pair = input_prompt_frame_pair.to("cuda")  # Add batch dimension and move the frame to the device
+                # blip_cosine_sim_score = self.model(**input_prompt_frame_pair, use_itm_head=False)[0].item()
+                # blip_scores.append(blip_cosine_sim_score)
                 input_prompt = input_prompt.to(self.device)
-                text_feature = self.model.get_text_features(input_prompt) # [bsz, hid_dim]
-                text_feature = text_feature / torch.norm(text_feature, dim=-1, keepdim=True)
-
-                input_frames = input_frames.to(self.device)  # Add batch dimension and move the frame to the device
-                frame_feature = self.model.get_image_features(input_frames)
-                frame_feature = frame_feature / torch.norm(frame_feature, dim=-1, keepdim=True)
-
-                clip_score = logit_scale * (frame_feature @ text_feature.T).mean().item()
-                print('current clip similarity score', clip_score)
-                clip_score_sum += clip_score
-                clip_score_cnt += 1
-
-        # Calculate the average CLIP score across all frames
-        clip_score_videos_avg = clip_score_sum/clip_score_cnt
-       
-        result['clip_sim_score'] = clip_score_videos_avg
+                input_frames = input_frames.to(self.device)
+                blip_cosine_sim_score = self.model(input_ids=input_prompt, pixel_values=input_frames, use_itm_head=False)[0].mean().item()
+                blip_cosine_sim_score *= logit_scale
+                print('current blip cosine similarity score', blip_cosine_sim_score)
+                blip_score_sum += blip_cosine_sim_score
+                blip_score_cnt += 1
+                
+        # Calculate the average BLIP score across all frames
+        blip_score_frames_avg = blip_score_sum/blip_score_cnt
+        
+        result['blip_sim_score'] = blip_score_frames_avg
 
         self.results.append(result)
 
@@ -100,13 +103,13 @@ class CLIPSimScore(BaseMetric):
         """
         logger: MMLogger = MMLogger.get_current_instance()
 
-        clip_score_np = np.zeros(len(results))
+        blip_score_np = np.zeros(len(results))
         for i, result in enumerate(results):
-            clip_score_np[i] = result['clip_sim_score']
+            blip_score_np[i] = result['blip_sim_score']
         
-        clip_sim_mean = np.mean(clip_score_np) 
+        blip_sim_mean = np.mean(blip_score_np) 
         
-        print("Test results: clip similarity score={:.4f}"
-              .format(clip_sim_mean))
-
+        print("Test results: blip similarity score={:.4f}"
+              .format(blip_sim_mean))
+        
         return result
