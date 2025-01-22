@@ -16,7 +16,7 @@ theme:
     repo: fontawesome/brands/github
   font:
     text: Roboto
-  custom_dir: docs/overrides
+  # custom_dir: docs/overrides
   palette:
     # Palette toggle for light mode
     - media: "(prefers-color-scheme: light)"
