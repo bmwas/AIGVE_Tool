@@ -1,0 +1,124 @@
+# encoding = utf-8
+# code based on: https://github.com/j-min/DSG/tree/main
+
+import os
+os.environ["OPENAI_API_KEY"] = ''
+import torch
+import cv2
+import time
+import logging
+import openai
+import numpy as np
+
+from core.registry import METRICS
+from copy import deepcopy
+from typing import Dict, Optional, Sequence, Union
+
+from mmengine.evaluator import BaseMetric
+from mmengine.logging import MMLogger
+
+from metrics.text_video_alignment.gpt_based.dsg.DSG.dsg.openai_utils import openai_completion
+from metrics.text_video_alignment.gpt_based.TIFA.tifa.tifascore import get_question_and_answers, filter_question_and_answers, UnifiedQAModel, tifa_score_single, VQAModel
+
+@METRICS.register_module()
+class TIFAScore(BaseMetric):
+    '''
+    '''
+    def __init__(self, 
+                 openai_key,
+                 llm_model: str = 'gpt-3.5-turbo',
+                 unifiedqa_model_name: str = 'allenai/unifiedqa-v2-t5-large-1363200',
+                 vqa_model_name: str = 'mplug-large'):
+        super().__init__()
+        
+        self.openai_key = openai_key
+        self.llm_model = llm_model
+        self.unifiedqa_model_name = unifiedqa_model_name
+        self.unifiedqa_model = UnifiedQAModel(self.unifiedqa_model_name)
+        self.vqa_model_name = vqa_model_name
+        self.vqa_model = VQAModel(self.vqa_model_name)
+        
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+        self.openai_setup()
+    
+    def openai_setup(self):
+        print('set up openai client')
+        openai.api_key = self.openai_key
+        assert openai.api_key is not None
+        test_prompt_string = 'hello, how are you doing?'
+        print('test prompt: ', test_prompt_string)
+        response = openai_completion(
+            test_prompt_string,
+            model=self.llm_model,
+        )
+        print('test response: ', response)
+
+    
+    def process(self, data_batch: Sequence, data_samples: Sequence) -> None:
+        """TIFAScore process
+        Process one batch of data samples and predictions. The processed
+        results should be stored in ``self.results``, which will be used to
+        compute the metrics when all batches have been processed.
+
+        Args:
+            data_batch (Sequence): A batch of data from the dataloader.
+            data_samples (Sequence): A batch of data samples that
+                contain annotations and predictions.
+        """
+
+        result = dict()
+
+        input_prompts, input_videos = data_samples
+        bsz = len(input_prompts)
+
+        # Ensure prompt_input is a tensor
+        if isinstance(input_prompts, tuple):
+            input_prompts = list(input_prompts)
+        
+        if isinstance(input_videos, tuple):
+            input_videos = list(input_videos)
+        
+        average_tifa_score_list = []
+        for input_prompt, input_video in zip(input_prompts, input_videos):
+            tifa_score = []
+            # Generate questions with GPT-3.5-turbo
+            gpt3_questions = get_question_and_answers(input_prompt)
+            # print(gpt3_questions)
+            # Filter questions with UnifiedQA
+            filtered_questions = filter_question_and_answers(self.unifiedqa_model, gpt3_questions)
+            for index, frame_path in enumerate(input_video):
+                # calucluate TIFA score
+                result = tifa_score_single(self.vqa_model, filtered_questions, frame_path)
+                # print(result)
+                tifa_score.append(result['tifa_score'])
+            average_tifa_score = sum(tifa_score)/len(tifa_score)
+            average_tifa_score_list.append(average_tifa_score)
+    
+        result['tifa_score'] = sum(average_tifa_score_list)/len(average_tifa_score_list)
+
+        self.results.append(result)
+
+
+    def compute_metrics(self, results: list) -> Dict[str, float]:
+        """Compute the metrics from processed results.
+
+        Args:
+            results (list): The processed results of each batch.
+
+        Returns:
+            Dict[str, float]: The computed metrics. The keys are the names of
+            the metrics, and the values are corresponding results.
+        """
+        logger: MMLogger = MMLogger.get_current_instance()
+
+        tifa_score_np = np.zeros(len(results))
+        for i, result in enumerate(results):
+            tifa_score_np[i] = result['tifa_score']
+        
+        tifa_score_np_mean = np.mean(tifa_score_np) 
+
+        print("Test results: tifa score={:.4f}"
+              .format(tifa_score_np_mean))
+
+        return result

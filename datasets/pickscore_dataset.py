@@ -5,17 +5,16 @@ import cv2
 import json
 import torch
 from torch.utils.data import Dataset
-from transformers import AutoProcessor, CLIPModel
-from typing import Sequence
+from transformers import AutoProcessor
 from core.registry import DATASETS
 
 @DATASETS.register_module()
-class CLIPSimDataset(Dataset):
+class PickScoreDataset(Dataset):
     def __init__(self, processor_name, video_dir, prompt_dir):
-        super(CLIPSimDataset, self).__init__()
-        self.processor_name = processor_name
+        super(PickScoreDataset, self).__init__()
         self.video_dir = video_dir
         self.prompt_dir = prompt_dir
+        self.processor_name = processor_name
 
         self.processor = AutoProcessor.from_pretrained(self.processor_name)
         self.prompts, self.video_names = self._read_prompt_videoname()
@@ -32,7 +31,7 @@ class CLIPSimDataset(Dataset):
             video_name_list.append(video_name)
 
         return prompt_data_list, video_name_list
-
+    
 
     def __len__(self):
         return len(self.prompts)
@@ -47,16 +46,17 @@ class CLIPSimDataset(Dataset):
             if not ret:
                 break
             frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            resized_frame = cv2.resize(frame,(224,224))  # Resize the frame to match the expected input size
-            input_frames.append(resized_frame)
-        input_frame_tensor= self.processor(
+            # resized_frame = cv2.resize(frame,(224,224))  # Resize the frame to match the expected input size
+            # frames.append(resized_frame)
+            input_frames.append(frame)
+        input_frame_tensor = self.processor(
             images=input_frames,
             padding=True,
             truncation=True,
             max_length=77,
             return_tensors="pt",
         )['pixel_values']
-            
+
         input_prompt = self.processor(
             text=[prompt],
             padding=True,
@@ -64,21 +64,19 @@ class CLIPSimDataset(Dataset):
             max_length=77,
             return_tensors="pt",
         )['input_ids']
-
+    
         return input_prompt, input_frame_tensor
 
+DATASETS.register_module(module=PickScoreDataset, force=True)
 
-DATASETS.register_module(module=CLIPSimDataset, force=True)
+if __name__ == '__main__':
+    processor_name_or_path = "laion/CLIP-ViT-H-14-laion2B-s32B-b79K"
+    prompt_dir = '/home/exouser/VQA_tool/VQA_Toolkit/data/toy/annotations/evaluate.json'
+    video_dir = '/home/exouser/VQA_tool/VQA_Toolkit/data/toy/evaluate/'
 
-
-# if __name__ == '__main__':
-#     processor_name = 'openai/clip-vit-base-patch32'
-#     clip_model_name = 'openai/clip-vit-base-patch32'
-#     prompt_dir = '/home/exouser/VQA_tool/VQA_Toolkit/data/toy/annotations/evaluate.json'
-#     video_dir = '/home/exouser/VQA_tool/VQA_Toolkit/data/toy/evaluate/'
-
-#     clip_dataset = CLIPSimDataset(processor_name=processor_name,
-#                                   video_dir=video_dir,
-#                                   prompt_dir=prompt_dir)
-#     clip_dataset.__getitem__(0)
-#     clip_model = CLIPModel.from_pretrained(clip_model_name).to("cuda")
+    pickscore_dataset = PickScoreDataset(processor_name=processor_name_or_path,
+                                         video_dir=video_dir,
+                                         prompt_dir=prompt_dir)
+    
+    for index, data in enumerate(pickscore_dataset):
+        print(index, data)
