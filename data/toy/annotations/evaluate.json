@@ -4,7 +4,7 @@
             "source": "vbench lavie 'by dimension' dataset 'appearance_style' folder",
             "length": 11
         },
-    "dataset_list":
+    "data_list":
         [
             {
                 "prompt_gt": "A beautiful coastal beach in spring, waves lapping on sand, animated style",

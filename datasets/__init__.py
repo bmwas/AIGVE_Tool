@@ -1,4 +1,5 @@
 # Copyright (c) IFM Lab. All rights reserved.
+
 from .toy_dataset import ToyDataset
 from .gstvqa_dataset import GSTVQADataset
 from .clipsim_dataset import CLIPSimDataset
@@ -11,3 +12,4 @@ from .videophy_dataset import VideoPhyDataset
 
 __all__ = ['ToyDataset', 'GSTVQADataset', 'CLIPSimDataset', 'KineticsDataset', 'KONVID1KDataset_ModularBVQA', 'VideoPhyDataset', 'CLIPTempDataset',
            'BLIPSimDataset', 'PickScoreDataset']
+
