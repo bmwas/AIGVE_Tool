@@ -5,3 +5,9 @@ pillow
 numpy
 scipy
 h5py
+neoteroi-mkdocs
+mkdocs-macros-plugin
+mkdocs-jupyter
+mkdocstrings
+mkdocs-rss-plugin
+mkdocs-exclude
