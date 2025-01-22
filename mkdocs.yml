@@ -1,0 +1,5 @@
+# Copyright (c) IFM Lab. All rights reserved.
+site_name: AIGVE -- AI-Generated Video Evaluation Toolkit 
+site_url: https://shanexiangh.github.io/VQA_Toolkit/
+theme:
+  name: material
