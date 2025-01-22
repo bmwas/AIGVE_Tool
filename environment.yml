@@ -24,4 +24,11 @@ dependencies:
       - fvcore==0.1.5
       - gdown==5.2.0
       - scipy==1.14.1
+      - mkdocs-material
+      - neoteroi-mkdocs
+      - mkdocs-macros-plugin
+      - mkdocs-jupyter
+      - mkdocstrings
+      - mkdocs-rss-plugin
+      - mkdocs-exclude
       

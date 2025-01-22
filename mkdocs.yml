@@ -1,5 +1,183 @@
 # Copyright (c) IFM Lab. All rights reserved.
-site_name: AIGVE -- AI-Generated Video Evaluation Toolkit 
+site_name: AIGVE -- AI Generated Video Evaluation toolkit 
 site_url: https://shanexiangh.github.io/VQA_Toolkit/
+
+repo_url: https://shanexiangh.github.io/VQA_Toolkit/
+edit_uri: blob/main/docs/
+repo_name: Edit on Github
+copyright: Copyright &copy; 2025  <a href="https://www.ifmlab.org/">IFM Lab</a>. All rights reserved.
+
+
 theme:
   name: material
+  logo: assets/img/logo_dark.png
+  favicon: assets/img/logo.png
+  icon:
+    repo: fontawesome/brands/github
+  font:
+    text: Roboto
+  custom_dir: docs/overrides
+  palette:
+    # Palette toggle for light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: "teal"
+      accent: "pink"
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+
+    # Palette toggle for dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: "teal"
+      accent: "pink"
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+
+  features:
+    # navigation features
+    - navigation.footer
+    - navigation.indexes
+    #- navigation.sections
+    - navigation.tabs
+    - navigation.top
+    - navigation.tracking
+    #- navigation.instant
+    #- navigation.instant.progress
+    #- navigation.tracking
+    #- navigation.tabs.sticky
+    #- navigation.path
+    # header features
+    #- header.autohide
+    - announce.dismiss
+    # code features
+    - content.action.edit
+    - content.action.view
+    - content.code.copy
+    - content.code.select
+    - content.code.annotate
+    - content.tooltips
+    # search features
+    - search.highlight
+    - search.share
+    - search.suggest
+    # toc features
+    - toc.follow
+
+markdown_extensions:
+  - tables
+  - def_list
+  - admonition
+  - md_in_html
+  - neoteroi.timeline
+  - neoteroi.cards
+  - neoteroi.projects
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences
+  - pymdownx.arithmatex:
+      generic: true
+      block_tag: 'pre'
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - attr_list
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+
+plugins:
+  - search
+  - macros
+  #- glightbox
+  - mkdocs-jupyter
+  - blog:
+      #authors_profiles: true
+      enabled: true
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            docstring_style: google
+            heading_level: 3
+  - rss:
+      match_path: blog/posts/.*
+      date_from_meta:
+        as_creation: date
+      categories:
+        - categories
+        - tags
+  # comment this at deployment
+  - exclude:
+      glob:
+        - 'notes/*.py'
+        - 'notes/*.ipynb'
+        - 'tutorials/*/*/*/*.py'
+        - 'tutorials/*/*/*/*.ipynb'
+
+# extra_javascript:
+#   - overrides/javascripts/mathjax.js
+#   - https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js
+#   - overrides/javascripts/katex.js
+#   - https://unpkg.com/katex@0/dist/katex.min.js
+#   - https://unpkg.com/katex@0/dist/contrib/auto-render.min.js
+
+# extra_css:
+#   - https://unpkg.com/katex@0/dist/katex.min.css
+#   - overrides/css/custom.css
+#   - overrides/css/neoteroi-mkdocs.css
+
+extra:
+  meta:
+    - name: robots
+      content: index, follow
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/ShaneXiangH/VQA_Toolkit
+
+  # the footnote generator notice, copyright
+  #generator: false
+  toolkit: 'AIGVE'
+  our: 'AIGVE'
+  author: 'Xinhao Xiang, Xiao Liu, Zizhong Li, Zhongsheng Liu'
+  affiliation: 'IFM Lab'
+
+
+#===========================================
+nav:
+  - Home: index.md
+  - Get Started:
+    - guides/index.md
+    - About us: guides/about_us.md
+    - Installation: guides/installation.md
+    - Quickstart: guides/quick_start.md
+  - Docs:
+    - documentations/index.md
+  - Tutorials:
+    - tutorials/index.md
+  - Examples:
+    - examples/index.md
+  - Blogs:
+    - blog/index.md
+  - News:
+    - news/index.md
+    # - Research News: news/research.md
+    # #- New Products: news/product.md
+    # - Library Updates: news/toolkit.md
+  - Contact us:
+    - contact/index.md
+    # - contact/sponsors.md
+    # - contact/contributing.md
+    #- contact/privacy.md
+    - contact/license.md
+    #- contact/certificate.md
