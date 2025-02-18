@@ -1,3 +1,8 @@
+---
+title: Welcome to AIGVE!
+template: home.html
+---
+
 <!-- # Welcome to AIGVE: the AI Generated Video Evaluation toolkit! -->
 
 <!-- For full documentation visit [mkdocs.org](https://www.mkdocs.org).
@@ -17,9 +22,6 @@
         ...       # Other markdown pages, images and other files.
         ...       # Other markdown pages, images and other files. -->
 
----
-title: Welcome to AIGVE!
----
 
 <!-- ---
 hide:
