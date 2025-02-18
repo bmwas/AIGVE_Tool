@@ -5,17 +5,41 @@ a Video Quality Analysis Toolkit
 ## Implemented:
 
 ### Models:
-#### NN based methods:
+#### NN based evaluation metrics:
 1. [GSTVQA](./configs/gstvqa.py) 
 2. [ModularBVQA]()
-3. [VideoPhy]()
-4. [FID]()
 
-#### Text-video alignment based methods:
+
+#### Distribuition based evaluation metrics:
+These metrics primarily assess the quality of generated samples by comparing distributions of real and generated data:
+1. [FID]()
+2. [FVD]()
+3. [IS]()
+
+
+<!-- #### Text-video alignment based methods: -->
+#### Vision-Language Similarity based evaluation metrics:
+These metrics primarily evaluate alignment, similarity, and coherence between visual and textual representations. They focus on how well images and text match, often using embeddings from models like CLIP and BLIP:
 1. [CLIPSim](./configs/clipsim.py) 
+2. [CLIPTemp](./configs/cliptemp.py) 
+3. [BLIP](./configs/blipsim.py)
+4. [Pickscore](./configs/pickscore.py)
+
+#### Vision-Language Understanding based evaluation metrics:
+These metrics assess higher-level understanding, reasoning, and factual consistency in vision-language models. They go beyond similarity, evaluating semantic correctness, factual alignment, and structured comprehension:
+1. [VIEScore](./configs/viescore.py) 
+2. [TIFA](./configs/tifa.py)
+3. [DSG](./configs/dsg.py)
+
+
+#### Multi-Faceted evaluation metrics
+These metrics are structured, multi-dimensional evaluation metrics designed to assess AI models across diverse sub-evaluation dimensions. They provide a comprehensive benchmarking framework that integrates aspects like video understanding, physics-based reasoning, and modular evaluation, enabling a more holistic assessment of model performance.
+1. [VideoPhy](./configs/videophy.py)
+2. []
 
 ### Dataset:
 1. [Toy dataset](./configs/_base_/datasets/toy_dataset.py) 
+2. [AIGVE-Bench](./configs/)
 
 
 ## Under progress:

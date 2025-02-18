@@ -5,7 +5,7 @@
 **/tmp
 **/work_dirs
 
-data/konvid_1k
+**/data/
 
 venv
 **/__pycache__/

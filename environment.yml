@@ -5,6 +5,7 @@ channels:
   - pytorch
   - defaults
   - conda-forge  
+  # - mkdocs-material
 dependencies:
   - python=3.10  
   - pip  

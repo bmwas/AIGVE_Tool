@@ -10,13 +10,13 @@ copyright: Copyright &copy; 2025  <a href="https://www.ifmlab.org/">IFM Lab</a>.
 
 theme:
   name: material
-  logo: assets/img/logo_dark.png
-  favicon: assets/img/logo.png
+  logo: assets/img/aigve_logo.png
+  favicon: assets/img/aigve_logo.png
   icon:
     repo: fontawesome/brands/github
   font:
     text: Roboto
-  # custom_dir: docs/overrides
+  custom_dir: docs/overrides
   palette:
     # Palette toggle for light mode
     - media: "(prefers-color-scheme: light)"
@@ -125,17 +125,17 @@ plugins:
         - 'tutorials/*/*/*/*.py'
         - 'tutorials/*/*/*/*.ipynb'
 
-# extra_javascript:
-#   - overrides/javascripts/mathjax.js
-#   - https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js
-#   - overrides/javascripts/katex.js
-#   - https://unpkg.com/katex@0/dist/katex.min.js
-#   - https://unpkg.com/katex@0/dist/contrib/auto-render.min.js
+extra_javascript:
+  - overrides/javascripts/mathjax.js
+  - https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js
+  - overrides/javascripts/katex.js
+  - https://unpkg.com/katex@0/dist/katex.min.js
+  - https://unpkg.com/katex@0/dist/contrib/auto-render.min.js
 
-# extra_css:
-#   - https://unpkg.com/katex@0/dist/katex.min.css
-#   - overrides/css/custom.css
-#   - overrides/css/neoteroi-mkdocs.css
+extra_css:
+  - https://unpkg.com/katex@0/dist/katex.min.css
+  - overrides/css/custom.css
+  - overrides/css/neoteroi-mkdocs.css
 
 extra:
   meta:
