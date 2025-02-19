@@ -1,0 +1,3 @@
+# aigve.core
+
+::: aigve.core

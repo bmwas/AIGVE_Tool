@@ -163,6 +163,12 @@ nav:
     - Quickstart: guides/quick_start.md
   - Docs:
     - documentations/index.md
+    - documentations/aigve/index.md
+    - documentations/configs/index.md
+    - documentations/core/index.md
+    - documentations/datasets/index.md
+    - documentations/metrics/index.md
+    - documentations/utils/index.md
   - Tutorials:
     - tutorials/index.md
   - Examples:

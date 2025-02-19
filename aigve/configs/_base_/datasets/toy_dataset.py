@@ -1,5 +1,5 @@
 # Copyright (c) IFM Lab. All rights reserved.
-from transforms import LoadVideoFromFile
+from utils import LoadVideoFromFile
 from mmengine.dataset.sampler import DefaultSampler
 from datasets import ToyDataset
 

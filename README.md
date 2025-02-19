@@ -6,7 +6,7 @@ a Video Quality Analysis Toolkit
 
 ### Models:
 #### NN based evaluation metrics:
-1. [GSTVQA](./configs/gstvqa.py) 
+1. [GSTVQA](.aigve/configs/gstvqa.py) 
 2. [ModularBVQA]()
 
 
@@ -20,33 +20,33 @@ These metrics primarily assess the quality of generated samples by comparing dis
 <!-- #### Text-video alignment based methods: -->
 #### Vision-Language Similarity based evaluation metrics:
 These metrics primarily evaluate alignment, similarity, and coherence between visual and textual representations. They focus on how well images and text match, often using embeddings from models like CLIP and BLIP:
-1. [CLIPSim](./configs/clipsim.py) 
-2. [CLIPTemp](./configs/cliptemp.py) 
-3. [BLIP](./configs/blipsim.py)
-4. [Pickscore](./configs/pickscore.py)
+1. [CLIPSim](.aigve/configs/clipsim.py) 
+2. [CLIPTemp](.aigve/configs/cliptemp.py) 
+3. [BLIP](.aigve/configs/blipsim.py)
+4. [Pickscore](.aigve/configs/pickscore.py)
 
 #### Vision-Language Understanding based evaluation metrics:
 These metrics assess higher-level understanding, reasoning, and factual consistency in vision-language models. They go beyond similarity, evaluating semantic correctness, factual alignment, and structured comprehension:
-1. [VIEScore](./configs/viescore.py) 
-2. [TIFA](./configs/tifa.py)
-3. [DSG](./configs/dsg.py)
+1. [VIEScore](.aigve/configs/viescore.py) 
+2. [TIFA](.aigve/configs/tifa.py)
+3. [DSG](.aigve/configs/dsg.py)
 
 
 #### Multi-Faceted evaluation metrics
 These metrics are structured, multi-dimensional evaluation metrics designed to assess AI models across diverse sub-evaluation dimensions. They provide a comprehensive benchmarking framework that integrates aspects like video understanding, physics-based reasoning, and modular evaluation, enabling a more holistic assessment of model performance.
-1. [VideoPhy](./configs/videophy.py)
+1. [VideoPhy](.aigve/configs/videophy.py)
 2. []
 
 ### Dataset:
-1. [Toy dataset](./configs/_base_/datasets/toy_dataset.py) 
-2. [AIGVE-Bench](./configs/)
+1. [Toy dataset](.aigve/configs/_base_/datasets/toy_dataset.py) 
+2. [AIGVE-Bench](.aigve/configs/)
 
 
 ## Under progress:
 
 ### Models:
-1. [StarVQA](./configs/starvqa.py)
-2. [StarVQA_plus](./configs/starvqa.py)
+1. [StarVQA](.aigve/configs/starvqa.py)
+2. [StarVQA_plus](.aigve/configs/starvqa.py)
 
 
 ### Dataset:
@@ -59,9 +59,9 @@ These metrics are structured, multi-dimensional evaluation metrics designed to a
 ## Implementing Suspended: 
 
 ### Models:
-1. [StarVQA](./configs/starvqa.py): The pretrained model shared from author is out-of-date.
+1. [StarVQA](.aigve/configs/starvqa.py): The pretrained model shared from author is out-of-date.
 
-2. [StarVQA_plus](./configs/starvqa.py): need [Kinetics]() (63 GB for test split) and [LSVQ](https://github.com/baidut/PatchVQ) (need request from author) dataset. 
+2. [StarVQA_plus](.aigve/configs/starvqa.py): need [Kinetics]() (63 GB for test split) and [LSVQ](https://github.com/baidut/PatchVQ) (need request from author) dataset. 
 
 ### Dataset:
 
