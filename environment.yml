@@ -32,4 +32,5 @@ dependencies:
       - mkdocstrings
       - mkdocs-rss-plugin
       - mkdocs-exclude
+      - mkdocstrings[python]
       

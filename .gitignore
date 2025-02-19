@@ -1,11 +1,13 @@
 # global
 **/__pycached__ 
 **/_ignore
-**/output
+**/output/
 **/tmp
 **/work_dirs
 
 **/data/
+**/.cache/
+**/site/
 
 venv
 **/__pycache__/
