@@ -1,10 +1,10 @@
 # Copyright (c) IFM Lab. All rights reserved.
 
 r"""
-This aigve library implements the RPN functions, components, modules and models that can be used to address
-various deep function learning tasks.
-
-
+This aigve library provides a **comprehensive** and **structured** evaluation framework 
+for assessing AI-generated video quality. It integrates multiple evaluation metrics, 
+covering diverse aspects of video evaluation, including neural-network-based assessment, 
+distribution comparison, vision-language alignment, and multi-faceted analysis.
 """
 
 
