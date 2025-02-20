@@ -19,6 +19,7 @@ from tqdm import tqdm
 @METRICS.register_module()
 class BlipSimScore(BaseMetric):
     """
+    Write the introduction of your metric here
     """
     def __init__(self,
                  model_name: str = "Salesforce/blip-itm-base-coco",

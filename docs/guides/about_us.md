@@ -24,45 +24,46 @@ If you find `AIGVE` library and `...` papers useful in your work, please cite th
 ### 🧠 **Neural Network-Based Evaluation Metrics**
 These metrics leverage deep learning models to assess AI-generated video quality based on learned representations.
 
-- ✅ **[GSTVQA](./configs/gstvqa.py)**: Video Quality Assessment using spatiotemporal deep learning models.
-- ✅ **[ModularBVQA]()**: A modular framework for Blind Video Quality Assessment (BVQA).
+- ✅ **[GSTVQA](../documentations/metrics/gstvqa.md)**: Video Quality Assessment using spatiotemporal deep learning models.
+- ✅ **[ModularBVQA](../documentations/metrics/modular_bvqa.md)**: A modular framework for Blind Video Quality Assessment (BVQA).
 
 ---
 
 ### 📊 **Distribution-Based Evaluation Metrics**
 These metrics assess the quality of generated videos by comparing the distribution of real and generated samples.
 
-- ✅ **[FID]()**: Frechet Inception Distance (FID) measures the visual fidelity of generated samples.
-- ✅ **[FVD]()**: Frechet Video Distance (FVD) extends FID for temporal coherence in videos.
-- ✅ **[IS]()**: Inception Score (IS) evaluates the diversity and realism of generated content.
+- ✅ **[FID](../documentations/metrics/fid.md)**: Frechet Inception Distance (FID) measures the visual fidelity of generated samples.
+- ✅ **[FVD](../documentations/metrics/fvd.md)**: Frechet Video Distance (FVD) extends FID for temporal coherence in videos.
+- ✅ **[IS](../documentations/metrics/is_score.md)**: Inception Score (IS) evaluates the diversity and realism of generated content.
 
 ---
 
 ### 🔍 **Vision-Language Similarity-Based Evaluation Metrics**
 These metrics evaluate **alignment, similarity, and coherence** between visual and textual representations, often using embeddings from models like CLIP and BLIP.
 
-- ✅ **[CLIPSim](./configs/clipsim.py)**: Measures image-text similarity using CLIP embeddings.
-- ✅ **[CLIPTemp](./configs/cliptemp.py)**: Assesses temporal consistency in video-text alignment.
-- ✅ **[BLIP](./configs/blipsim.py)**: Evaluates cross-modal similarity and retrieval-based alignment.
-- ✅ **[Pickscore](./configs/pickscore.py)**: Ranks text-image pairs based on alignment quality.
+- ✅ **[CLIPSim](../documentations/metrics/clipsim.md)**: Measures image-text similarity using CLIP embeddings.
+- ✅ **[CLIPTemp](../documentations/metrics/cliptemp.md)**: Assesses temporal consistency in video-text alignment.
+- ✅ **[BLIPSim](../documentations/metrics/blipsim.md)**: Evaluates cross-modal similarity and retrieval-based alignment.
+- ✅ **[Pickscore](../documentations/metrics/pickscore.md)**: Ranks text-image pairs based on alignment quality.
 
 ---
 
 ### 🧠 **Vision-Language Understanding-Based Evaluation Metrics**
 These metrics assess **higher-level understanding, reasoning, and factual consistency** in vision-language models.
 
-- ✅ **[VIEScore](./configs/viescore.py)**: Evaluates video grounding and entity-based alignment.
-- ✅ **[TIFA](./configs/tifa.py)**: Measures textual integrity and factual accuracy in video descriptions.
-- ✅ **[DSG](./configs/dsg.py)**: A deep structured grounding metric for assessing cross-modal comprehension.
+- ✅ **[VIEScore](../documentations/metrics/viescore.md)**: Evaluates video grounding and entity-based alignment.
+- ✅ **[TIFA](../documentations/metrics/tifa.md)**: Measures textual integrity and factual accuracy in video descriptions.
+- ✅ **[DSG](../documentations/metrics/dsg.md)**: A deep structured grounding metric for assessing cross-modal comprehension.
 
 ---
 
 ### 🔄 **Multi-Faceted Evaluation Metrics**
 These metrics integrate **structured, multi-dimensional assessments** to provide a **holistic benchmarking framework** for AI-generated videos.
 
-- ✅ **[VideoPhy](./configs/videophy.py)**: Evaluates physics-based video understanding and reasoning.
-- ✅ **[VBench]()**: Benchmarking framework covering diverse video evaluation dimensions.
-- ✅ **[EvalCrafter]()**: Customizable and modular framework for structured AI evaluation.
+- ✅ **[VideoPhy](../documentations/metrics/videophy.md)**: Evaluates physics-based video understanding and reasoning.
+- ✅ **[VideoScore](../documentations/metrics/viescore.md)**: Evaluates structured video quality assessment across multiple perceptual and reasoning-based dimensions.
+<!-- - ✅ **[VBench](../documentations/metrics/vbench.md)**: Evaluates structured video quality assessment across multiple perceptual and reasoning-based dimensions.
+- ✅ **[EvalCrafter](../documentations/metrics/eval_crafter.md)**: Customizable and modular framework for structured AI evaluation. -->
 
 ---
 

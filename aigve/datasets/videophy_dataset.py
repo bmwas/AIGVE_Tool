@@ -43,7 +43,7 @@ class VideoPhyDataset(Dataset):
         else:
             self.processor = MplugOwlProcessor(self.image_processor, self.tokenizer)
 
-    def __len__(self):
+    def __len__(self) -> int:
         """
         Returns:
             int: Length of the dataset

@@ -8,6 +8,7 @@
 **/data/
 **/.cache/
 site/
+t2v_result
 
 venv
 **/__pycache__/

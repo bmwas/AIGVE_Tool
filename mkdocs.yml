@@ -110,6 +110,10 @@ plugins:
           options:
             docstring_style: google
             heading_level: 3
+            show_required_tag: false
+            # show_default_values: false
+            # show_if_no_docstring: false
+            # signature_crossrefs: true
   - rss:
       match_path: blog/posts/.*
       date_from_meta:
@@ -163,12 +167,33 @@ nav:
     - Quickstart: guides/quick_start.md
   - Docs:
     - documentations/index.md
-    - documentations/aigve/index.md
-    - documentations/configs/index.md
-    - documentations/core/index.md
-    - documentations/datasets/index.md
-    - documentations/metrics/index.md
-    - documentations/utils/index.md
+    - aigve:
+      - documentations/aigve/index.md
+    - aigve.configs:
+      - documentations/configs/index.md
+    - aigve.core:
+      - documentations/core/index.md
+    - aigve.datasets:
+      - documentations/datasets/index.md
+    - aigve.metrics:
+      - documentations/metrics/index.md
+      - documentations/metrics/blipsim.md
+      - documentations/metrics/clipsim.md
+      - documentations/metrics/cliptemp.md
+      - documentations/metrics/dsg.md
+      - documentations/metrics/eval_crafter.md
+      - documentations/metrics/fid.md
+      - documentations/metrics/fvd.md
+      - documentations/metrics/gstvqa.md
+      - documentations/metrics/is_score.md
+      - documentations/metrics/modular_bvqa.md
+      - documentations/metrics/pickscore.md
+      - documentations/metrics/tifa.md
+      - documentations/metrics/vbench.md
+      - documentations/metrics/videophy.md
+      - documentations/metrics/viescore.md
+    - aigve.utils:
+      - documentations/utils/index.md
   - Tutorials:
     - tutorials/index.md
   - Examples:

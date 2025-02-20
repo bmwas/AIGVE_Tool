@@ -1,7 +1,7 @@
 # Copyright (c) IFM Lab. All rights reserved.
 
 import sys, subprocess
-def read_image_detectron2(img_src, format=None):
+def read_image_detectron2(file_name, format=None):
     """
     Read an image into the given format.
     Will apply rotation and flipping if the image has such exif information.

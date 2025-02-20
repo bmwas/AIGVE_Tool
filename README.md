@@ -35,7 +35,7 @@ These metrics assess higher-level understanding, reasoning, and factual consiste
 #### Multi-Faceted evaluation metrics
 These metrics are structured, multi-dimensional evaluation metrics designed to assess AI models across diverse sub-evaluation dimensions. They provide a comprehensive benchmarking framework that integrates aspects like video understanding, physics-based reasoning, and modular evaluation, enabling a more holistic assessment of model performance.
 1. [VideoPhy](.aigve/configs/videophy.py)
-2. []
+2. [VideoScore](.aigve/configs/viescore.py)
 
 ### Dataset:
 1. [Toy dataset](.aigve/configs/_base_/datasets/toy_dataset.py) 

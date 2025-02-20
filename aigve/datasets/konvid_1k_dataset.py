@@ -28,7 +28,20 @@ class KONVID1KDataset_ModularBVQA(Dataset):
     Datails in: https://database.mmsp-kn.de/konvid-1k-database.html
 
     Args:
-        BaseDataset (_type_): _description_
+        video_dir (str): Path to the video directory.
+        metadata_dir (str): Path to the metadata directory.
+        database (str): Name of the database. Default is 'KoNViD-1k'.
+        num_levels (int): Number of levels in the feature hierarchy.
+        layer (int): Layer for feature extraction.
+        frame_batch_size (int): Batch size for frames.
+        rep_dir (str): Directory for representation data.
+        datainfo_path (str): Path to dataset information file.
+        save_folder (str): Folder to save extracted features.
+        imgs_dir (str): Directory containing image frames.
+        resize (int): Resize dimension for frames.
+        num_frame (int): Number of frames per video.
+        num_workers (int): Number of workers for DataLoader.
+        feature_save_folder (str): Directory to save extracted motion features.
     """
 
     def __init__(self,

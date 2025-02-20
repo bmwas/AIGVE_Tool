@@ -12,7 +12,13 @@ class ToyDataset(BaseDataset):
     """ToyDataset for testing.
 
     Args:
-        data
+        data_root (str, optional): Root directory for data.
+        ann_file (str): Annotation file path.
+        metainfo (dict, optional): Metadata information.
+        data_prefix (dict): Prefix paths for different modalities.
+        pipeline (List[Union[Callable, dict]]): Data transformation pipeline.
+        modality (dict): Specifies which modalities are used (video, text, image).
+        image_frame (int, optional): Number of frames for images.
     """
 
     def __init__(self,

@@ -30,7 +30,8 @@ class VideoPhy(BaseMetric):
                  **kwargs):
 
         """
-        This function is used to initialize the VideoPhy metric
+        This function is used to initialize the VideoPhy metric.
+
         Args:
             collect_device (str or torch.device): The device to use for collecting the data
             prefix (str): The prefix to use for the metric name
@@ -67,7 +68,8 @@ class VideoPhy(BaseMetric):
 
     def get_entail(self, logits, input_ids):
         """
-        This function is used to get the entailment scores
+        This function is used to get the entailment scores.
+
         Args:
             logits (torch.Tensor): A tensor containing the logits
             input_ids (torch.Tensor): A tensor containing the input IDs
@@ -91,7 +93,8 @@ class VideoPhy(BaseMetric):
 
     def get_logits(self, data_batch):
         """
-        This function is used to get the logits for each input in the data batch
+        This function is used to get the logits for each input in the data batch.
+
         Args:
             data_batch (dict): A dictionary containing the data batch
         Returns:
@@ -119,7 +122,8 @@ class VideoPhy(BaseMetric):
 
     def process(self, data_batch: Any, data_samples: Sequence[dict]) -> None:
         """
-        This function is used to process the data batch and compute the metric
+        This function is used to process the data batch and compute the metric.
+
         Args:
             data_batch (dict): A dictionary containing the data batch
             data_samples (list): A list of dictionaries containing the data samples
@@ -134,7 +138,8 @@ class VideoPhy(BaseMetric):
 
     def compute_metrics(self, results: list) -> dict:
         """
-        This function is used to compute the metrics
+        This function is used to compute the metrics.
+        
         Args:
             results (list): A list of results
         """

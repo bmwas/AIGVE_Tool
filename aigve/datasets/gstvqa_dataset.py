@@ -5,7 +5,7 @@ from typing import Any, Callable, Iterable, TypeVar, Generic, List, Optional, Un
 from os import path as osp
 
 from core.registry import DATASETS
-# from mmengine.dataset import BaseDataset
+# Importfrom mmengine.dataset import BaseDataset
 from torch.utils.data import Dataset
 
 
@@ -19,7 +19,11 @@ class GSTVQADataset(Dataset):
     Datails in: https://github.com/Baoliang93/GSTVQA
 
     Args:
-        BaseDataset (_type_): _description_
+        feature_dir (str): Path to the feature directory.
+        index (Optional): Index for dataset filtering.
+        max_len (int): Maximum sequence length. Default is 500.
+        feat_dim (int): Feature dimension. Default is 2944.
+        datainfo_path (str): Path to dataset information file.
     """
 
     def __init__(self,

@@ -9,7 +9,7 @@ The documentations of the `AIGVE` library will be organized as follows.
 </div>
 
 <div class="grid cards" markdown>
-- :fontawesome-solid-leaf: [__`aigve.config`__](config/index.md) for parameter configuration and management
+- :fontawesome-solid-leaf: [__`aigve.config`__](configs/index.md) for parameter configuration and management
 </div>
 
 <div class="grid cards" markdown>
