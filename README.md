@@ -1,5 +1,5 @@
-# VQA_Toolkit
-a Video Quality Analysis Toolkit
+# AIGVE
+AI Generated Video Evaluation toolkit
 
 
 ## Implemented:

@@ -16,8 +16,8 @@ __version__ = '0.0.1'
 # from . import koala
 # from . import data, output
 from metrics import VideoPhy, VideoScore, \
-    DSGScore, TIFAScore, VIEEvalScore, \
-    CLIPSimScore, CLIPTempScore, PickScore, BlipSimScore
+    DSGScore, TIFAScore, VIEEvalScore, CLIPSimScore, CLIPTempScore, PickScore, BlipSimScore, \
+    Toy, FIDScore, FVDScore
 # from . import visual, util
 
 
@@ -30,12 +30,17 @@ __all__ = [
     # ---- metrics ----
     'VideoPhy', 
     'VideoScore',
+    
     'DSGScore', 
     'TIFAScore', 
     'VIEEvalScore',
     'CLIPSimScore', 
     'CLIPTempScore', 
     'PickScore', 
-    'BlipSimScore'
+    'BlipSimScore',
+
+    'Toy',
+    'FIDScore',
+    'FVDScore',
     # ---- visualization and utility ----
 ]

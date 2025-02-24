@@ -1,3 +1,3 @@
 # class IS Score
 
-<!-- ::: aigve.metrics.text_video_alignment.gpt_based.dsg.DSGScore -->
+<!-- ::: aigve.metrics.video_quality_assessment.distribution_based.fid.FIDScore -->

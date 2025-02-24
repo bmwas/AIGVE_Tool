@@ -5,7 +5,14 @@
 **/tmp
 **/work_dirs
 
-**/data/
+# **/data/
+**/__MACOSX/
+**/AIGVE_Bench/
+**/kinetics/
+**/konvid_1k/
+**/AIGVE_Bench.zip
+**/KoNViD-1kinfo-original.mat
+
 **/.cache/
 site/
 t2v_result
