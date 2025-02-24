@@ -1,0 +1,286 @@
+{
+    "metainfo": {
+        "length": 10,
+        "split": "train",
+        "generators": [
+            "cogvideox"
+        ]
+    },
+    "data_list": [
+        {
+            "id": 0,
+            "prompt_gt": "A vast desert expanse, with golden sands swirling under the shimmering heat of midday sun. As the day progresses, shadows elongate and the sky transitions into a deep orange hue, capturing the beauty of sunset.",
+            "technical_quality": 4,
+            "dynamic": 1,
+            "consistency": 5,
+            "physics": 5,
+            "element_presentence": 5,
+            "element_quality": 5,
+            "action_presentence": 0,
+            "action_quality": 0,
+            "overall": 2,
+            "model": "cogvideox",
+            "subject": [
+                "desert"
+            ],
+            "dynamic_type": [
+                "daylight transition"
+            ],
+            "detailed_dynamic": [
+                "daylight transition"
+            ],
+            "category": "global",
+            "video_path_pd": "cogvideox_0.mp4"
+        },
+        {
+            "id": 2,
+            "prompt_gt": "An aerial view of a modern city with sleek skyscrapers towering against a winter backdrop, dusted with fresh snow. The city buzzes beneath a clear blue sky, transitioning to twilight.",
+            "technical_quality": 4,
+            "dynamic": 1,
+            "consistency": 5,
+            "physics": 3,
+            "element_presentence": 5,
+            "element_quality": 2,
+            "action_presentence": 0,
+            "action_quality": 0,
+            "overall": 1,
+            "model": "cogvideox",
+            "subject": [
+                "city",
+                "architecture"
+            ],
+            "dynamic_type": [
+                "season transition",
+                "camera movement"
+            ],
+            "detailed_dynamic": [
+                "season transition",
+                "camera movement"
+            ],
+            "category": "global",
+            "video_path_pd": "cogvideox_2.mp4"
+        },
+        {
+            "id": 3,
+            "prompt_gt": "A broad, grassy plain under a vast, cloud-scattered sky. As a gentle breeze rolls through, distant thunderstorms approach, bringing heavy clouds and flickers of lightning.",
+            "technical_quality": 5,
+            "dynamic": 1,
+            "consistency": 5,
+            "physics": 5,
+            "element_presentence": 4,
+            "element_quality": 5,
+            "action_presentence": 1,
+            "action_quality": 5,
+            "overall": 3,
+            "model": "cogvideox",
+            "subject": [
+                "plain"
+            ],
+            "dynamic_type": [
+                "weather transition"
+            ],
+            "detailed_dynamic": [
+                "weather transition"
+            ],
+            "category": "global",
+            "video_path_pd": "cogvideox_3.mp4"
+        },
+        {
+            "id": 4,
+            "prompt_gt": "The camera smoothly floats over a rushing river, weaving through an autumn forest whose trees display vibrant hues of red and orange. Light raindrops begin to gently fall from an overcast sky.",
+            "technical_quality": 5,
+            "dynamic": 3,
+            "consistency": 5,
+            "physics": 5,
+            "element_presentence": 4,
+            "element_quality": 5,
+            "action_presentence": 3,
+            "action_quality": 5,
+            "overall": 3,
+            "model": "cogvideox",
+            "subject": [
+                "river"
+            ],
+            "dynamic_type": [
+                "season transition",
+                "camera movement",
+                "weather transition"
+            ],
+            "detailed_dynamic": [
+                "season transition",
+                "camera movement",
+                "weather transition"
+            ],
+            "category": "global",
+            "video_path_pd": "cogvideox_4.mp4"
+        },
+        {
+            "id": 5,
+            "prompt_gt": "A serene ocean view at dawn, waves gently crashing onto a sandy shore. The camera drifts upward as sailboats dot the horizon, sunlight sparkling on the water's surface.",
+            "technical_quality": 2,
+            "dynamic": 3,
+            "consistency": 5,
+            "physics": 5,
+            "element_presentence": 5,
+            "element_quality": 3,
+            "action_presentence": 5,
+            "action_quality": 5,
+            "overall": 3,
+            "model": "cogvideox",
+            "subject": [
+                "ocean"
+            ],
+            "dynamic_type": [
+                "daylight transition",
+                "camera movement"
+            ],
+            "detailed_dynamic": [
+                "daylight transition",
+                "camera movement"
+            ],
+            "category": "global",
+            "video_path_pd": "cogvideox_5.mp4"
+        },
+        {
+            "id": 7,
+            "prompt_gt": "Droning over a historical city's cobblestone streets lined with colorful marketplaces. As dusk falls, lamps and store signs light up one by one, lending a quaint charm to the bustling night.",
+            "technical_quality": 5,
+            "dynamic": 3,
+            "consistency": 4,
+            "physics": 1,
+            "element_presentence": 5,
+            "element_quality": 2,
+            "action_presentence": 0,
+            "action_quality": 0,
+            "overall": 2,
+            "model": "cogvideox",
+            "subject": [
+                "city",
+                "street"
+            ],
+            "dynamic_type": [
+                "daylight transition",
+                "camera movement"
+            ],
+            "detailed_dynamic": [
+                "daylight transition",
+                "camera movement"
+            ],
+            "category": "global",
+            "video_path_pd": "cogvideox_7.mp4"
+        },
+        {
+            "id": 9,
+            "prompt_gt": "A drone flight over a sprawling desert, the sand dunes shifting and changing in patterns. Golden sunlight casts long shadows, while a horizon mirage dances, making the expansive view feel surreal yet real.",
+            "technical_quality": 5,
+            "dynamic": 1,
+            "consistency": 5,
+            "physics": 5,
+            "element_presentence": 5,
+            "element_quality": 5,
+            "action_presentence": 3,
+            "action_quality": 5,
+            "overall": 3,
+            "model": "cogvideox",
+            "subject": [
+                "desert"
+            ],
+            "dynamic_type": [
+                "camera movement",
+                "daylight transition"
+            ],
+            "detailed_dynamic": [
+                "camera movement",
+                "daylight transition"
+            ],
+            "category": "global",
+            "video_path_pd": "cogvideox_9.mp4"
+        },
+        {
+            "id": 11,
+            "prompt_gt": "Panoramic shot of an old city, featuring cobblestone streets and Gothic architecture. Light breaks through morning fog, transforming the muted streets into a picturesque scene of historic charm.",
+            "technical_quality": 5,
+            "dynamic": 1,
+            "consistency": 5,
+            "physics": 3,
+            "element_presentence": 5,
+            "element_quality": 3,
+            "action_presentence": 0,
+            "action_quality": 0,
+            "overall": 2,
+            "model": "cogvideox",
+            "subject": [
+                "city",
+                "architecture",
+                "street"
+            ],
+            "dynamic_type": [
+                "daylight transition",
+                "camera movement",
+                "weather transition"
+            ],
+            "detailed_dynamic": [
+                "daylight transition",
+                "camera movement",
+                "weather transition"
+            ],
+            "category": "global",
+            "video_path_pd": "cogvideox_11.mp4"
+        },
+        {
+            "id": 12,
+            "prompt_gt": "A time-lapse of an imposing mountain range where snow peaks gleam under the emerging sun. Clouds race across the dramatic sky, casting flowing shadows onto the rocky facade.",
+            "technical_quality": 5,
+            "dynamic": 3,
+            "consistency": 5,
+            "physics": 5,
+            "element_presentence": 5,
+            "element_quality": 5,
+            "action_presentence": 5,
+            "action_quality": 5,
+            "overall": 5,
+            "model": "cogvideox",
+            "subject": [
+                "mountain"
+            ],
+            "dynamic_type": [
+                "daylight transition",
+                "camera movement",
+                "weather transition"
+            ],
+            "detailed_dynamic": [
+                "daylight transition",
+                "camera movement",
+                "weather transition"
+            ],
+            "category": "global",
+            "video_path_pd": "cogvideox_12.mp4"
+        },
+        {
+            "id": 13,
+            "prompt_gt": "Bird's eye view of a river meandering through a vast, lush plain. The consistent flow sparking in sunlight, moves with the swift camera sweep, accentuating the serenity and flow of nature.",
+            "technical_quality": 5,
+            "dynamic": 3,
+            "consistency": 5,
+            "physics": 5,
+            "element_presentence": 5,
+            "element_quality": 5,
+            "action_presentence": 5,
+            "action_quality": 5,
+            "overall": 5,
+            "model": "cogvideox",
+            "subject": [
+                "river",
+                "plain"
+            ],
+            "dynamic_type": [
+                "camera movement"
+            ],
+            "detailed_dynamic": [
+                "camera movement"
+            ],
+            "category": "global",
+            "video_path_pd": "cogvideox_13.mp4"
+        }
+    ]
+}
