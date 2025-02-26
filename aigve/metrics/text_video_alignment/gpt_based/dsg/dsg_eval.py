@@ -32,8 +32,8 @@ class DSGScore(BaseMetric):
     """ Initialize the ``DSGScore`` evaluator.
     
     Args:
-            model_name (str): The name of the VQA model used in DSGScore evaluator. Defaults to ``InstructBLIP``, you can also choose the "MPLUG" as the VQA model.
-            verbose (bool): Whether the interdemdiate output processes is required. Defaults to False.
+            model_name (str): The name of the VQA model used in the DSGScore evaluator. Defaults to ``InstructBLIP``, you can also choose the "MPLUG" as the VQA model.
+            verbose (bool): Whether the intermediate output processes is required. Defaults to False.
 
     Returns:
             None
