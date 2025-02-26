@@ -55,11 +55,11 @@ class DSGScore(BaseMetric):
 
     
     def evaluate_image_dsg(self, qid_list, frame_index, frame):
-        """ Evaluate a generated image with DSG evaluator, this is the intermediate process of the ``process`` function. 
+        """ Evaluate a generated image with DSG evaluator; this is the intermediate process of the ``process`` function. 
     
         Args:
                 qid_list (List[str]): The list of DSG parse question generation results.
-                frame_index (int): The index number of the current evaluated frame.
+                frame_index (int): The index number of the currently evaluated frame.
                 frame (List[List[float]): The current evaluated frame.
     
         Returns:
