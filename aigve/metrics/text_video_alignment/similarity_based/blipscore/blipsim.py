@@ -18,7 +18,7 @@ from tqdm import tqdm
 
 @METRICS.register_module()
 class BlipSimScore(BaseMetric):
-    """ Initialize the ``CLIPSimScore`` evaluator.
+    """ Initialize the ``BLIPSimScore`` evaluator.
     
     Args:
             model_name (str): The name of the BLIP model. Defaults to ``Salesforce/blip-itm-base-coco``.
