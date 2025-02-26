@@ -19,7 +19,14 @@ from tqdm import tqdm
 
 @METRICS.register_module()
 class CLIPTempScore(BaseMetric):
-    """
+    """ Initialize the ``CLIPTempScore`` evaluator.
+    
+    Args:
+            model_name (str): The name of the CLIP encoder model. Defaults to ``openai/clip-vit-base-patch32``.
+            logit_scale (bool): Whether to calcualte the cosine similarity as logits. Defaults to False.
+
+    Returns:
+            None
     """
     def __init__(self,
                  model_name: str = "openai/clip-vit-base-patch32",
