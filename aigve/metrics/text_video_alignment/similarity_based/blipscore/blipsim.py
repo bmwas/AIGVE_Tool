@@ -18,8 +18,14 @@ from tqdm import tqdm
 
 @METRICS.register_module()
 class BlipSimScore(BaseMetric):
-    """
-    Write the introduction of your metric here
+    """ Initialize the ``CLIPSimScore`` evaluator.
+    
+    Args:
+            model_name (str): The name of the BLIP model. Defaults to ``Salesforce/blip-itm-base-coco``.
+            logit_scale (bool): Whether to calcualte the cosine similarity as logits. Defaults to False.
+
+    Returns:
+            None
     """
     def __init__(self,
                  model_name: str = "Salesforce/blip-itm-base-coco",
