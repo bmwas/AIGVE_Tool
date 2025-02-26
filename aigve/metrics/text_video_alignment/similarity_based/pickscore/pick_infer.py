@@ -18,7 +18,14 @@ from tqdm import tqdm
 
 @METRICS.register_module()
 class PickScore(BaseMetric):
-    """
+     """ Initialize the ``PickScore`` evaluator.
+    
+    Args:
+            model_name (str): The name of the PickScore model. Defaults to ``yuvalkirstain/PickScore_v1``.
+            logit_scale (bool): Whether to calcualte the cosine similarity as logits. Defaults to False.
+
+    Returns:
+            None
     """
     def __init__(self,
                  model_name: str = "yuvalkirstain/PickScore_v1",
