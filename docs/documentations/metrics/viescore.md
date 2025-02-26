@@ -1,3 +1,3 @@
 # class VideoScore
 
-::: aigve.metrics.aigve.videoscore.videoscore_metric.VideoScore
+::: aigve.metrics.multi_aspect_metrics.videoscore.videoscore_metric.VideoScore

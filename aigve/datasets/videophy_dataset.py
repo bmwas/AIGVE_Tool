@@ -5,7 +5,7 @@ import json
 import re
 import torch
 from transformers import LlamaTokenizer
-from metrics.aigve.videophy.mplug_owl_video import MplugOwlImageProcessor, MplugOwlProcessor
+from metrics.multi_aspect_metrics.videophy.mplug_owl_video import MplugOwlImageProcessor, MplugOwlProcessor
 from core.registry import DATASETS
 
 @DATASETS.register_module()

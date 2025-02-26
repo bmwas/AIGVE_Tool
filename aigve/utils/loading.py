@@ -3,7 +3,7 @@
 from typing import Optional
 
 from core.registry import TRANSFORMS
-from mmengine.transforms import BaseTransformation
+from mmcv.transforms.base import BaseTransform
 
 from PIL import Image, ImageSequence
 from decord import VideoReader
@@ -12,7 +12,7 @@ import torch
 
 
 @TRANSFORMS.register_module()
-class LoadVideoFromFile(BaseTransformation):
+class LoadVideoFromFile(BaseTransform):
     """Load a video from file.
 
     Required Keys:

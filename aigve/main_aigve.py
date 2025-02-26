@@ -7,6 +7,7 @@ from mmengine.config import Config, DictAction
 from mmengine.logging import print_log
 from mmengine.registry import RUNNERS
 from mmengine.runner import Runner
+import torch.multiprocessing as mp
 # from mmengine.registry import RUNNERS
 
 
@@ -47,4 +48,5 @@ def main():
 
 
 if __name__ == '__main__':
+    mp.set_start_method('spawn', force=True)
     main()

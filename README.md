@@ -117,18 +117,26 @@ Take Examples:
 
 For GSTVQA:
 ``
-cd VQA_Toolkit
-python main.py /home/xinhao/VQA_Toolkit/configs/gstvqa.py --work-dir ./output
+cd VQA_Toolkit/aigve
+python main_aigve.py /home/xinhao/VQA_Toolkit/aigve/configs/gstvqa.py --work-dir ./output
+``
+
+For GSTVQACrossData:
+``
+cd VQA_Toolkit/aigve
+python main_aigve.py /home/xinhao/VQA_Toolkit/aigve/configs/gstvqa_crossdata.py --work-dir ./output
 ``
 
 For CLIPSim:
 ``
-python main.py /home/xinhao/VQA_Toolkit/configs/clipsim.py --work-dir ./output
+cd VQA_Toolkit/aigve
+python main_aigve.py /home/xinhao/VQA_Toolkit/aigve/configs/clipsim.py --work-dir ./output
 ``
 
 For VideoPhy:
 ``
-python main.py /home/xinhao/VQA_Toolkit/configs/clipsim.py --work-dir ./output
+cd VQA_Toolkit/aigve
+python main_aigve.py /home/xinhao/VQA_Toolkit/aigve/configs/clipsim.py --work-dir ./output
 ``
 
 ## To-do:

@@ -25,7 +25,7 @@ from mmengine.evaluator import BaseMetric
 from mmengine.logging import MMLogger
 from tqdm import tqdm
 
-from metrics.text_video_alignment.gpt_based.dsg.DSG.dsg.vqa_utils import MPLUG, InstructBLIP
+from .DSG.dsg.vqa_utils import MPLUG, InstructBLIP
 
 @METRICS.register_module()
 class DSGScore(BaseMetric):
