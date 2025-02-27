@@ -1,19 +1,18 @@
-import numpy as np
-import tensorflow as tf
+# Copyright (c) IFM Lab. All rights reserved.
 from tensorflow.keras.applications.inception_v3 import InceptionV3, preprocess_input
+from mmengine.model import BaseModel
+from mmengine.registry import MODELS, METRICS
+import numpy as np
 from scipy.linalg import sqrtm
+from typing import Dict, Sequence
+from mmengine.logging import MMLogger
 
+@MODELS.register_module()
+@METRICS.register_module()
+class FIDScore(BaseModel):
 
-class FIDScore:
     def __init__(self, model_name='inception_v3', input_shape=(299, 299, 3), pooling='avg'):
-        """
-        Initialize the FIDScore evaluator.
-
-        Parameters:
-        model_name (str): The model to use for feature extraction (default: 'inception_v3').
-        input_shape (tuple): Input shape of the images (default: (299, 299, 3)).
-        pooling (str): Pooling type to use ('avg' or 'max') (default: 'avg').
-        """
+        super().__init__()
         if model_name == 'inception_v3':
             self.model = InceptionV3(include_top=False, pooling=pooling, input_shape=input_shape)
         else:
@@ -45,6 +44,46 @@ class FIDScore:
         mu = features.mean(axis=0)
         sigma = np.cov(features, rowvar=False)
         return mu, sigma
+
+    def process(self, data_batch: dict, data_samples: Sequence[dict]) -> None:
+        """
+        Process one batch of data samples and predictions.
+
+        Args:
+            data_batch (dict): A batch of data from the dataloader.
+            data_samples (Sequence[dict]): A batch of data samples that
+                contain annotations and predictions.
+        """
+        result = dict()
+        images1, images2 = data_samples
+
+        # Calculate FID score
+        fid_score = self.calculate_fid(images1, images2)
+        result['fid_score'] = fid_score
+
+        self.results.append(result)
+
+    def compute_metrics(self, results: list) -> Dict[str, float]:
+        """
+        Compute the metrics from processed results.
+
+        Args:
+            results (list): The processed results of each batch.
+
+        Returns:
+            Dict[str, float]: The computed metrics.
+        """
+        logger: MMLogger = MMLogger.get_current_instance()
+
+        fid_scores = np.zeros(len(results))
+        for i, result in enumerate(results):
+            fid_scores[i] = result['fid_score']
+        
+        mean_fid = np.mean(fid_scores)
+        
+        print("Test results: FID Score={:.4f}".format(mean_fid))
+
+        return {'fid': mean_fid}
 
     def calculate_fid(self, images1, images2):
         """
