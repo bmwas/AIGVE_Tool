@@ -25,12 +25,19 @@ from mmengine.evaluator import BaseMetric
 from mmengine.logging import MMLogger
 from tqdm import tqdm
 
-from metrics.text_video_alignment.gpt_based.dsg.DSG.dsg.vqa_utils import MPLUG, InstructBLIP
+from .DSG.dsg.vqa_utils import MPLUG, InstructBLIP
 
 @METRICS.register_module()
 class DSGScore(BaseMetric):
-    '''
-    '''
+    """ Initialize the ``DSGScore`` evaluator.
+    
+    Args:
+            model_name (str): The name of the VQA model used in the DSGScore evaluator. Defaults to ``InstructBLIP``, you can also choose the "MPLUG" as the VQA model.
+            verbose (bool): Whether the intermediate output processes is required. Defaults to False.
+
+    Returns:
+            None
+    """
     def __init__(self, 
                  vqa_model_name: str = "InstructBLIP",
                  verbose: bool = False):
@@ -48,8 +55,16 @@ class DSGScore(BaseMetric):
 
     
     def evaluate_image_dsg(self, qid_list, frame_index, frame):
-        '''evaluate a generated image with DSG
-        '''
+        """ Evaluate a generated image with DSG evaluator; this is the intermediate process of the ``process`` function. 
+    
+        Args:
+                qid_list (List[str]): The list of DSG parse question generation results.
+                frame_index (int): The index number of the currently evaluated frame.
+                frame (List[List[float]): The current evaluated frame.
+    
+        Returns:
+                None
+        """
         if self.verbose:
             print("#"*50)
             print("2) Answer questions given the generated image, with VQA")
@@ -129,6 +144,7 @@ class DSGScore(BaseMetric):
     
     def process(self, data_batch: Sequence, data_samples: Sequence) -> None:
         """DSGScore process
+        
         Process one batch of data samples and predictions. The processed
         results should be stored in ``self.results``, which will be used to
         compute the metrics when all batches have been processed.

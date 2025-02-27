@@ -20,8 +20,16 @@ from metrics.text_video_alignment.gpt_based.VIE.VIESCORE.viescore import VIEScor
 
 @METRICS.register_module()
 class VIEEvalScore(BaseMetric):
-    '''
-    '''
+    """ Initialize the ``VIEEvalScore`` evaluator.
+    
+    Args:
+            llm_backbone (str): The name of the LLM model used in the VIEEvalScore evaluator. Defaults to ``got4o``.
+            api_key_path (str): The user's api key path to initialize LLM models provides by openai.
+            task(str): The task the VIEEvalScore evaluator conducts. Defaults to ''t2v''.
+
+    Returns:
+            None
+    """
     def __init__(self,
                  llm_backbone: str = "gpt4o",
                  api_key_path: str = '/home/exouser/VQA_tool/VQA_Toolkit/metrics/text_video_alignment/gpt_based/VIE/api_key.txt',

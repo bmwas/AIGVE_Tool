@@ -24,7 +24,7 @@ import random
 from scipy import stats
 from tensorboardX import SummaryWriter
 import datetime
-from channel_attention import ChannelAttention,ChannelAttention2
+from .channel_attention import ChannelAttention,ChannelAttention2
 
 
 class Test_VQADataset(Dataset):

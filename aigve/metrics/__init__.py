@@ -10,7 +10,7 @@ from text_video_alignment import DSGScore, TIFAScore, VIEEvalScore, \
 from video_quality_assessment import Toy, FIDScore, FVDScore, ISScore
 
 __all__ = [
-    # ---- aigve ----
+    # ---- multi_aspect_metrics ----
     'VideoPhy', 'VideoScore',
     # ---- text_video_alignment ----
     'DSGScore', 'TIFAScore', 'VIEEvalScore', 

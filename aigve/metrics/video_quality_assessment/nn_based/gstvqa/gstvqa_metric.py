@@ -1,156 +1,120 @@
 # Copyright (c) IFM Lab. All rights reserved.
 
-from typing import Dict, List, Optional, Sequence, Union
-from mmengine.evaluator import BaseMetric
-from core.registry import METRICS
-from mmengine.logging import MMLogger
 import torch
 import torch.nn as nn
 import numpy as np
-
+from typing import Dict, Sequence
+# from scipy import stats
+from mmengine.evaluator import BaseMetric
+from core.registry import METRICS
 from utils import add_git_submodule, submodule_exists
-from .GSTVQA.TCSVT_Release.GVQA_Release.GVQA_Cross.cross_test import GSTVQA as GSTVQA_model
-from scipy import stats
-import h5py
-# metric_path = '/metrics/video_quality_assessment/nn_based/gstvqa'
 
 @METRICS.register_module()
 class GSTVQA(BaseMetric):
-    """The GSTVQA evaluation metric. https://arxiv.org/pdf/2012.13936
-    
-    Args:
-        collect_device (str): Device used for collecting results from workers.
-            Options: 'cpu' and 'gpu'.
-        prefix (str, optional): The prefix that will be added in the metric
-            names to disambiguate homonymous metrics of different evaluators.
-            Default: None.
-        metric_path (str): the file path of the metric 
-        train_index (int): The specific model used. Details on: https://github.com/Baoliang93/GSTVQA/blob/main/TCSVT_Release/GVQA_Release/GVQA_Cross/cross_test.py#L162
-        datainfo_path (str): the file path of the dataset
-    """
+    """GSTVQA metric modified for the toy dataset."""
 
-    default_prefix: Optional[str] = 'llm_score'
-
-    def __init__(self,
-                 collect_device: str = 'cpu',
-                 prefix: Optional[str] = None, 
-                 metric_path: str = '',
-                 model_path: str = '',
-                 datainfo_path: str = '',
-                 test_index: int = None,
-                #  train_index: int = 4
-                 ) -> None:
-        super().__init__(collect_device=collect_device, prefix=prefix)
-        # self.train_index = train_index
-        self.metric_path = metric_path
-        self.model_path = model_path
-        self.datainfo_path = datainfo_path
-        self.test_index = test_index
+    def __init__(self, model_path: str):
+        super(GSTVQA, self).__init__()
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.submodel_path = 'metrics/video_quality_assessment/nn_based/gstvqa'
         if not submodule_exists(self.submodel_path):
             add_git_submodule(
                 repo_url='https://github.com/Baoliang93/GSTVQA.git', 
                 submodule_path=self.submodel_path
             )
-
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        from .GSTVQA.TCSVT_Release.GVQA_Release.GVQA_Cross.cross_test import GSTVQA as GSTVQA_model
         self.model = GSTVQA_model().to(self.device)
-        self.model.load_state_dict(torch.load(model_path))
+        self.model.load_state_dict(torch.load(model_path, map_location=self.device))
         self.model.eval()
-        self.criterion = nn.L1Loss().to(self.device)
+        # self.criterion = nn.L1Loss().to(self.device)
 
-        print(f"=====datainfo_path=====: {datainfo_path}")
-        Info = h5py.File(name=datainfo_path, mode='r') # Runtime Error otherwise
-        self.scale = Info['scores'][0, :].max()  
-
-
-    # def process(self, data_batch: dict, data_samples: Sequence[dict]) -> None:
-    def process(self, data_batch: Sequence, data_samples: Sequence) -> None:
-        """GSTVQA process
-        Process one batch of data samples and predictions. The processed
-        results should be stored in ``self.results``, which will be used to
-        compute the metrics when all batches have been processed.
+    def compute_stat_features(self, features: torch.Tensor, num_valid_frames: int):
+        """Compute mean_var, std_var, mean_mean, std_mean from extracted deep features.
 
         Args:
-            data_batch (Sequence): A batch of data from the dataloader.
-            data_samples (Sequence): A batch of data samples that
-                contain annotations and predictions.
+            features (torch.Tensor): Tensor of shape [T, feature_dim] (deep features).
+            num_valid_frames (int): Number of valid frames before padding.
+
+        Returns:
+            Tuple[torch.Tensor]: (mean_var, std_var, mean_mean, std_mean), each of shape [1472].
         """
-        # print(f"Type of data_samples: {type(data_samples)}")
-        # print(f"Content of data_samples: {data_samples}")
+        # Ignore padded frames
+        features = features[:num_valid_frames]  # Shape: [num_valid_frames, feature_dim]
 
-        result = dict()
+        if num_valid_frames == 0:  # Edge case: all frames were padded
+            return (
+                torch.zeros(1472).to(self.device),
+                torch.zeros(1472).to(self.device),
+                torch.zeros(1472).to(self.device),
+                torch.zeros(1472).to(self.device),
+            )
 
-        features, length, label, mean_var,std_var,mean_mean,std_mean = data_samples
-        # # prompt_gt = data_sample['prompt_gt'] # str
-        # video_pd = data_sample['video_pd'] # torch.uint8(F, C, H, W)
+        # Compute per-frame mean and std
+        per_frame_mean = features.mean(dim=1)  # Shape: [num_valid_frames]
+        per_frame_std = features.std(dim=1)    # Shape: [num_valid_frames]
 
-        features = torch.tensor(features[0]).unsqueeze(1)
-        length = torch.tensor(length[0])
-        label = torch.tensor(label[0])  # Extract the tensor if it's a single-element tuple
-        mean_var = torch.tensor(mean_var[0])
-        std_var = torch.tensor(std_var[0])
-        mean_mean = torch.tensor(mean_mean[0])
-        std_mean = torch.tensor(std_mean[0])
+        # Compute mean and std over time
+        mean_var = per_frame_mean.var(dim=0)  # Shape: []
+        std_var = per_frame_std.var(dim=0)    # Shape: []
+        mean_mean = per_frame_mean.mean(dim=0)  # Shape: []
+        std_mean = per_frame_std.mean(dim=0)    # Shape: []
 
-        result['y_test'] = self.scale * label.item()
+        # Ensure 1472-dimensional output (repeat features to match GSTVQA requirements)
+        repeat_factor = 1472 // features.shape[1]  # Adjust to match GSTVQA expected size
+        mean_var = mean_var.repeat(repeat_factor)
+        std_var = std_var.repeat(repeat_factor)
+        mean_mean = mean_mean.repeat(repeat_factor)
+        std_mean = std_mean.repeat(repeat_factor)
 
-        features = features.to(self.device).float()
-        label = label.to(self.device).float()
-        mean_var = mean_var.to(self.device).float()
-        std_var = std_var.to(self.device).float()
-        mean_mean = mean_mean.to(self.device).float()
-        std_mean = std_mean.to(self.device).float()
+        return mean_var, std_var, mean_mean, std_mean
 
-        # print(f"features shape: {features.shape}")   # torch.Size([500, 1, 2944])
-        # print(f"length shape: {length.shape}")        # torch.Size([1])
-        # print(f"labels shape: {label.shape}")        # torch.Size([1])
-        # print(f"mean_var shape: {mean_var.shape}")   # torch.Size([1472])
-        # print(f"std_var shape: {std_var.shape}")     # torch.Size([1472])
-        # print(f"mean_mean shape: {mean_mean.shape}") # torch.Size([1472])
-        # print(f"std_mean shape: {std_mean.shape}")   # torch.Size([1472])
+    def process(self, data_batch: Sequence, data_samples: Sequence) -> None:
+        """Process a batch of extracted deep features for GSTVQA evaluation.
 
-        outputs = self.model(features, length.float(),mean_var,std_var,mean_mean,std_mean)
-        result['y_pred'] = self.scale * outputs.item()
-        result['loss'] = self.criterion(outputs, label).item()
+        Args:
+            data_batch (Sequence): A batch of data from the dataloader (not used here).
+            data_samples (Sequence[Tuple[torch.Tensor, int]]): 
+                A sequence where each item is a tuple containing:
+                - `deep_features`: Tensor of shape [T, feature_dim] (extracted features).
+                - `num_frames`: Integer representing the number of valid frames.
+        """
+        results = []
 
-        self.results.append(result)
+        with torch.no_grad():
+            for deep_features, num_valid_frames in data_samples:
+                if not isinstance(deep_features, torch.Tensor) or not isinstance(num_valid_frames, int):
+                    raise TypeError("Expected deep_features to be a torch.Tensor and num_valid_frames to be an int.")
+
+                if num_valid_frames == 0:  # Edge case: No valid frames
+                    results.append({'score': 0.0})
+                    continue
+
+                features = features[:num_valid_frames].to(self.device)  # Remove padded features
+
+                # Compute statistical features only on valid frames
+                mean_var, std_var, mean_mean, std_mean = self.compute_stat_features(features, num_valid_frames)
+                mean_var, std_var, mean_mean, std_mean = (
+                    mean_var.to(self.device),
+                    std_var.to(self.device),
+                    mean_mean.to(self.device),
+                    std_mean.to(self.device),
+                )
+
+                # Length tensor indicating the number of valid frames
+                length = torch.tensor([num_valid_frames]).to(self.device)
+
+                # Run GSTVQA model
+                outputs = self.model(features.unsqueeze(1), length.float(), mean_var, std_var, mean_mean, std_mean)
+                results.append({'score': outputs.item()})
+
+        self.results.extend(results)
 
 
     def compute_metrics(self, results: list) -> Dict[str, float]:
-        """Compute the metrics from processed results.
+        """Compute final GSTVQA-based metrics."""
+        scores = np.array([res['score'] for res in results])
 
-        Args:
-            results (list): The processed results of each batch.
+        mean_score = np.mean(scores)
+        print(f"GSTVQA mean score: {mean_score:.4f}")
 
-        Returns:
-            Dict[str, float]: The computed metrics. The keys are the names of
-            the metrics, and the values are corresponding results.
-        """
-        metric_results = dict()
-        logger: MMLogger = MMLogger.get_current_instance()
-
-        assert len(self.test_index) == len(results)
-        test_loss = sum(result.get('loss', 0) for result in results) / len(results)
-        y_pred_np = np.zeros(len(self.test_index))
-        y_test_np = np.zeros(len(self.test_index))
-        for i, result in enumerate(results):
-            y_pred_np[i] = result['y_pred']
-            y_test_np[i] = result['y_test']
-
-        PLCC = stats.pearsonr(y_pred_np, y_test_np)[0]
-        SROCC = stats.spearmanr(y_pred_np, y_test_np)[0]
-        RMSE = np.sqrt(((y_pred_np-y_test_np) ** 2).mean())
-        KROCC = stats.stats.kendalltau(y_pred_np, y_test_np)[0]
-        print("Test results: test loss={:.4f}, SROCC={:.4f}, KROCC={:.4f}, PLCC={:.4f}, RMSE={:.4f}"
-                .format(test_loss, SROCC, KROCC, PLCC, RMSE))
-        
-        metric_results['PLCC'] = PLCC
-        metric_results['SROCC'] = SROCC
-        metric_results['RMSE'] = RMSE
-        metric_results['KROCC'] = KROCC
-
-        return metric_results
-
-
-
+        return {'GSTVQA_Score': mean_score}

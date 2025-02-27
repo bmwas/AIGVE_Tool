@@ -22,8 +22,17 @@ from metrics.text_video_alignment.gpt_based.TIFA.tifa.tifascore import get_quest
 
 @METRICS.register_module()
 class TIFAScore(BaseMetric):
-    '''
-    '''
+    """ Initialize the ``TIFAScore`` evaluator.
+    
+    Args:   
+            openai_key (str): The user's api key of the LLM models openai provides.
+            llm_model (str): The name of the LLM model used in the TIFAScore evaluator. Defaults to ``gpt-3.5-turbo``.
+            unifiedqa_model_name (str): The name of the ``UnifiedQAModel`` used in TIFAScore evaluator. Defaults to ``allenai/unifiedqa-v2-t5-large-1363200``.
+            vqa_model_name (str): The name of the ``VQAModel used`` in TIFAScore evaluator. Defaults to ``mplug-large``.
+
+    Returns:
+            None
+    """
     def __init__(self, 
                  openai_key,
                  llm_model: str = 'gpt-3.5-turbo',
@@ -56,7 +65,7 @@ class TIFAScore(BaseMetric):
 
     
     def process(self, data_batch: Sequence, data_samples: Sequence) -> None:
-        """TIFAScore process
+        """ TIFAScore process
         Process one batch of data samples and predictions. The processed
         results should be stored in ``self.results``, which will be used to
         compute the metrics when all batches have been processed.

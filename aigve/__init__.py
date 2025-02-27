@@ -15,9 +15,14 @@ __version__ = '0.0.1'
 # from . import expansion, compression, transformation, reconciliation, remainder, interdependence, fusion
 # from . import koala
 # from . import data, output
-from metrics import VideoPhy, VideoScore, \
+from .datasets import ToyDataset, \
+    GSTVQADataset, GSTVQADatasetCrossData, KONVID1KDataset_ModularBVQA, \
+    CLIPSimDataset, KineticsDataset, CLIPTempDataset, BLIPSimDataset, PickScoreDataset, \
+    VideoPhyDataset
+from .metrics import VideoPhy, VideoScore, \
     DSGScore, TIFAScore, VIEEvalScore, CLIPSimScore, CLIPTempScore, PickScore, BlipSimScore, \
-    Toy, FIDScore, FVDScore
+    FIDScore, FVDScore, \
+    GSTVQA, GSTVQACrossData
 # from . import visual, util
 
 
@@ -26,7 +31,11 @@ __all__ = [
     # ---- modules ----
     # ---- component functions ----
     # ---- other libraries ----
-    # ---- input and output ----
+    # ---- dataloaders ----
+    'ToyDataset', 
+    'GSTVQADataset', 'GSTVQADatasetCrossData', 'KONVID1KDataset_ModularBVQA',
+    'CLIPSimDataset', 'KineticsDataset', 'CLIPTempDataset', 'BLIPSimDataset', 'PickScoreDataset',
+    'VideoPhyDataset'
     # ---- metrics ----
     'VideoPhy', 
     'VideoScore',
@@ -39,8 +48,10 @@ __all__ = [
     'PickScore', 
     'BlipSimScore',
 
-    'Toy',
     'FIDScore',
     'FVDScore',
+
+    'GSTVQA', 
+    'GSTVQACrossData'
     # ---- visualization and utility ----
 ]
