@@ -13,7 +13,7 @@ import numpy as np
 
 from PIL import Image
 
-from metrics.aigve.videoscore.videoscore_utils import _read_video_pyav
+from metrics.multi_aspect_metrics.videoscore.videoscore_utils import _read_video_pyav
 
 
 @DATASETS.register_module()

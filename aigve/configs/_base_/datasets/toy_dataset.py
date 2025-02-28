@@ -1,7 +1,7 @@
 # Copyright (c) IFM Lab. All rights reserved.
 from utils import LoadVideoFromFile
 from mmengine.dataset.sampler import DefaultSampler
-from datasets import ToyDataset
+from aigve.datasets import ToyDataset
 
 
 eva_pipeline = [

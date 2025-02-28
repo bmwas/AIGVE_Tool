@@ -130,13 +130,23 @@ class GSTVQA(nn.Module):
         
     def forward(self, input, input_length,mean_var,std_var,mean_mean,std_mean):
         input = self.CA(input,mean_var,std_var,mean_mean,std_mean)
+        # print('output after CA: ',input.shape) # torch.Size([30, 1472, 1472])
         input = self.ann(input)  # dimension reduction
+        # print('output after ANN: ',input.shape) # torch.Size([30, 1472, 256])
         outputs, _ = self.rnn(input, self._get_initial_state(input.size(0), input.device))
+        # print('output after RNN: ',outputs.shape) # torch.Size([30, 1472, 32])
+        # print('input_length: ',input_length)    # tensor([30])
         score = torch.zeros_like(input_length, device=outputs.device)  #
         frame_score = torch.zeros_like(input_length, device=outputs.device)
-        
-        for i in range(input_length.shape[0]):  #
-            qi = outputs[i, :np.int(input_length[i].numpy()),:]
+        # print('score: ',score)
+        # print('frame_score: ',frame_score)
+        for i in range(input_length.shape[0]):  
+            qi = outputs[i, :int(input_length[i].item()),:]
+            # print('qi: ',qi.shape) # torch.Size([30, 32])
+            # print('input_length[i].item(): ',input_length[i].item())  # 30
+            # print('qi.permute(1,0).unsqueeze(0): ',qi.permute(1,0).unsqueeze(0).shape) # torch.Size([1, 32, 15])
+            # print(self.q_att)
+            # print('output after q_att[0]): ',self.q_att[0](qi.permute(1,0).unsqueeze(0)).shape)
             Att = torch.tanh(self.q_att(qi.permute(1,0).unsqueeze(0))).squeeze().repeat(self.hidden_size,1).permute(1,0)          
             q_fet = (Att*(qi[int(self.att_frams-1):-int(self.att_frams-1),:]))
             qi = PymidPool(q_fet,self.layer_num,Att)
@@ -145,17 +155,16 @@ class GSTVQA(nn.Module):
                Q_eachV = qi
             else:
                Q_eachV = torch.cat((Q_eachV,qi),0)
-            frame_input = outputs[i, :np.int(input_length[i].numpy())].mean(0)-self.q_mean
+            frame_input = outputs[i, :int(input_length[i].item())].mean(0)-self.q_mean
             frame_score[i] = (torch.exp(-(self.q_reg**2)*frame_input*frame_input)).mean()            
  
         score = self.q_reg2(Q_eachV)
 
         return score
+    
     def _get_initial_state(self, batch_size, device):
         h0 = torch.zeros(1, batch_size, self.hidden_size, device=device)
         return h0      
-      
-
 
 if __name__ == "__main__":
     parser = ArgumentParser(description='"GSTVQA')

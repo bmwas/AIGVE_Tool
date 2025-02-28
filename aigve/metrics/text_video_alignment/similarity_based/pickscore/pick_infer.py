@@ -18,7 +18,7 @@ from tqdm import tqdm
 
 @METRICS.register_module()
 class PickScore(BaseMetric):
-     """ Initialize the ``PickScore`` evaluator.
+    """ Initialize the ``PickScore`` evaluator.
     
     Args:
             model_name (str): The name of the PickScore model. Defaults to ``yuvalkirstain/PickScore_v1``.
@@ -27,10 +27,9 @@ class PickScore(BaseMetric):
     Returns:
             None
     """
-    def __init__(self,
-                 model_name: str = "yuvalkirstain/PickScore_v1",
-                 logit_scale: bool = False,
-                 ) -> None:
+    def __init__(self, 
+                 model_name: str = "yuvalkirstain/PickScore_v1", 
+                 logit_scale: bool = False) -> None:
         super().__init__()
         self.model_name = model_name
         self.logit_scale = logit_scale
@@ -40,7 +39,7 @@ class PickScore(BaseMetric):
         self.model.eval()
 
 
-# def process(self, data_batch: dict, data_samples: Sequence[dict]) -> None:
+    # def process(self, data_batch: dict, data_samples: Sequence[dict]) -> None:
     def process(self, data_batch: Sequence, data_samples: Sequence) -> None:
         """PickScore process
         Process one batch of data samples and predictions. The processed

@@ -1,7 +1,7 @@
 
 from typing import Dict, List, Optional, Sequence, Union, Any
 
-# from mantis.models.idefics2 import Idefics2ForSequenceClassification
+from mantis.models.idefics2 import Idefics2ForSequenceClassification
 from mmengine.evaluator import BaseMetric
 from sympy.logic.inference import entails
 from transformers import LlamaTokenizer

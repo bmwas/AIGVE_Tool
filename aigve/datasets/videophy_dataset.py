@@ -5,8 +5,14 @@ import json
 import re
 import torch
 from transformers import LlamaTokenizer
-from metrics.multi_aspect_metrics.videophy.mplug_owl_video import MplugOwlImageProcessor, MplugOwlProcessor
 from core.registry import DATASETS
+from functools import lru_cache
+
+# Lazy import to avoid circular import
+@lru_cache(maxsize=1)
+def lazy_import_mplug_owl():
+    from aigve.metrics.multi_aspect_metrics.videophy.mplug_owl_video import MplugOwlImageProcessor, MplugOwlProcessor
+    return MplugOwlImageProcessor, MplugOwlProcessor
 
 @DATASETS.register_module()
 class VideoPhyDataset(Dataset):
@@ -36,6 +42,7 @@ class VideoPhyDataset(Dataset):
         else:
             self.tokenizer = LlamaTokenizer.from_pretrained(self.hf_checkpoint, token=self.hf_token)
 
+        MplugOwlImageProcessor, MplugOwlProcessor = lazy_import_mplug_owl()
         self.image_processor = MplugOwlImageProcessor.from_pretrained(self.hf_checkpoint)
         # initialize processor
         if processor is not None:

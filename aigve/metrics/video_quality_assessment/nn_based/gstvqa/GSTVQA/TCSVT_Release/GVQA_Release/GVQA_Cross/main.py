@@ -175,7 +175,7 @@ class GSTVQA(nn.Module):
         frame_score = torch.zeros_like(input_length, device=outputs.device)
         
         for i in range(input_length.shape[0]):  #
-            qi = outputs[i, :np.int(input_length[i].numpy()),:]
+            qi = outputs[i, :int(input_length[i].item()),:]
             Att = torch.tanh(self.q_att(qi.permute(1,0).unsqueeze(0))).squeeze().repeat(self.hidden_size,1).permute(1,0)          
             q_fet = (Att*(qi[int(self.att_frams-1):-int(self.att_frams-1),:]))
             qi = PymidPool(q_fet,self.layer_num,Att)
@@ -184,7 +184,7 @@ class GSTVQA(nn.Module):
                Q_eachV = qi
             else:
                Q_eachV = torch.cat((Q_eachV,qi),0)
-            frame_input = outputs[i, :np.int(input_length[i].numpy())].mean(0)
+            frame_input = outputs[i, :int(input_length[i].item())].mean(0)
             frame_input_tp = frame_input-self.q_mean
             frame_score[i] = (torch.exp(-(self.q_reg**2)*frame_input_tp*frame_input_tp)).mean()            
  

@@ -72,8 +72,9 @@ conda env remove --name vqa
 ```
 conda env create -f environment.yml
 conda activate vqa
+conda install pytorch==2.1.0 torchvision==0.16.0 torchaudio==2.1.0 pytorch-cuda=11.8 -c pytorch -c nvidia
 ```
-
+(MMCV from v1.7.2 support PyTorch 2.1.0 and 2.0.0)
 
 ## For developers:
 ### 0. Review the code of [VQALoop](./core/loops.py).
@@ -114,6 +115,10 @@ python main.py {metric_config_file}.py
 ``
 
 Take Examples:
+
+```
+rm -rf ~/.cache
+```
 
 For GSTVQA:
 ``

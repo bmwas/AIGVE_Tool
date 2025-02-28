@@ -24,8 +24,7 @@ import torchvision.transforms as transforms
 from mmengine.evaluator import BaseMetric
 from mmengine.logging import MMLogger
 from tqdm import tqdm
-
-from .DSG.dsg.vqa_utils import MPLUG, InstructBLIP
+from utils import add_git_submodule, submodule_exists
 
 @METRICS.register_module()
 class DSGScore(BaseMetric):
@@ -43,6 +42,14 @@ class DSGScore(BaseMetric):
                  verbose: bool = False):
         super().__init__()
         
+        self.submodel_path = 'metrics/text_video_alignment/gpt_based/dsg'
+        if not submodule_exists(self.submodel_path):
+            add_git_submodule(
+                repo_url='https://github.com/j-min/DSG.git', 
+                submodule_path=self.submodel_path
+            )     
+        from .DSG.dsg.vqa_utils import MPLUG, InstructBLIP
+
         self.vqa_model_name = vqa_model_name
         assert self.vqa_model_name in ["InstructBLIP", "MPLUG"]
         if self.vqa_model_name == 'InstructBLIP':

@@ -1,0 +1,49 @@
+{
+    "video_results": [
+        {
+            "video_name": "A beautiful coastal beach in spring, waves lapping on sand, animated style-0.mp4",
+            "GSTVQA_Score": 0.08948008716106415
+        },
+        {
+            "video_name": "A beautiful coastal beach in spring, waves lapping on sand, black and white-0.mp4",
+            "GSTVQA_Score": 0.10656148195266724
+        },
+        {
+            "video_name": "A beautiful coastal beach in spring, waves lapping on sand by Hokusai, in the style of Ukiyo-0.mp4",
+            "GSTVQA_Score": 0.2282082736492157
+        },
+        {
+            "video_name": "A beautiful coastal beach in spring, waves lapping on sand, chalk drawing-0.mp4",
+            "GSTVQA_Score": 0.3046557605266571
+        },
+        {
+            "video_name": "A beautiful coastal beach in spring, waves lapping on sand, Claude Monet style-0.mp4",
+            "GSTVQA_Score": 0.12914973497390747
+        },
+        {
+            "video_name": "A beautiful coastal beach in spring, waves lapping on sand, in cyberpunk style-0.mp4",
+            "GSTVQA_Score": 0.19764375686645508
+        },
+        {
+            "video_name": "A beautiful coastal beach in spring, waves lapping on sand, oil painting-0.mp4",
+            "GSTVQA_Score": 0.1725325584411621
+        },
+        {
+            "video_name": "A beautiful coastal beach in spring, waves lapping on sand, pixel art-0.mp4",
+            "GSTVQA_Score": 0.13646066188812256
+        },
+        {
+            "video_name": "A beautiful coastal beach in spring, waves lapping on sand, surrealism style-0.mp4",
+            "GSTVQA_Score": 0.22783306241035461
+        },
+        {
+            "video_name": "A beautiful coastal beach in spring, waves lapping on sand, Van Gogh style-0.mp4",
+            "GSTVQA_Score": 0.14869573712348938
+        },
+        {
+            "video_name": "A beautiful coastal beach in spring, waves lapping on sand, watercolor painting-0.mp4",
+            "GSTVQA_Score": 0.14233747124671936
+        }
+    ],
+    "GSTVQA_Mean_Score": 0.17123259874907407
+}

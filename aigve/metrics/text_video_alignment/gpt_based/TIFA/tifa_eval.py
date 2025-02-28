@@ -16,9 +16,29 @@ from typing import Dict, Optional, Sequence, Union
 
 from mmengine.evaluator import BaseMetric
 from mmengine.logging import MMLogger
+from functools import lru_cache
 
-from metrics.text_video_alignment.gpt_based.dsg.DSG.dsg.openai_utils import openai_completion
-from metrics.text_video_alignment.gpt_based.TIFA.tifa.tifascore import get_question_and_answers, filter_question_and_answers, UnifiedQAModel, tifa_score_single, VQAModel
+# Lazy import to avoid circular import
+@lru_cache(maxsize=1)
+def lazy_import():
+    from utils import add_git_submodule, submodule_exists
+    submodel_path = 'metrics/text_video_alignment/gpt_based/dsg'
+    if not submodule_exists(submodel_path):
+        add_git_submodule(
+            repo_url='https://github.com/j-min/DSG.git', 
+            submodule_path=submodel_path
+        )  
+    submodel_path = 'metrics/text_video_alignment/gpt_based/TIFA'
+    if not submodule_exists(submodel_path):
+        add_git_submodule(
+            repo_url='https://github.com/Yushi-Hu/tifa.git', 
+            submodule_path=submodel_path
+        )   
+    from ..dsg.DSG.dsg.openai_utils import openai_completion
+    from .tifa.tifascore import get_question_and_answers, filter_question_and_answers, UnifiedQAModel, tifa_score_single, VQAModel
+    
+    return openai_completion, get_question_and_answers, filter_question_and_answers, UnifiedQAModel, tifa_score_single, VQAModel
+
 
 @METRICS.register_module()
 class TIFAScore(BaseMetric):
@@ -43,9 +63,10 @@ class TIFAScore(BaseMetric):
         self.openai_key = openai_key
         self.llm_model = llm_model
         self.unifiedqa_model_name = unifiedqa_model_name
-        self.unifiedqa_model = UnifiedQAModel(self.unifiedqa_model_name)
+        self.openai_completion, self.get_question_and_answers, self.filter_question_and_answers, self.unifiedqa_model, self.tifa_score_single, self.vqa_model = lazy_import()
+        self.unifiedqa_model = self.UnifiedQAModel(self.unifiedqa_model_name)
         self.vqa_model_name = vqa_model_name
-        self.vqa_model = VQAModel(self.vqa_model_name)
+        self.vqa_model = self.VQAModel(self.vqa_model_name)
         
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -57,7 +78,7 @@ class TIFAScore(BaseMetric):
         assert openai.api_key is not None
         test_prompt_string = 'hello, how are you doing?'
         print('test prompt: ', test_prompt_string)
-        response = openai_completion(
+        response = self.openai_completion(
             test_prompt_string,
             model=self.llm_model,
         )
@@ -92,13 +113,13 @@ class TIFAScore(BaseMetric):
         for input_prompt, input_video in zip(input_prompts, input_videos):
             tifa_score = []
             # Generate questions with GPT-3.5-turbo
-            gpt3_questions = get_question_and_answers(input_prompt)
+            gpt3_questions = self.get_question_and_answers(input_prompt)
             # print(gpt3_questions)
             # Filter questions with UnifiedQA
-            filtered_questions = filter_question_and_answers(self.unifiedqa_model, gpt3_questions)
+            filtered_questions = self.filter_question_and_answers(self.unifiedqa_model, gpt3_questions)
             for index, frame_path in enumerate(input_video):
                 # calucluate TIFA score
-                result = tifa_score_single(self.vqa_model, filtered_questions, frame_path)
+                result = self.tifa_score_single(self.vqa_model, filtered_questions, frame_path)
                 # print(result)
                 tifa_score.append(result['tifa_score'])
             average_tifa_score = sum(tifa_score)/len(tifa_score)

@@ -1,5 +1,5 @@
 # Copyright (c) IFM Lab. All rights reserved.
-
+# Deprecated
 from typing import Dict, List, Optional, Sequence, Union
 from mmengine.evaluator import BaseMetric
 from core.registry import METRICS

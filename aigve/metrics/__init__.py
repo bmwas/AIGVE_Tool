@@ -4,10 +4,10 @@
 This module provides the videos evaluation metrics that can be used within the AIGVE toolkit.
 """
 
-from aigve import VideoPhy, VideoScore
-from text_video_alignment import DSGScore, TIFAScore, VIEEvalScore, \
+from .multi_aspect_metrics import VideoPhy, VideoScore
+from .text_video_alignment import DSGScore, TIFAScore, VIEEvalScore, \
            CLIPSimScore, CLIPTempScore, PickScore, BlipSimScore
-from video_quality_assessment import Toy, FIDScore, FVDScore, ISScore
+from .video_quality_assessment import FIDScore, FVDScore, ISScore
 
 __all__ = [
     # ---- multi_aspect_metrics ----
@@ -16,5 +16,5 @@ __all__ = [
     'DSGScore', 'TIFAScore', 'VIEEvalScore', 
     'CLIPSimScore', 'CLIPTempScore', 'PickScore', 'BlipSimScore',
     # ---- video_quality_assessment ----
-    'Toy', 'FIDScore', 'FVDScore', 'ISScore'
+    'FIDScore', 'FVDScore', 'ISScore'
     ]

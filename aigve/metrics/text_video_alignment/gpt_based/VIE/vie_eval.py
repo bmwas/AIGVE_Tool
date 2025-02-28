@@ -15,8 +15,8 @@ from typing import Sequence, Dict
 
 from mmengine.evaluator import BaseMetric
 from mmengine.logging import MMLogger
+from utils import add_git_submodule, submodule_exists
 
-from metrics.text_video_alignment.gpt_based.VIE.VIESCORE.viescore import VIEScore
 
 @METRICS.register_module()
 class VIEEvalScore(BaseMetric):
@@ -40,6 +40,22 @@ class VIEEvalScore(BaseMetric):
         self.api_key_path = api_key_path
         self.llm_backbone = llm_backbone
         self.task = task
+
+        self.submodel_path = 'metrics/text_video_alignment/gpt_based/VIE'
+        if not submodule_exists(self.submodel_path):
+            add_git_submodule(
+                repo_url='https://github.com/TIGER-AI-Lab/VIEScore.git', 
+                submodule_path=self.submodel_path
+            )  
+        self.submodel_path = 'metrics/text_video_alignment/gpt_based/dsg'
+        if not submodule_exists(self.submodel_path):
+            add_git_submodule(
+                repo_url='https://github.com/j-min/DSG.git', 
+                submodule_path=self.submodel_path
+            )  
+        from .VIEScore.viescore import VIEScore 
+        from .DSG.dsg.vqa_utils import MPLUG, InstructBLIP
+
         
         self.vie_score = VIEScore(backbone=self.llm_backbone, task=self.task, key_path=self.api_key_path)
         

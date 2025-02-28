@@ -1,5 +1,7 @@
 # Copyright (c) IFM Lab. All rights reserved.
 
+import os
+import json
 import torch
 import torch.nn as nn
 import numpy as np
@@ -8,10 +10,11 @@ from typing import Dict, Sequence
 from mmengine.evaluator import BaseMetric
 from core.registry import METRICS
 from utils import add_git_submodule, submodule_exists
+from tqdm import tqdm 
 
 @METRICS.register_module()
 class GSTVQA(BaseMetric):
-    """GSTVQA metric modified for the toy dataset."""
+    """GSTVQA metric modified for the toy dataset. (Supporting 2944-dim features)."""
 
     def __init__(self, model_path: str):
         super(GSTVQA, self).__init__()
@@ -29,67 +32,77 @@ class GSTVQA(BaseMetric):
         # self.criterion = nn.L1Loss().to(self.device)
 
     def compute_stat_features(self, features: torch.Tensor, num_valid_frames: int):
-        """Compute mean_var, std_var, mean_mean, std_mean from extracted deep features.
+        """Compute statistical features mean_var, std_var, mean_mean, std_mean from extracted deep features.
 
         Args:
-            features (torch.Tensor): Tensor of shape [T, feature_dim] (deep features).
+            features (torch.Tensor): Tensor of shape [T, 2944].
             num_valid_frames (int): Number of valid frames before padding.
 
         Returns:
             Tuple[torch.Tensor]: (mean_var, std_var, mean_mean, std_mean), each of shape [1472].
         """
         # Ignore padded frames
-        features = features[:num_valid_frames]  # Shape: [num_valid_frames, feature_dim]
+        features = features[:num_valid_frames]  # Shape: [num_valid_frames, feature_dim]: [10, 1472]
 
         if num_valid_frames == 0:  # Edge case: all frames were padded
             return (
-                torch.zeros(1472).to(self.device),
-                torch.zeros(1472).to(self.device),
-                torch.zeros(1472).to(self.device),
-                torch.zeros(1472).to(self.device),
+                torch.zeros(1472, device=self.device),
+                torch.zeros(1472, device=self.device),
+                torch.zeros(1472, device=self.device),
+                torch.zeros(1472, device=self.device),
             )
 
-        # Compute per-frame mean and std
-        per_frame_mean = features.mean(dim=1)  # Shape: [num_valid_frames]
-        per_frame_std = features.std(dim=1)    # Shape: [num_valid_frames]
+        # Split into mean and std components
+        mean_features = features[:, :1472]  # First 1472 features are mean-based
+        std_features = features[:, 1472:]   # Last 1472 features are std-based
 
-        # Compute mean and std over time
-        mean_var = per_frame_mean.var(dim=0)  # Shape: []
-        std_var = per_frame_std.var(dim=0)    # Shape: []
-        mean_mean = per_frame_mean.mean(dim=0)  # Shape: []
-        std_mean = per_frame_std.mean(dim=0)    # Shape: []
-
-        # Ensure 1472-dimensional output (repeat features to match GSTVQA requirements)
-        repeat_factor = 1472 // features.shape[1]  # Adjust to match GSTVQA expected size
-        mean_var = mean_var.repeat(repeat_factor)
-        std_var = std_var.repeat(repeat_factor)
-        mean_mean = mean_mean.repeat(repeat_factor)
-        std_mean = std_mean.repeat(repeat_factor)
+        # Compute per-feature statistics over frames
+        mean_mean = mean_features.mean(dim=0)  # Shape: [1472]
+        std_mean = std_features.mean(dim=0)    # Shape: [1472]
+        mean_var = mean_features.var(dim=0, unbiased=False)  # Shape: [1472]
+        std_var = std_features.var(dim=0, unbiased=False)    # Shape: [1472]
 
         return mean_var, std_var, mean_mean, std_mean
 
     def process(self, data_batch: Sequence, data_samples: Sequence) -> None:
-        """Process a batch of extracted deep features for GSTVQA evaluation.
+        """
+        Process a batch of extracted deep features for GSTVQA evaluation and store results in a JSON file.
 
         Args:
             data_batch (Sequence): A batch of data from the dataloader (not used here).
-            data_samples (Sequence[Tuple[torch.Tensor, int]]): 
-                A sequence where each item is a tuple containing:
-                - `deep_features`: Tensor of shape [T, feature_dim] (extracted features).
-                - `num_frames`: Integer representing the number of valid frames.
+            data_samples (List[Tuple[torch.Tensor], Tuple[int]]): 
+                A list containing two tuples:
+                - A tuple of `deep_features`: Each item is a Tensor of shape [T, 2944]. 
+                - A tuple of `num_frames`: Each item is an integer representing the number of valid frames.
+                - A tuple of `video_name`: Each item is a string representing the file name for the video.
         """
+        # data_samples an example: [
+        #     (tensor([[0., 0., 0.,  ..., 0., 0., 0.],
+        #              [0., 0., 0.,  ..., 0., 0., 0.],
+        #              ...
+        #              [0., 0., 0.,  ..., 0., 0., 0.]]), 
+        #      tensor([[0., 0., 0.,  ..., 0., 0., 0.],
+        #              [0., 0., 0.,  ..., 0., 0., 0.],
+        #              ...
+        #              [0., 0., 0.,  ..., 0., 0., 0.]])), 
+        #     (10, 10)
+        # ]
         results = []
-
+        deep_features_tuple, num_frames_tuple, video_name_tuple = data_samples
         with torch.no_grad():
-            for deep_features, num_valid_frames in data_samples:
+            # for deep_features, num_valid_frames, video_name in tqdm(zip(deep_features_tuple, num_frames_tuple, video_name_tuple), 
+            #                                             total=len(video_name_tuple), 
+            #                                             desc="Processing Videos"):
+            for deep_features, num_valid_frames, video_name in zip(deep_features_tuple, num_frames_tuple, video_name_tuple):
                 if not isinstance(deep_features, torch.Tensor) or not isinstance(num_valid_frames, int):
                     raise TypeError("Expected deep_features to be a torch.Tensor and num_valid_frames to be an int.")
 
                 if num_valid_frames == 0:  # Edge case: No valid frames
-                    results.append({'score': 0.0})
+                    results.append({"video_name": 'N/A', "GSTVQA_Score": 0.0})
                     continue
 
-                features = features[:num_valid_frames].to(self.device)  # Remove padded features
+                # Remove padded features
+                features = deep_features[:num_valid_frames].to(self.device)
 
                 # Compute statistical features only on valid frames
                 mean_var, std_var, mean_mean, std_mean = self.compute_stat_features(features, num_valid_frames)
@@ -102,19 +115,33 @@ class GSTVQA(BaseMetric):
 
                 # Length tensor indicating the number of valid frames
                 length = torch.tensor([num_valid_frames]).to(self.device)
-
+                # print('features(input) shape', features.unsqueeze(1).shape) # torch.Size([10, 1, 1472])
+                # print('input_length shape', length.shape) # torch.Size([1])
+                # print('input_length', length) # torch.Size([1])
+                # print('mean_mean shape', mean_mean.shape) # torch.Size([1472])
+                # print('std_mean shape', std_mean.shape) # torch.Size([1472])
+                # print('mean_var shape', mean_var.shape) # torch.Size([1472])
+                # print('std_var shape', std_var.shape) # torch.Size([1472])
+                
                 # Run GSTVQA model
-                outputs = self.model(features.unsqueeze(1), length.float(), mean_var, std_var, mean_mean, std_mean)
-                results.append({'score': outputs.item()})
+                outputs = self.model(features.unsqueeze(1), length, mean_var, std_var, mean_mean, std_mean)
+                score = outputs.item()
+                results.append({"video_name": video_name, "GSTVQA_Score": score})
+                print(f"Processed score {score:.4f} for {video_name}")
 
         self.results.extend(results)
 
 
     def compute_metrics(self, results: list) -> Dict[str, float]:
         """Compute final GSTVQA-based metrics."""
-        scores = np.array([res['score'] for res in results])
-
+        scores = np.array([res['GSTVQA_Score'] for res in self.results])
         mean_score = np.mean(scores)
         print(f"GSTVQA mean score: {mean_score:.4f}")
 
-        return {'GSTVQA_Score': mean_score}
+        json_file_path = os.path.join(os.getcwd(), "gstvqa_results.json")
+        final_results = {"video_results": self.results, "GSTVQA_Mean_Score": mean_score}
+        with open(json_file_path, "w") as json_file:
+            json.dump(final_results, json_file, indent=4)
+        print(f"GSTVQA mean score saved to {json_file_path}")
+
+        return {'GSTVQA_Mean_Score': mean_score}

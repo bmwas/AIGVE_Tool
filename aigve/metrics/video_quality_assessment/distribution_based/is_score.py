@@ -1,11 +1,11 @@
 # Copyright (c) IFM Lab. All rights reserved.
-from tensorflow.keras.applications.inception_v3 import InceptionV3, preprocess_input
+# from tensorflow.keras.applications.inception_v3 import InceptionV3, preprocess_input
 from mmengine.model import BaseModel
 from mmengine.registry import MODELS, METRICS
 import numpy as np
 from typing import Dict, Sequence
 from mmengine.logging import MMLogger
-import tensorflow as tf
+# import tensorflow as tf
 
 @MODELS.register_module()
 @METRICS.register_module()
