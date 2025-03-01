@@ -4,6 +4,7 @@ from .toy_dataset import ToyDataset
 
 from .gstvqa_dataset import GSTVQADataset
 from .gstvqa_crossdata_dataset import GSTVQADatasetCrossData
+from .simplevqa_dataset import SimpleVQADataset
 # from .konvid_1k_dataset import KONVID1KDataset_ModularBVQA
 
 from .clipsim_dataset import CLIPSimDataset
@@ -15,7 +16,7 @@ from .pickscore_dataset import PickScoreDataset
 from .videophy_dataset import VideoPhyDataset
 
 __all__ = ['ToyDataset', 
-           'GSTVQADataset', 'GSTVQADatasetCrossData', 'KONVID1KDataset_ModularBVQA',
+           'GSTVQADataset', 'GSTVQADatasetCrossData', 'SimpleVQADataset', 'KONVID1KDataset_ModularBVQA',
            'CLIPSimDataset', 'KineticsDataset', 'CLIPTempDataset', 'BLIPSimDataset', 'PickScoreDataset',
            'VideoPhyDataset']
 

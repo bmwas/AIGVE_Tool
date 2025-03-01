@@ -8,7 +8,7 @@ with read_base():
 
 val_dataloader = dict(
     batch_size=1,
-    num_workers=2,
+    num_workers=4,
     persistent_workers=True,
     drop_last=False,
     sampler=dict(type=DefaultSampler, shuffle=False),
@@ -16,10 +16,10 @@ val_dataloader = dict(
         type=GSTVQADataset,
         # video_dir='/home/xinhao/VQA_Toolkit/aigve/data/toy/evaluate/', # it has 16 frames for each video, each frame is [512, 512, 3]
         # prompt_dir='/home/xinhao/VQA_Toolkit/aigve/data/toy/annotations/evaluate.json',
-        video_dir='/home/xinhao/VQA_Toolkit/aigve/data/AIGVE_Bench_toy/videos/', # it has 81 frames for each video, each frame is [768, 1360, 3]
-        prompt_dir='/home/xinhao/VQA_Toolkit/aigve/data/AIGVE_Bench_toy/annotations/train.json',
+        video_dir='/home/xinhao/VQA_Toolkit/aigve/data/AIGVE_Bench/videos_3frame/', # it has 81 frames for each video, each frame is [768, 1360, 3]
+        prompt_dir='/home/xinhao/VQA_Toolkit/aigve/data/AIGVE_Bench/annotations/test.json',
         model_name='vgg16',  # User can choose 'vgg16' or 'resnet18'
-        max_len=50,
+        max_len=3,
     )
 )
 

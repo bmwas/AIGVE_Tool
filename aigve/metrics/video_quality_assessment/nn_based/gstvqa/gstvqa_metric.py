@@ -10,7 +10,6 @@ from typing import Dict, Sequence
 from mmengine.evaluator import BaseMetric
 from core.registry import METRICS
 from utils import add_git_submodule, submodule_exists
-from tqdm import tqdm 
 
 @METRICS.register_module()
 class GSTVQA(BaseMetric):
@@ -19,7 +18,7 @@ class GSTVQA(BaseMetric):
     def __init__(self, model_path: str):
         super(GSTVQA, self).__init__()
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.submodel_path = 'metrics/video_quality_assessment/nn_based/gstvqa'
+        self.submodel_path = os.path.join(os.getcwd(), 'metrics/video_quality_assessment/nn_based/gstvqa')
         if not submodule_exists(self.submodel_path):
             add_git_submodule(
                 repo_url='https://github.com/Baoliang93/GSTVQA.git', 
@@ -90,9 +89,6 @@ class GSTVQA(BaseMetric):
         results = []
         deep_features_tuple, num_frames_tuple, video_name_tuple = data_samples
         with torch.no_grad():
-            # for deep_features, num_valid_frames, video_name in tqdm(zip(deep_features_tuple, num_frames_tuple, video_name_tuple), 
-            #                                             total=len(video_name_tuple), 
-            #                                             desc="Processing Videos"):
             for deep_features, num_valid_frames, video_name in zip(deep_features_tuple, num_frames_tuple, video_name_tuple):
                 if not isinstance(deep_features, torch.Tensor) or not isinstance(num_valid_frames, int):
                     raise TypeError("Expected deep_features to be a torch.Tensor and num_valid_frames to be an int.")
@@ -127,7 +123,7 @@ class GSTVQA(BaseMetric):
                 outputs = self.model(features.unsqueeze(1), length, mean_var, std_var, mean_mean, std_mean)
                 score = outputs.item()
                 results.append({"video_name": video_name, "GSTVQA_Score": score})
-                print(f"Processed score {score:.4f} for {video_name}")
+                # print(f"Processed score {score:.4f} for {video_name}")
 
         self.results.extend(results)
 

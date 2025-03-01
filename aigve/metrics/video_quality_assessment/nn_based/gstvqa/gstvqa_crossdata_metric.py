@@ -6,7 +6,6 @@ from core.registry import METRICS
 from mmengine.logging import MMLogger
 
 from utils import add_git_submodule, submodule_exists
-from .GSTVQA.TCSVT_Release.GVQA_Release.GVQA_Cross.cross_test import GSTVQA as GSTVQA_model
 import torch
 import torch.nn as nn
 import numpy as np
@@ -46,7 +45,7 @@ class GSTVQACrossData(BaseMetric):
         self.test_index = test_index
         if not submodule_exists(self.metric_path):
             add_git_submodule(repo_url='https://github.com/Baoliang93/GSTVQA.git', submodule_path=self.metric_path)
-
+        from .GSTVQA.TCSVT_Release.GVQA_Release.GVQA_Cross.cross_test import GSTVQA as GSTVQA_model
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.model = GSTVQA_model().to(self.device)
         self.model.load_state_dict(torch.load(model_path))
