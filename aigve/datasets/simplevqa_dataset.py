@@ -1,3 +1,5 @@
+# Copyright (c) IFM Lab. All rights reserved.
+
 import os
 import cv2
 import json
@@ -6,6 +8,7 @@ from torch.utils.data import Dataset
 from torchvision import transforms
 from PIL import Image
 from core.registry import DATASETS
+import math
 
 @DATASETS.register_module()
 class SimpleVQADataset(Dataset):
@@ -17,12 +20,12 @@ class SimpleVQADataset(Dataset):
         - video_name (str): Video filename.
     """
 
-    def __init__(self, video_dir, prompt_dir, max_len=8):
+    def __init__(self, video_dir, prompt_dir, min_video_seconds=8):
         super(SimpleVQADataset, self).__init__()
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.video_dir = video_dir
         self.prompt_dir = prompt_dir
-        self.max_len = max_len
+        self.min_video_seconds = min_video_seconds
 
         self.prompts, self.video_names = self._read_prompt_videoname()
     
@@ -47,6 +50,10 @@ class SimpleVQADataset(Dataset):
         Extracts spatial frames with proper resizing and normalization.
             - Key frame extraction: It selects 1 frame per second.
             - Standard input size: It resizes frames to 448 * 448 (after an initial resize to 520).
+        Return:
+            transformed_video (torch.Tensor): shape[video_length_read, 3, 448, 448]. 
+                `video_length_read` is total seconds of the video (though 2 for toy dataset) with minium 8 (i.e. min_video_seconds).
+            video_name (str)
         """
         video_capture = cv2.VideoCapture(video_path)
         video_name = os.path.basename(video_path)
@@ -54,22 +61,22 @@ class SimpleVQADataset(Dataset):
         video_frame_rate = int(round(video_capture.get(cv2.CAP_PROP_FPS)))
 
         # Compute the number of total seconds of the video
-        video_length_read = int(video_length/video_frame_rate)
-        print('video_length_read (s): ', video_length_read)
+        video_length_read = int(video_length/video_frame_rate) # math.ceil()
+        # print('video_length_read (s): ', video_length_read)
         transformations = transforms.Compose([
             transforms.Resize(520),
             transforms.CenterCrop(448),
             transforms.ToTensor(),
-            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]) # Standard ImageNet normalization
         ])
-        transformed_video = torch.zeros([video_length_read, 3, 448, 448])
+        transformed_video = torch.zeros([max(video_length_read, self.min_video_seconds), 3, 448, 448])
 
         video_read_index = 0
         frame_idx = 0
         for i in range(video_length):
             has_frames, frame = video_capture.read()
             if has_frames:
-                # Key frame extraction
+                # Key frames extraction
                 if (video_read_index < video_length_read) and (frame_idx % video_frame_rate == 0):
                     read_frame = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
                     read_frame = transformations(read_frame)
@@ -77,9 +84,9 @@ class SimpleVQADataset(Dataset):
                     video_read_index += 1
                 frame_idx += 1
 
-        # Fill missing frames if needed
-        if video_read_index < video_length_read:
-            for i in range(video_read_index, video_length_read):
+        # Pads remaining frames by repeating the last available frame.
+        if video_read_index < self.min_video_seconds:
+            for i in range(video_read_index, self.min_video_seconds):
                 transformed_video[i] = transformed_video[video_read_index - 1]
 
         video_capture.release()
@@ -88,31 +95,26 @@ class SimpleVQADataset(Dataset):
     def video_processing_motion(self, video_path):
         """
         Extracts motion-based clips suitable for SlowFast.
-        Processes 8-second clips, extracting 32 frames per clip.
+            - Standard input size: It resizes frames to 224 * 224.
+            - Motion-based clips: Processes at leaset 8-second clips, select 32 consecutive frames from each second.
+        Return:
+            transformed_video_all (List[torch.Tensor]): Tensor shape[video_length_clip(32), 3, 224, 224]. 
+                Len(List) is total seconds of the video, with minium 8.
+            video_name (str)
         """
         video_capture = cv2.VideoCapture(video_path)
         video_name = os.path.basename(video_path)
-
-        video_channel = 3
         video_length = int(video_capture.get(cv2.CAP_PROP_FRAME_COUNT))
         video_frame_rate = int(round(video_capture.get(cv2.CAP_PROP_FPS)))
-        video_clip = min(video_length // video_frame_rate, self.max_len)
 
-        video_clip_min = 8
-        video_length_clip = 32
-
-        # Prepare transformation pipeline
         transform = transforms.Compose([
             transforms.Resize([224, 224]),
             transforms.ToTensor(),
-            transforms.Normalize(mean=[0.45, 0.45, 0.45], std=[0.225, 0.225, 0.225])
+            transforms.Normalize(mean=[0.45, 0.45, 0.45], std=[0.225, 0.225, 0.225]) # General purpose
         ])
-
-        transformed_frame_all = torch.zeros([video_length, video_channel, 224, 224])
-        transformed_video_all = []
-        
+        transformed_frame_all = torch.zeros([video_length, 3, 224, 224])
         video_read_index = 0
-        for i in range(video_length):
+        for i in range(video_length): # All frames extraction
             has_frames, frame = video_capture.read()
             if has_frames:
                 read_frame = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
@@ -120,25 +122,32 @@ class SimpleVQADataset(Dataset):
                 transformed_frame_all[video_read_index] = read_frame
                 video_read_index += 1
 
-        if video_read_index < video_length:
+        # Pads remaining frames by repeating the last available frame.
+        if video_read_index < video_length: 
             for i in range(video_read_index, video_length):
                 transformed_frame_all[i] = transformed_frame_all[video_read_index - 1]
-
+        
         video_capture.release()
 
-        # Extract motion-based clips
+        # Compute the number of total seconds of the video
+        video_clip = int(video_length/video_frame_rate)
+        # print('video_clip (s): ', video_clip)
+        video_length_clip = 32
+        transformed_video_all = []
+
+        # Extract motion-based clips: select 32 consecutive frames from each second
         for i in range(video_clip):
-            transformed_video = torch.zeros([video_length_clip, video_channel, 224, 224])
-            if (i * video_frame_rate + video_length_clip) <= video_length:
+            transformed_video = torch.zeros([video_length_clip, 3, 224, 224])
+            if (i * video_frame_rate + video_length_clip) <= video_length: # if the clip can be fully extracted, select 32 consecutive frames starting at i*video_frame_rate
                 transformed_video = transformed_frame_all[i * video_frame_rate:(i * video_frame_rate + video_length_clip)]
-            else:
+            else: # Copy all rest available frames. Pads remaining frames by repeating the last available frame.
                 transformed_video[:(video_length - i * video_frame_rate)] = transformed_frame_all[i * video_frame_rate:]
                 for j in range((video_length - i * video_frame_rate), video_length_clip):
                     transformed_video[j] = transformed_video[video_length - i * video_frame_rate - 1]
             transformed_video_all.append(transformed_video)
 
-        if video_clip < video_clip_min:
-            for i in range(video_clip, video_clip_min):
+        if video_clip < self.min_video_seconds:
+            for i in range(video_clip, self.min_video_seconds):
                 transformed_video_all.append(transformed_video_all[video_clip - 1])
         
         return transformed_video_all, video_name
@@ -146,8 +155,11 @@ class SimpleVQADataset(Dataset):
     def __getitem__(self, index):
         """
         Returns:
-            spatial_features (torch.Tensor): Shape [max_len, C, H, W]
-            motion_features (List[torch.Tensor]): List of motion feature tensors
+            spatial_features (torch.Tensor): Shape [v_len_second, 3, 448, 448]
+                `v_len_second` is total seconds of the video (though 2 for toy dataset) with minium 8 (i.e. min_video_seconds).
+            motion_features (List[torch.Tensor]): List of motion feature tensors.
+                Each tensor has shape [32, 3, 224, 224].
+                Len(List) is total seconds of the video (i.e. v_len_second), with minium 8 (i.e. min_video_seconds).
             video_name (str): Video filename
         """
         video_name = self.video_names[index]
@@ -155,8 +167,8 @@ class SimpleVQADataset(Dataset):
 
         spatial_features, video_name = self.video_processing_spatial(video_path)
         motion_features, video_name = self.video_processing_motion(video_path)
-        print('spatial_features: ', spatial_features.shape)
-        print('motion_features: ', len(motion_features))
-        print('motion_features[0]: ', motion_features[0].shape)
+        # print('spatial_features: ', spatial_features.shape) # torch.Size([8, 3, 448, 448]) for toy dataset
+        # print('motion_features len: ', len(motion_features)) # 8
+        # print('motion_features[0]: ', motion_features[0].shape) # torch.Size([32, 3, 224, 224])
 
         return spatial_features, motion_features, video_name

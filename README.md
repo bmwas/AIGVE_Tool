@@ -7,7 +7,8 @@ AI Generated Video Evaluation toolkit
 ### Models:
 #### NN based evaluation metrics:
 1. [GSTVQA](.aigve/configs/gstvqa.py) 
-2. [ModularBVQA]()
+2. [SimpleVQA](.aigve/configs/simplevqa.py) 
+3. [ModularBVQA]()
 
 
 #### Distribuition based evaluation metrics:
@@ -124,6 +125,12 @@ For GSTVQA:
 ``
 cd VQA_Toolkit/aigve
 python main_aigve.py /home/xinhao/VQA_Toolkit/aigve/configs/gstvqa.py --work-dir ./output
+``
+
+For SimpleVQA:
+``
+cd VQA_Toolkit/aigve
+python main_aigve.py /home/xinhao/VQA_Toolkit/aigve/configs/simplevqa.py --work-dir ./output
 ``
 
 For GSTVQACrossData:

@@ -8,25 +8,25 @@ from datasets import SimpleVQADataset
 with read_base():
     from ._base_.default import *
 
-# Validation dataloader configuration
 val_dataloader = dict(
-    batch_size=1,  # One video per batch
+    batch_size=1,  
     num_workers=4,
     persistent_workers=True,
     drop_last=False,
     sampler=dict(type=DefaultSampler, shuffle=False),
     dataset=dict(
         type=SimpleVQADataset,
-        video_dir='/home/xinhao/VQA_Toolkit/aigve/data/AIGVE_Bench/videos_3frame/',
-        prompt_dir='/home/xinhao/VQA_Toolkit/aigve/data/AIGVE_Bench/annotations/test.json',
-        max_len=8,  # Adjust based on video length
+        # video_dir='/home/xinhao/VQA_Toolkit/aigve/data/toy/evaluate/', # it has 16 frames for each video, each frame is [512, 512, 3], it lasts about 2 seconds.
+        # prompt_dir='/home/xinhao/VQA_Toolkit/aigve/data/toy/annotations/evaluate.json',
+        video_dir='/home/xinhao/VQA_Toolkit/aigve/data/AIGVE_Bench/videos/', # it has 81 frames for each video, each frame is [768, 1360, 3], it lasts about 5 seconds.
+        prompt_dir='/home/xinhao/VQA_Toolkit/aigve/data/AIGVE_Bench/annotations/train.json',
+        min_video_seconds=8,  
     )
 )
 
-# Evaluation configuration for SimpleVQA metric
 val_evaluator = dict(
     type=SimpleVQA,
     is_gpu=True,
-    model_spatial_path="metrics/video_quality_assessment/nn_based/simplevqa/UGC_BVQA_model.pth",
-    model_motion_path="metrics/video_quality_assessment/nn_based/simplevqa/slowfast.pth",
+    model_path="metrics/video_quality_assessment/nn_based/simplevqa/SimpleVQA/ckpts/UGC_BVQA_model.pth",
+    # model_motion_path="metrics/video_quality_assessment/nn_based/simplevqa/slowfast.pth",
 )

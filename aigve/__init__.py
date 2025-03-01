@@ -16,13 +16,13 @@ __version__ = '0.0.1'
 # from . import koala
 # from . import data, output
 from .datasets import ToyDataset, \
-    GSTVQADataset, GSTVQADatasetCrossData, KONVID1KDataset_ModularBVQA, \
+    GSTVQADataset, GSTVQADatasetCrossData, SimpleVQADataset, KONVID1KDataset_ModularBVQA, \
     CLIPSimDataset, KineticsDataset, CLIPTempDataset, BLIPSimDataset, PickScoreDataset, \
     VideoPhyDataset
 from .metrics import VideoPhy, VideoScore, \
     DSGScore, TIFAScore, VIEEvalScore, CLIPSimScore, CLIPTempScore, PickScore, BlipSimScore, \
     FIDScore, FVDScore, \
-    GSTVQA, GSTVQACrossData
+    GSTVQA, GSTVQACrossData, SimpleVQA
 # from . import visual, util
 
 
@@ -33,7 +33,7 @@ __all__ = [
     # ---- other libraries ----
     # ---- dataloaders ----
     'ToyDataset', 
-    'GSTVQADataset', 'GSTVQADatasetCrossData', 'KONVID1KDataset_ModularBVQA',
+    'GSTVQADataset', 'GSTVQADatasetCrossData', 'SimpleVQADataset', 'KONVID1KDataset_ModularBVQA',
     'CLIPSimDataset', 'KineticsDataset', 'CLIPTempDataset', 'BLIPSimDataset', 'PickScoreDataset',
     'VideoPhyDataset'
     # ---- metrics ----
@@ -52,6 +52,7 @@ __all__ = [
     'FVDScore',
 
     'GSTVQA', 
-    'GSTVQACrossData'
+    'GSTVQACrossData',
+    'SimpleVQA'
     # ---- visualization and utility ----
 ]

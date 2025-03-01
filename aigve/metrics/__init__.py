@@ -6,8 +6,9 @@ This module provides the videos evaluation metrics that can be used within the A
 
 from .multi_aspect_metrics import VideoPhy, VideoScore
 from .text_video_alignment import DSGScore, TIFAScore, VIEEvalScore, \
-           CLIPSimScore, CLIPTempScore, PickScore, BlipSimScore
-from .video_quality_assessment import FIDScore, FVDScore, ISScore
+        CLIPSimScore, CLIPTempScore, PickScore, BlipSimScore
+from .video_quality_assessment import FIDScore, FVDScore, ISScore, \
+        GSTVQA, GSTVQACrossData, SimpleVQA
 
 __all__ = [
     # ---- multi_aspect_metrics ----
@@ -16,5 +17,6 @@ __all__ = [
     'DSGScore', 'TIFAScore', 'VIEEvalScore', 
     'CLIPSimScore', 'CLIPTempScore', 'PickScore', 'BlipSimScore',
     # ---- video_quality_assessment ----
-    'FIDScore', 'FVDScore', 'ISScore'
+    'FIDScore', 'FVDScore', 'ISScore',
+    'GSTVQA', 'GSTVQACrossData', 'SimpleVQA'
     ]

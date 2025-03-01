@@ -7,6 +7,7 @@
 
 ### Neural Network-Based Evaluation Metrics
 * [GSTVQA](gstvqa.md)
+* [SimpleVQA](simplevqa.md)
 * [ModularBVQA](modular_bvqa.md)
 
 ### Distribution-Based Evaluation Metricsn Metrics

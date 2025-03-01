@@ -184,8 +184,9 @@ nav:
       - documentations/metrics/eval_crafter.md
       - documentations/metrics/fid.md
       - documentations/metrics/fvd.md
-      - documentations/metrics/gstvqa.md
       - documentations/metrics/is_score.md
+      - documentations/metrics/gstvqa.md
+      - documentations/metrics/simplevqa.md
       - documentations/metrics/modular_bvqa.md
       - documentations/metrics/pickscore.md
       - documentations/metrics/tifa.md

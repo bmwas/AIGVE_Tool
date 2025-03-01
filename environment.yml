@@ -29,6 +29,8 @@ dependencies:
       - fvcore
       - openai
       - tqdm
+      - pytorchvideo
+      # - importlib
       - gdown==5.2.0
       - git+https://github.com/TIGER-AI-Lab/Mantis.git
       - scipy==1.14.1
