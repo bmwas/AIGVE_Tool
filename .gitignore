@@ -14,6 +14,7 @@
 **/KoNViD-1kinfo-original.mat
 **/*_results_*.json
 **/SimpleVQA
+**/Light-VQA-plus
 
 **/.cache/
 site/

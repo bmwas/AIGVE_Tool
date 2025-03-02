@@ -8,7 +8,7 @@ from torch.utils.data import Dataset
 from torchvision import transforms
 from PIL import Image
 from core.registry import DATASETS
-import math
+# import math
 
 @DATASETS.register_module()
 class SimpleVQADataset(Dataset):
