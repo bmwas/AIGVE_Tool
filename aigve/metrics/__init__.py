@@ -8,7 +8,7 @@ from .multi_aspect_metrics import VideoPhy, VideoScore
 from .text_video_alignment import DSGScore, TIFAScore, VIEEvalScore, \
         CLIPSimScore, CLIPTempScore, PickScore, BlipSimScore
 from .video_quality_assessment import FIDScore, FVDScore, ISScore, \
-        GSTVQA, GSTVQACrossData, SimpleVQA
+        GSTVQA, GSTVQACrossData, SimpleVQA, LightVQAPlus
 
 __all__ = [
     # ---- multi_aspect_metrics ----
@@ -18,5 +18,5 @@ __all__ = [
     'CLIPSimScore', 'CLIPTempScore', 'PickScore', 'BlipSimScore',
     # ---- video_quality_assessment ----
     'FIDScore', 'FVDScore', 'ISScore',
-    'GSTVQA', 'GSTVQACrossData', 'SimpleVQA'
+    'GSTVQA', 'GSTVQACrossData', 'SimpleVQA', 'LightVQAPlus'
     ]

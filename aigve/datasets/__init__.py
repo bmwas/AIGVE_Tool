@@ -5,6 +5,7 @@ from .toy_dataset import ToyDataset
 from .gstvqa_dataset import GSTVQADataset
 from .gstvqa_crossdata_dataset import GSTVQADatasetCrossData
 from .simplevqa_dataset import SimpleVQADataset
+from .lightvqa_plus_dataset import LightVQAPlusDataset
 # from .konvid_1k_dataset import KONVID1KDataset_ModularBVQA
 
 from .clipsim_dataset import CLIPSimDataset

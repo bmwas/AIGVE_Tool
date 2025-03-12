@@ -1,6 +1,6 @@
 # Copyright (c) IFM Lab. All rights reserved.
 
-import os
+import os, sys
 import cv2
 import json
 import torch
@@ -9,13 +9,22 @@ from torch.utils.data import Dataset
 from torchvision import transforms
 from PIL import Image
 import clip
-from pytorchvideo.models.hub import slowfast_r50
 import torch.nn as nn
-
+from functools import lru_cache
 from core.registry import DATASETS
+from utils import add_git_submodule, submodule_exists
+# import torch.multiprocessing as mp
+# mp.set_start_method("spawn", force=True)
+
+# Lazy import to avoid circular import
+@lru_cache(maxsize=1)
+def lazy_import():
+    from metrics.video_quality_assessment.nn_based.lightvqa_plus.Light_VQA_plus.extract_temporal_features import slowfast, pack_pathway_output
+    return slowfast, pack_pathway_output
+
 
 @DATASETS.register_module()
-class LightVQADataset(Dataset):
+class LightVQAPlusDataset(Dataset):
     """
     Dataset for LightVQA+.
     Extracts:
@@ -27,7 +36,7 @@ class LightVQADataset(Dataset):
     """
 
     def __init__(self, video_dir, prompt_dir, feature_dir="extracted_features", min_video_seconds=8):
-        super(LightVQADataset, self).__init__()
+        super(LightVQAPlusDataset, self).__init__()
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.video_dir = video_dir
         self.prompt_dir = prompt_dir
@@ -38,7 +47,7 @@ class LightVQADataset(Dataset):
         self.video_names = self._read_video_names()
 
         # Load CLIP model for BNS and BC features
-        self.clip_model, _ = clip.load("ViT-B/32", device=self.device)
+        self.clip_model, _ = clip.load("ViT-B/32", device="cpu")
         self.preprocess = transforms.Normalize(
             (0.48145466, 0.4578275, 0.40821073), (0.26862954, 0.26130258, 0.27577711)
         )
@@ -48,15 +57,31 @@ class LightVQADataset(Dataset):
         self.text_B = clip.tokenize([  # brightness (B)
             "an underexposed photo", "a slightly underexposed photo",
             "a well-exposed photo", "a slightly overexposed photo", "an overexposed photo"
-        ]).to(self.device)
+        ])
 
         self.text_N = clip.tokenize([ # noise (N)
             "a photo with no noise", "a photo with little noise",
             "a photo with considerable noise", "a photo with serious noise", "a photo with extreme noise"
-        ]).to(self.device)
+        ])
+
+        self.submodel_path = os.path.join(os.getcwd(), 'metrics/video_quality_assessment/nn_based/lightvqa_plus')
+        if not submodule_exists(self.submodel_path):
+            add_git_submodule(
+                repo_url='https://github.com/SaMMyCHoo/Light-VQA-plus.git', 
+                submodule_path=self.submodel_path
+            )
+        # original_path = os.path.join(self.submodel_path, "Light-VQA-plus")
+        lightvqa_path = os.path.join(self.submodel_path, "Light_VQA_plus")
+        # if os.path.exists(original_path) and not os.path.exists(lightvqa_path):
+        #     os.rename(original_path, lightvqa_path)
+        if lightvqa_path not in sys.path:
+            sys.path.insert(0, lightvqa_path)
+        # print(sys.path)
 
         # Load SlowFast model
-        self.slowfast_model = self.load_slowfast()
+        
+        slowfast, _ = lazy_import()
+        self.slowfast_model = slowfast()
 
     def _read_video_names(self):
         """Reads video names from the dataset JSON file."""
@@ -64,11 +89,6 @@ class LightVQADataset(Dataset):
             read_data = json.load(reader)
         return [item['video_path_pd'].strip() for item in read_data["data_list"]]
     
-    def load_slowfast(self):
-        """Loads the SlowFast feature extractor model."""
-        slowfast_model = slowfast_r50(pretrained=True).to(self.device)
-        return nn.Sequential(*list(slowfast_model.children())[0])
-
     def __len__(self):
         return len(self.video_names)
 
@@ -81,7 +101,6 @@ class LightVQADataset(Dataset):
 
         Returns:
             spatial_features (torch.Tensor): Shape [8, 3, 672, 1120] containing 8 key frames.
-            video_name (str): Name of the video file.
         """
         cap = cv2.VideoCapture(video_path)
         video_name = os.path.basename(video_path).split('.')[0]
@@ -114,8 +133,8 @@ class LightVQADataset(Dataset):
                 spatial_features[idx] = last_valid_frame
 
         cap.release()
-        print('spatial_features: ', spatial_features.shape)
-        return spatial_features, video_name
+        # print('spatial_features: ', spatial_features.shape) # torch.Size([8, 3, 672, 1120])
+        return spatial_features
 
     def get_global_sf(self, video_path):
         """Extracts global brightness & noise features across full video.
@@ -128,7 +147,7 @@ class LightVQADataset(Dataset):
         """
         cap = cv2.VideoCapture(video_path)
         video_length = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-        print('video_length: ', video_length)
+        # print('video_length: ', video_length)  # 16
 
         frames = []
         for _ in range(video_length):
@@ -146,7 +165,7 @@ class LightVQADataset(Dataset):
         now = 0
         interval = 10  # Process 10 frames at a time
         while now + interval - 1 < length:
-            final = [self.to_tensor(Image.fromarray(cv2.cvtColor(frames[i + now], cv2.COLOR_BGR2RGB))).to(self.device)
+            final = [self.to_tensor(Image.fromarray(cv2.cvtColor(frames[i + now], cv2.COLOR_BGR2RGB)))
                     for i in range(interval)]
             
             # Step 1: Convert to tensor batch
@@ -158,7 +177,7 @@ class LightVQADataset(Dataset):
             images = images.reshape(-1, 15, 3, 224, 224)  # Shape: [10, 15, 3, 224, 224]
             images = images.view(-1, 3, 224, 224)  # Shape: [150, 3, 224, 224]
             images = self.preprocess(images)  # Normalize for CLIP
-            print('images get_global_sf: ', images.shape)
+            # print('images get_global_sf: ', images.shape) # torch.Size([10*15, 3, 224, 224])
             
             # Step 3: Extract features using CLIP
             with torch.no_grad():
@@ -167,17 +186,17 @@ class LightVQADataset(Dataset):
 
             tmp_N = logits_N.softmax(dim=-1).view(interval, -1) * 10
             tmp_B = logits_B.softmax(dim=-1).view(interval, -1) * 10
-            print('tmp_N get_global_sf', tmp_N.shape)
-            print('tmp_B get_global_sf', tmp_B.shape)
+            # print('tmp_N get_global_sf', tmp_N.shape) # torch.Size([10, 75])
+            # print('tmp_B get_global_sf', tmp_B.shape) # torch.Size([10, 75])
             res.append(torch.cat([tmp_N, tmp_B], dim=1))
             now += interval
 
         # Handle remaining frames
         if length > now:
-            final = [self.to_tensor(Image.fromarray(cv2.cvtColor(frames[i], cv2.COLOR_BGR2RGB))).to(self.device)
+            final = [self.to_tensor(Image.fromarray(cv2.cvtColor(frames[i], cv2.COLOR_BGR2RGB)))
                     for i in range(now, length)]
             
-            images = torch.stack(final, dim=0)  # Shape: [remaining, 3, 672, 1120]
+            images = torch.stack(final, dim=0)  # Shape: [remaining(6), 3, 672, 1120]
             images = images.unfold(2, 224, 224).unfold(3, 224, 224)  # Shape: [remaining, 3, 3, 5, 224, 224]
             images = images.permute(0, 3, 2, 1, 4, 5).contiguous()  # Shape: [remaining, 5, 3, 3, 224, 224]
             images = images.reshape(-1, 15, 3, 224, 224)  # Shape: [remaining, 15, 3, 224, 224]
@@ -185,20 +204,20 @@ class LightVQADataset(Dataset):
             images = self.preprocess(images)
 
             with torch.no_grad():
-                logits_N, _ = self.clip_model(images, self.text_N) # Shape: [10, 5(num_text_prompts)]
-                logits_B, _ = self.clip_model(images, self.text_B) # Shape: [10, 5]
-                print('logits_N last get_global_sf', logits_N.shape)
-                print('logits_B last get_global_sf', logits_B.shape)
+                logits_N, _ = self.clip_model(images, self.text_N) # Shape: [remaining, 5(num_text_prompts)]
+                logits_B, _ = self.clip_model(images, self.text_B) # Shape: [remaining, 5]
+                # print('logits_N last get_global_sf', logits_N.shape) # torch.Size([6*15, 5])
+                # print('logits_B last get_global_sf', logits_B.shape) #torch.Size([6*15, 5])
 
-            tmp_N = logits_N.softmax(dim=-1).view(length - now, -1) * 10 # Shape: [10, 10]
-            tmp_B = logits_B.softmax(dim=-1).view(length - now, -1) * 10 # Shape: [10, 10]
-            print('tmp_N last get_global_sf', tmp_N.shape)
-            print('tmp_B last get_global_sf', tmp_B.shape)
+            tmp_N = logits_N.softmax(dim=-1).view(length - now, -1) * 10 # Shape: [remaining, 75]
+            tmp_B = logits_B.softmax(dim=-1).view(length - now, -1) * 10 # Shape: [remaining, 75]
+            # print('tmp_N last get_global_sf', tmp_N.shape)  # torch.Size([6, 75])
+            # print('tmp_B last get_global_sf', tmp_B.shape)  # torch.Size([6, 75])
 
             res.append(torch.cat([tmp_N, tmp_B], dim=1))
 
-        res = torch.cat(res, dim=0)  # Shape: [length, 10]
-        print('res: ', res.shape)
+        res = torch.cat(res, dim=0)  # Shape: [length, 150]
+        # print('res: ', res.shape)  # torch.Size([16, 150]) for toy dataset
 
         # Step 4: Aggregate into 8 time slots
         chunk_size = length // 8
@@ -206,8 +225,8 @@ class LightVQADataset(Dataset):
             torch.mean(res[i * chunk_size: (i + 1) * chunk_size], dim=0) if i < 7 else torch.mean(res[7 * chunk_size:], dim=0)
             for i in range(8)
         ]
-        
-        return torch.stack(final_res, dim=0)  # Shape: [8, 10]
+
+        return torch.stack(final_res, dim=0)  # Shape: [8, 150]
 
     def extract_bns_features(self, video_path):
         """Extracts Brightness & Noise Sensitivity (BNS) features using CLIP.
@@ -218,7 +237,9 @@ class LightVQADataset(Dataset):
             video_path (str): Path to the video file.
 
         Returns:
-            torch.Tensor: Extracted BNS feature (Shape: [8, 150]).
+            spatial_features (torch.Tensor): Extracted 8 evenly spaced key frames across the entire video duration.
+                Shape [8, 3, 672, 1120] containing 8 key frames.
+            final_res (torch.Tensor): Extracted BNS feature (Shape: [8, 300]).
         """
         # Local Feature Extraction Step 1: Extract key frames
         spatial_features = self.extract_key_frames(video_path) # Shape: [8, 3, 672, 1120]
@@ -229,7 +250,9 @@ class LightVQADataset(Dataset):
         images = images.reshape(-1, 15, 3, 224, 224)  # Shape: [8, 15, 3, 224, 224]
         images = images.view(-1, 3, 224, 224)  # Shape: [120, 3, 224, 224]
         images = self.preprocess(images)  # Normalize for CLIP
-        print('images: ', images)
+        # print('images: ', images.shape) # torch.Size([120, 3, 224, 224])
+        # print(images.device)
+        # print(self.text_N.device)
 
         # Step 3: Pass through CLIP
         with torch.no_grad():
@@ -237,26 +260,31 @@ class LightVQADataset(Dataset):
             logits_B, _ = self.clip_model(images, self.text_B)
 
         res_N = logits_N.softmax(dim=-1).view(8, -1) * 10
-        print('res_N: ', res_N.shape)
+        # print('res_N: ', res_N.shape) # torch.Size([8, 75])
         res_B = logits_B.softmax(dim=-1).view(8, -1) * 10
-        print('res_B: ', res_N.shape)
+        # print('res_B: ', res_N.shape) # torch.Size([8, 75])
         res1 = torch.cat((res_N, res_B), dim=1)
-        print('res1: ', res1.shape)
+        # print('res1: ', res1.shape) # torch.Size([8, 150])
 
         # Global Feature Extraction (GET_SF Equivalent)
         res2 = self.get_global_sf(video_path)
-        print('res2: ', res2.shape)
+        # print('res2: ', res2.shape) # res2:  torch.Size([8, 150])
 
         # Split & Combine Features
-        Nl, Bl = torch.split(res1, 5, dim=1)
-        Ng, Bg = torch.split(res2, 5, dim=1)
+        Nl, Bl = torch.split(res1, 75, dim=1)
+        Ng, Bg = torch.split(res2, 75, dim=1)
         final_res = torch.cat([Nl, Ng, Bl, Bg], dim=1)
-        print('final_res: ', final_res.shape)
+        # print('final_res: ', final_res.shape)
 
-        return final_res  # Shape: [8, 20]
+        return spatial_features, final_res  # Shape: [8, 300]
 
     def extract_bc_features(self, video_path):
-        """Extracts Brightness Consistency features using CLIP-based temporal processing."""
+        """
+        Extracts Brightness Consistency features using CLIP-based temporal processing.
+        
+        Returns:
+            torch.Tensor: Extracted BC feature (Shape: [8, final_dim]).
+        """
 
         cap = cv2.VideoCapture(video_path)
         video_length = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
@@ -279,15 +307,15 @@ class LightVQADataset(Dataset):
 
         # Step 1: Extract CLIP Features at Fixed Intervals
         while now + interval - 1 < length:
-            batch = [self.to_tensor(Image.fromarray(cv2.cvtColor(frames[i + now], cv2.COLOR_BGR2RGB))).to(self.device)
+            batch = [self.to_tensor(Image.fromarray(cv2.cvtColor(frames[i + now], cv2.COLOR_BGR2RGB)))
                     for i in range(interval)]
             images = torch.stack(batch, dim=0)
-            image = image.unfold(2, 224, 224).unfold(3, 224, 224)  # Shape: [10, 3, 3, 5, 224, 224]
-            image = image.permute(0, 3, 2, 1, 4, 5).contiguous()  # Shape: [10, 5, 3, 3, 224, 224]
-            image = image.reshape(-1, 15, 3, 224, 224)  # Shape: [10, 15, 3, 224, 224]
-            image = image.view(-1, 3, 224, 224)  # Shape: [10, 15, 3, 224, 224]
+            images = images.unfold(2, 224, 224).unfold(3, 224, 224)  # Shape: [10, 3, 3, 5, 224, 224]
+            images = images.permute(0, 3, 2, 1, 4, 5).contiguous()  # Shape: [10, 5, 3, 3, 224, 224]
+            images = images.reshape(-1, 15, 3, 224, 224)  # Shape: [10, 15, 3, 224, 224]
+            images = images.view(-1, 3, 224, 224)  # Shape: [10*15, 3, 224, 224]
             images = self.preprocess(images)
-            print('images extract_bc_features', images.shape)
+            # print('images extract_bc_features', images.shape) # torch.Size([150, 3, 224, 224])
 
             with torch.no_grad():
                 logits, _ = self.clip_model(images, self.text_B)
@@ -298,14 +326,15 @@ class LightVQADataset(Dataset):
 
         # Handle Remaining Frames
         if length > now:
-            batch = [self.to_tensor(Image.fromarray(cv2.cvtColor(frames[i], cv2.COLOR_BGR2RGB))).to(self.device)
+            batch = [self.to_tensor(Image.fromarray(cv2.cvtColor(frames[i], cv2.COLOR_BGR2RGB)))
                     for i in range(now, length)]
             images = torch.stack(batch, dim=0)
-            image = image.unfold(2, 224, 224).unfold(3, 224, 224)  # Shape: [10, 3, 3, 5, 224, 224]
-            image = image.permute(0, 3, 2, 1, 4, 5).contiguous()  # Shape: [10, 5, 3, 3, 224, 224]
-            image = image.reshape(-1, 15, 3, 224, 224)  # Shape: [10, 15, 3, 224, 224]
-            image = image.view(-1, 3, 224, 224)  # Shape: [10, 15, 3, 224, 224]
+            images = images.unfold(2, 224, 224).unfold(3, 224, 224)  # Shape: [remaining(6), 3, 3, 5, 224, 224]
+            images = images.permute(0, 3, 2, 1, 4, 5).contiguous()  # Shape: [remaining, 5, 3, 3, 224, 224]
+            images = images.reshape(-1, 15, 3, 224, 224)  # Shape: [remaining, 15, 3, 224, 224]
+            images = images.view(-1, 3, 224, 224)  # Shape: [remaining, 15, 3, 224, 224]
             images = self.preprocess(images)
+            print('images: ', images.shape) #  torch.Size([6*15, 3, 224, 224])
 
             with torch.no_grad():
                 logits, _ = self.clip_model(images, self.text_B)
@@ -314,9 +343,11 @@ class LightVQADataset(Dataset):
             res.append(tmp)
 
         res = torch.cat(res, dim=0)  # Shape: [length, 5]
-        print('res extract_bc_features: ', res.shape)
+        print('res extract_bc_features: ', res.shape) # torch.Size([150+90, 5])
 
-        # Step 2: Multi-Scale Variance Computation
+        # Step 2: Multi-Scale Variance Computation: downsample frames steps
+        # smaller step: Captures fast, fine-grained changes.
+        # larger step:  Captures slow, long-term trends.
         final_res = []
         for step in [1, 2, 4, 8]:  # Multi-scale temporal steps
             chunk_number = 8 // step
@@ -329,7 +360,7 @@ class LightVQADataset(Dataset):
                     chunk = res[(chunk_number - 1) * chunk_size:, :]  # Handle remaining frames
                 tmp = []
                 for j in range(step):
-                    temp = chunk[j::step, :]  # Select every `step`th frame in the chunk
+                    temp = chunk[j::step, :]  
                     tmp.append(torch.var(temp.float(), dim=0))  # Variance computation
                 chunks.append(tmp)  # final chunks len: 8; 4; 2; 1 
             final_res.append(chunks) # final final_res len: 4
@@ -337,54 +368,98 @@ class LightVQADataset(Dataset):
         # Step 3: Aggregate Multi-Scale Features
         temp = []
         for i in range(8):  # Aggregate temporal information across 8 time slots
-            temp.append(torch.cat(final_res[0][i]  # variance for step size = 1
-                                + [torch.mean(torch.stack(final_res[1][i // 2], dim=0), dim=0)]  # step size = 2
+            temp.append(torch.cat(final_res[0][i]                                                # variance for step size = 1
+                                + [torch.mean(torch.stack(final_res[1][i // 2], dim=0), dim=0)]  # for step size = 2
                                 + [torch.mean(torch.stack(final_res[2][i // 4], dim=0), dim=0)]  # Every 4 slots share the same value.
-                                + [torch.mean(torch.stack(final_res[3][i // 8], dim=0), dim=0)]  # step size = 8
+                                + [torch.mean(torch.stack(final_res[3][i // 8], dim=0), dim=0)]  # for step size = 8
                                 , dim=0))
 
-        final_res = torch.stack(temp, dim=0)  # Shape: [8, final_dim]
-        print('final_res extract_bc_features: ', final_res.shape)
+        final_res = torch.stack(temp, dim=0)  # Shape: [8, final_dim]  
+        print('final_res extract_bc_featuresx: ', final_res.shape) # torch.Size([8, 20])
         
         return final_res
 
+    def extract_temporal_features(self, video_path):
+        """Extracts SlowFast motion features on the entire video segment.
 
-    def extract_temporal_features(self, spatial_features):
-        """Extracts SlowFast motion features."""
-        spatial_features = spatial_features.unsqueeze(0)  # Add batch dim
-        spatial_features = spatial_features.permute(0, 2, 1, 3, 4)  # Reshape to SlowFast format
+        Args:
+            video_path (str): Path to the video file.
 
-        with torch.no_grad():
-            features = self.slowfast_model(spatial_features)
+        Returns:
+            torch.Tensor: Extracted motion features (Shape: [1, feature_dim(2304)]).
+        """
+        cap = cv2.VideoCapture(video_path)
+        video_length = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        frame_indices = np.round(np.linspace(0, video_length - 1, num=8)).astype(int)
+
+        transform = transforms.Compose([
+            transforms.Resize([224, 224]),  # Match SlowFast input size
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.45, 0.45, 0.45], std=[0.225, 0.225, 0.225])  # Original normalization
+        ])
+
+        frames = []
+        for idx in frame_indices:
+            cap.set(cv2.CAP_PROP_POS_FRAMES, idx)
+            ret, frame = cap.read()
+            if ret:
+                frame = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+                frames.append(transform(frame))  # Resize & normalize
+        cap.release()
+
+        if len(frames) < 8:
+            raise ValueError(f"Insufficient frames in {video_path}, expected 8.")
+
+        video_tensor = torch.stack(frames, dim=0)  # Shape: [8, 3, 224, 224]
         
-        return features.squeeze(0)
+        # Prepare for SlowFast input
+        video_tensor = video_tensor.unsqueeze(0)  # Add batch dimension: [1, 8, 3, 224, 224]
+        video_tensor = video_tensor.permute(0, 2, 1, 3, 4)  # Shape: [1, 3, 8, 224, 224]
+
+        # Pack pathways for SlowFast model
+        _, pack_pathway_output = lazy_import()
+        inputs = pack_pathway_output(video_tensor, device='cpu')
+        print('inputs len: ', len(inputs))
+        print('inputs[0]: ', inputs[0].shape) # torch.Size([1, 3, 2, 224, 224])
+        print('inputs[1]: ', inputs[1].shape) # torch.Size([1, 3, 8, 224, 224])
+
+        # Extract features using SlowFast
+        with torch.no_grad():
+            slow_feature, fast_feature = self.slowfast_model(inputs)
+
+        print('slow_feature extract_temporal_features: ', slow_feature.shape) # torch.Size([1, 2048, 1, 1, 1])
+        print('fast_feature extract_temporal_features: ', fast_feature.shape) # torch.Size([1, 256, 1, 1, 1])
+
+        # Concatenate slow and fast features
+        features = torch.cat([slow_feature, fast_feature], dim=1).squeeze(-1).squeeze(-1).squeeze(-1)
+        print('features extract_temporal_features: ', features.shape) # torch.Size([1, 2304])
+
+        return features
 
     def __getitem__(self, index):
         """
         Returns:
-            spatial_features (torch.Tensor): Shape [8, 3, 672, 1120].
-            temporal_features (torch.Tensor): SlowFast motion features.
-            BNS_features (torch.Tensor): Brightness & Noise features.
-            BC_features (torch.Tensor): Temporal brightness contrast features.
+            spatial_features (torch.Tensor): Spatial features. Shape: [8, 3, 672, 1120].
+            bns_features (torch.Tensor): Brightness & Noise features. Shape: [8, 300].
+            (bc_features (torch.Tensor): Temporal brightness contrast features. Shape: [8, final_dim].)
+            temporal_features (torch.Tensor): SlowFast motion features. Shape: [1, feature_dim(2304)]
             video_name (str): Video filename.
         """
         video_name = self.video_names[index]
         video_path = os.path.join(self.video_dir, video_name)
 
-        # Extract Features
-        spatial_features, video_name = self.extract_key_frames(video_path)
-        bns_features = self.extract_bns_features(spatial_features)
+        spatial_features, bns_features = self.extract_bns_features(video_path)
         bc_features = self.extract_bc_features(video_path)
-        temporal_features = self.extract_temporal_features(spatial_features)
+        temporal_features = self.extract_temporal_features(video_path)
 
-        # Save extracted features
-        feature_path = os.path.join(self.feature_dir, f"{video_name}_features.pth")
-        torch.save({
-            "spatial": spatial_features,
-            "temporal": temporal_features,
-            "bns": bns_features,
-            "bc": bc_features
-        }, feature_path)
+        # # Save extracted features
+        # feature_path = os.path.join(self.feature_dir, f"{video_name}_features.pth")
+        # torch.save({
+        #     "spatial": spatial_features,
+        #     "temporal": temporal_features,
+        #     "bns": bns_features,
+        #     "bc": bc_features
+        # }, feature_path)
 
         return spatial_features, temporal_features, bns_features, bc_features, video_name
 

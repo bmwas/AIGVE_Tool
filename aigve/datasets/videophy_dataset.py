@@ -11,8 +11,11 @@ from functools import lru_cache
 # Lazy import to avoid circular import
 @lru_cache(maxsize=1)
 def lazy_import_mplug_owl():
-    from aigve.metrics.multi_aspect_metrics.videophy.mplug_owl_video import MplugOwlImageProcessor, MplugOwlProcessor
-    return MplugOwlImageProcessor, MplugOwlProcessor
+    import importlib
+    extract_features = importlib.import_module(
+        "aigve.metrics.multi_aspect_metrics.videophy.mplug_owl_video"
+    )
+    return extract_features.MplugOwlImageProcessor, extract_features.MplugOwlProcessor
 
 @DATASETS.register_module()
 class VideoPhyDataset(Dataset):
