@@ -16,6 +16,17 @@
 **/SimpleVQA
 **/Light_VQA_plus
 
+**/kinetics_dataset.py
+**/konvid_1k_dataset.py
+**/gstvqa_crossdata_dataset.py
+**/gstvqa_crossdata.py
+**/modular_bvqa
+**/modular_bvqa.py
+**/starvqa_plus
+**/starvqa_plus.py
+**/llm_score.py
+**/llm_score
+
 **/.cache/
 site/
 t2v_result

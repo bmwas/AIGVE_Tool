@@ -9,9 +9,6 @@ from mmengine.registry import TRANSFORMS as MMENGINE_TRANSFORMS
 from mmengine.registry import DATASETS as MMENGINE_DATASETS
 from mmengine.registry import MODELS as MMENGINE_MODELS
 
-# EVALUATORS = Registry('evaluator', parent=MMENGINE_EVALUATORS, locations=['core.evaluators'])
-# RUNNERS = Registry('runner', parent=MMENGINE_RUNNERS, locations=['core.runner'])
-
 LOOPS = Registry('loop', parent=MMENGINE_LOOPS, locations=['core.loops'])
 DATASETS = Registry('dataset', parent=MMENGINE_DATASETS, locations=['datasets'])
 TRANSFORMS = Registry('transform', parent=MMENGINE_TRANSFORMS, locations=['transforms'])

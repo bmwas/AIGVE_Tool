@@ -39,8 +39,8 @@ These metrics are structured, multi-dimensional evaluation metrics designed to a
 2. [VideoScore](.aigve/configs/viescore.py)
 
 ### Dataset:
-1. [Toy dataset](.aigve/configs/_base_/datasets/toy_dataset.py) 
-2. [AIGVE-Bench](.aigve/configs/)
+1. [Toy dataset](.aigve/data/toy) 
+2. [AIGVE-Bench](.aigve/data/AIGVE_Bench_Toy)
 
 
 
