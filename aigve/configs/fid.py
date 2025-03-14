@@ -29,7 +29,7 @@ val_dataloader = dict(
     sampler=dict(type=DefaultSampler, shuffle=False),
     dataset=dict(
         type=ToyDataset,
-        real_images_dir='/home/zhuosheng/VQA_Toolkit/aigve/data/toy/evaluate/A beautiful coastal beach in spring, waves lapping on sand by Hokusai, in the style of Ukiyo-0.mp4',  # Directory of real images
-        generated_images_dir='/home/zhuosheng/VQA_Toolkit/aigve/data/toy/evaluate/A beautiful coastal beach in spring, waves lapping on sand by Hokusai, in the style of Ukiyo-0.mp4'  # Directory of generated images
+        real_images_dir='AIGVE_Tool/aigve/data/toy/evaluate/A beautiful coastal beach in spring, waves lapping on sand by Hokusai, in the style of Ukiyo-0.mp4',  # Directory of real images
+        generated_images_dir='AIGVE_Tool/aigve/data/toy/evaluate/A beautiful coastal beach in spring, waves lapping on sand by Hokusai, in the style of Ukiyo-0.mp4'  # Directory of generated images
     )
 )

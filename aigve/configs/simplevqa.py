@@ -16,10 +16,10 @@ val_dataloader = dict(
     sampler=dict(type=DefaultSampler, shuffle=False),
     dataset=dict(
         type=SimpleVQADataset,
-        # video_dir='/home/xinhao/VQA_Toolkit/aigve/data/toy/evaluate/', # it has 16 frames for each video, each frame is [512, 512, 3], it lasts about 2 seconds.
-        # prompt_dir='/home/xinhao/VQA_Toolkit/aigve/data/toy/annotations/evaluate.json',
-        video_dir='/home/xinhao/VQA_Toolkit/aigve/data/AIGVE_Bench/videos/', # it has 81 frames for each video, each frame is [768, 1360, 3], it lasts about 5 seconds.
-        prompt_dir='/home/xinhao/VQA_Toolkit/aigve/data/AIGVE_Bench/annotations/train.json',
+        # video_dir='AIGVE_Tool/aigve/data/toy/evaluate/', # it has 16 frames for each video, each frame is [512, 512, 3], it lasts about 2 seconds.
+        # prompt_dir='AIGVE_Tool/aigve/data/toy/annotations/evaluate.json',
+        video_dir='AIGVE_Tool/aigve/data/AIGVE_Bench/videos/', # it has 81 frames for each video, each frame is [768, 1360, 3], it lasts about 5 seconds.
+        prompt_dir='AIGVE_Tool/aigve/data/AIGVE_Bench/annotations/train.json',
         min_video_seconds=8,  
     )
 )

@@ -201,8 +201,8 @@ class DSGDataset(Dataset):
 
 # if __name__ == '__main__':
 #     openai_key = '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'
-#     prompt_dir = '/home/exouser/VQA_tool/VQA_Toolkit/data/toy/annotations/evaluate.json'
-#     video_dir = '/home/exouser/VQA_tool/VQA_Toolkit/data/toy/evaluate/'
+#     prompt_dir = 'AIGVE_Tool/data/toy/annotations/evaluate.json'
+#     video_dir = 'AIGVE_Tool/data/toy/evaluate/'
 
 #     dsg_dataset = DSGDataset(openai_key=openai_key,
 #                              video_dir=video_dir,

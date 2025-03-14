@@ -22,10 +22,10 @@ val_dataloader = dict(
     sampler=dict(type=DefaultSampler, shuffle=False),
     dataset=dict(
         type=VideoPhyDataset,
-        data_path = '/storage/xiao/VQA_Toolkit/data/toy/annotations/evaluate.json',
+        data_path = 'AIGVE_Tool/data/toy/annotations/evaluate.json',
         max_length = 256,
         hf_token = hf_token,
-        video_root_path='/storage/xiao/VQA_Toolkit/data/toy/evaluate'
+        video_root_path='AIGVE_Tool/data/toy/evaluate'
     ),
     collate_fn=batchify
 )

@@ -123,8 +123,8 @@ def process(blip_model, data_samples: Sequence) -> None:
 
 
 if __name__ == '__main__':
-    prompt_dir = '/home/exouser/VQA_tool/VQA_Toolkit/data/toy/annotations/evaluate.json'
-    video_dir = '/home/exouser/VQA_tool/VQA_Toolkit/data/toy/evaluate/'
+    prompt_dir = 'AIGVE_Tool/data/toy/annotations/evaluate.json'
+    video_dir = 'AIGVE_Tool/data/toy/evaluate/'
     processor_name = 'Salesforce/blip-itm-base-coco'
     blip_model_name = 'Salesforce/blip-itm-base-coco'
 

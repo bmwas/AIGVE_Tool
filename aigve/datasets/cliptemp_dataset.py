@@ -61,7 +61,7 @@ class CLIPTempDataset(Dataset):
 DATASETS.register_module(module=CLIPTempDataset, force=True)
 
 if __name__ == '__main__':
-    video_dir = '/home/exouser/VQA_tool/VQA_Toolkit/data/toy/evaluate/'
+    video_dir = 'AIGVE_Tool/data/toy/evaluate/'
     clip_dataset = CLIPTempDataset(video_dir=video_dir)
     
     for index, data in enumerate(clip_dataset):

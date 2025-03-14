@@ -334,7 +334,7 @@ class LightVQAPlusDataset(Dataset):
             images = images.reshape(-1, 15, 3, 224, 224)  # Shape: [remaining, 15, 3, 224, 224]
             images = images.view(-1, 3, 224, 224)  # Shape: [remaining, 15, 3, 224, 224]
             images = self.preprocess(images)
-            print('images: ', images.shape) #  torch.Size([6*15, 3, 224, 224])
+            # print('images: ', images.shape) #  torch.Size([6*15, 3, 224, 224])
 
             with torch.no_grad():
                 logits, _ = self.clip_model(images, self.text_B)
@@ -343,7 +343,7 @@ class LightVQAPlusDataset(Dataset):
             res.append(tmp)
 
         res = torch.cat(res, dim=0)  # Shape: [length, 5]
-        print('res extract_bc_features: ', res.shape) # torch.Size([150+90, 5])
+        # print('res extract_bc_features: ', res.shape) # torch.Size([150+90, 5])
 
         # Step 2: Multi-Scale Variance Computation: downsample frames steps
         # smaller step: Captures fast, fine-grained changes.
@@ -375,7 +375,7 @@ class LightVQAPlusDataset(Dataset):
                                 , dim=0))
 
         final_res = torch.stack(temp, dim=0)  # Shape: [8, final_dim]  
-        print('final_res extract_bc_featuresx: ', final_res.shape) # torch.Size([8, 20])
+        # print('final_res extract_bc_featuresx: ', final_res.shape) # torch.Size([8, 20])
         
         return final_res
 
@@ -419,20 +419,20 @@ class LightVQAPlusDataset(Dataset):
         # Pack pathways for SlowFast model
         _, pack_pathway_output = lazy_import()
         inputs = pack_pathway_output(video_tensor, device='cpu')
-        print('inputs len: ', len(inputs))
-        print('inputs[0]: ', inputs[0].shape) # torch.Size([1, 3, 2, 224, 224])
-        print('inputs[1]: ', inputs[1].shape) # torch.Size([1, 3, 8, 224, 224])
+        # print('inputs len: ', len(inputs))
+        # print('inputs[0]: ', inputs[0].shape) # torch.Size([1, 3, 2, 224, 224])
+        # print('inputs[1]: ', inputs[1].shape) # torch.Size([1, 3, 8, 224, 224])
 
         # Extract features using SlowFast
         with torch.no_grad():
             slow_feature, fast_feature = self.slowfast_model(inputs)
 
-        print('slow_feature extract_temporal_features: ', slow_feature.shape) # torch.Size([1, 2048, 1, 1, 1])
-        print('fast_feature extract_temporal_features: ', fast_feature.shape) # torch.Size([1, 256, 1, 1, 1])
+        # print('slow_feature extract_temporal_features: ', slow_feature.shape) # torch.Size([1, 2048, 1, 1, 1])
+        # print('fast_feature extract_temporal_features: ', fast_feature.shape) # torch.Size([1, 256, 1, 1, 1])
 
         # Concatenate slow and fast features
         features = torch.cat([slow_feature, fast_feature], dim=1).squeeze(-1).squeeze(-1).squeeze(-1)
-        print('features extract_temporal_features: ', features.shape) # torch.Size([1, 2304])
+        # print('features extract_temporal_features: ', features.shape) # torch.Size([1, 2304])
 
         return features
 

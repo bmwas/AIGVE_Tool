@@ -14,10 +14,10 @@ val_dataloader = dict(
     sampler=dict(type=DefaultSampler, shuffle=False),
     dataset=dict(
         type=GSTVQADataset,
-        # video_dir='/home/xinhao/VQA_Toolkit/aigve/data/toy/evaluate/', # it has 16 frames for each video, each frame is [512, 512, 3]
-        # prompt_dir='/home/xinhao/VQA_Toolkit/aigve/data/toy/annotations/evaluate.json',
-        video_dir='/home/xinhao/VQA_Toolkit/aigve/data/AIGVE_Bench/videos_3frame/', # it has 81 frames for each video, each frame is [768, 1360, 3]
-        prompt_dir='/home/xinhao/VQA_Toolkit/aigve/data/AIGVE_Bench/annotations/test.json',
+        # video_dir='AIGVE_Tool/aigve/data/toy/evaluate/', # it has 16 frames for each video, each frame is [512, 512, 3]
+        # prompt_dir='AIGVE_Tool/aigve/data/toy/annotations/evaluate.json',
+        video_dir='AIGVE_Tool/aigve/data/AIGVE_Bench/videos_3frame/', # it has 81 frames for each video, each frame is [768, 1360, 3]
+        prompt_dir='AIGVE_Tool/aigve/data/AIGVE_Bench/annotations/test.json',
         model_name='vgg16',  # User can choose 'vgg16' or 'resnet18'
         max_len=3,
     )

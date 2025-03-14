@@ -20,8 +20,8 @@ val_dataloader = dict(
     sampler=dict(type=DefaultSampler, shuffle=False),
     dataset=dict(
         type=PickScoreDataset,
-        video_dir='/home/exouser/VQA_tool/VQA_Toolkit/data/toy/evaluate/',
-        prompt_dir='/home/exouser/VQA_tool/VQA_Toolkit/data/toy/annotations/evaluate.json',
+        video_dir='AIGVE_Tool/data/toy/evaluate/',
+        prompt_dir='AIGVE_Tool/data/toy/annotations/evaluate.json',
         processor_name="laion/CLIP-ViT-H-14-laion2B-s32B-b79K",
     )
 )

@@ -32,7 +32,7 @@ class VIEEvalScore(BaseMetric):
     """
     def __init__(self,
                  llm_backbone: str = "gpt4o",
-                 api_key_path: str = '/home/exouser/VQA_tool/VQA_Toolkit/metrics/text_video_alignment/gpt_based/VIE/api_key.txt',
+                 api_key_path: str = 'AIGVE_Tool/metrics/text_video_alignment/gpt_based/VIE/api_key.txt',
                  task: str = 't2v',
                  ):
         super().__init__()

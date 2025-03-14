@@ -8,14 +8,14 @@ AI Generated Video Evaluation toolkit
 #### NN based evaluation metrics:
 1. [GSTVQA](.aigve/configs/gstvqa.py) 
 2. [SimpleVQA](.aigve/configs/simplevqa.py) 
-3. [ModularBVQA]()
+3. [LightVQA_Plus](.aigve/configs/lightvqa_plus.py)
 
 
 #### Distribuition based evaluation metrics:
 These metrics primarily assess the quality of generated samples by comparing distributions of real and generated data:
-1. [FID]()
-2. [FVD]()
-3. [IS]()
+1. [FID](.aigve/configs/fid.py)
+2. [FVD](.aigve/configs/fvd.py)
+3. [IS](.aigve/configs/is_score.py)
 
 
 <!-- #### Text-video alignment based methods: -->
@@ -43,29 +43,6 @@ These metrics are structured, multi-dimensional evaluation metrics designed to a
 2. [AIGVE-Bench](.aigve/configs/)
 
 
-## Under progress:
-
-### Models:
-1. [StarVQA](.aigve/configs/starvqa.py)
-2. [StarVQA_plus](.aigve/configs/starvqa.py)
-
-
-### Dataset:
-1. [KoNViD-1k](https://database.mmsp-kn.de/konvid-1k-database.html): 2.3GB
-2. [Kinetics](https://github.com/cvdfoundation/kinetics-dataset): 63GB
-
-
-
-
-## Implementing Suspended: 
-
-### Models:
-1. [StarVQA](.aigve/configs/starvqa.py): The pretrained model shared from author is out-of-date.
-
-2. [StarVQA_plus](.aigve/configs/starvqa.py): need [Kinetics]() (63 GB for test split) and [LSVQ](https://github.com/baidut/PatchVQ) (need request from author) dataset. 
-
-### Dataset:
-
 
 ## Environment
 
@@ -76,39 +53,6 @@ conda activate vqa
 conda install pytorch==2.1.0 torchvision==0.16.0 torchaudio==2.1.0 pytorch-cuda=11.8 -c pytorch -c nvidia
 ```
 (MMCV from v1.7.2 support PyTorch 2.1.0 and 2.0.0)
-
-## For developers:
-### 0. Review the code of [VQALoop](./core/loops.py).
-
-The loop generally consists of two parts: Dataloader and Evaluator. Inheritted from `torch.utils.data`, the Dataloader could load data in batch. Next, the Evaluator, which is inherited from the [BaseMetric](https://github.com/open-mmlab/mmengine/blob/main/mmengine/evaluator/metric.py#L16) class, could to the `process()` for each batch of the data and `evaluate()` the final scores in the final. We do not include the MODEL parts from MMEngine, since our Toolkit focus on the evaluation part of Video Quality Analysis , not the training part. All potential neural network `forword()` opertaions will be included in `process()` class of its Evaluator. 
-
-### 1. Implement the Dataloader by inheritting the `torch.utils.data` class in the `\datasets` folder. 
-
-#### 1.1 If the dataset is created by the origial author: directly use his/her Dataloader by putting it in the `\datasets` folder. (Example: [gstvqa_dataset](./datasets/gstvqa_dataset.py))
-
-#### 1.2 If the dataset is a open-source dataset:
-
-##### 1.2.1 Add the data in `\data` folder, and create the anootation .json file in [MM format](https://mmengine.readthedocs.io/en/latest/advanced_tutorials/basedataset.html). (Example: [toy dataset](.data/toy))
-
-##### 1.2.2 Implement a Dataloader by inheritting the [MMEngine BaseDataset](https://github.com/open-mmlab/mmengine/blob/main/mmengine/dataset/base_dataset.py#L120) class (which then inherits the `torch.utils.data` class) in the `\datasets` folder. (Example: [toy_dataset](./datasets/gstvqa_dataset.py))
-
-##### 1.2.3 Implement the dataset config files in `\config\_base_\datasets` folder. (Example: [toy_dataset](./configs/_base_/datasets/toy_dataset.py)) 
-
-### 2. Implement the Evaluator in `\metrics` folder. 
-
-#### 2.1 Identify its classcifation. (e.g. text_video_alignment or video_quality_assessment), create files in its directoy.
-
-#### 2.2 Re-implement the metrics from the source by inheriting the [BaseMetric](https://github.com/open-mmlab/mmengine/blob/main/mmengine/evaluator/metric.py#L16) class. (Example: [GSTVQA](./configs/gstvqa.py), under its original source [code](https://github.com/Baoliang93/GSTVQA/blob/8463c9c3e5720349606d8efae7a5aa274bf69e7c/TCSVT_Release/GVQA_Release/GVQA_Cross/cross_test.py#L204))
-
-#### 2.3 Implement the metric config files in `\config` folder. (Example: [gstvqa_dataset](./configs/gstvqa.py)) 
-
-### 3. Finally, don't forget to add any new modules in its corresponding n`__init__.py` files.
-
-### Useful operations:
-
-``
-git submodule add <github-repository-url> <folder-name>
-``
 
 ## Run:
 ``
@@ -124,37 +68,38 @@ rm -rf ~/.cache
 For GSTVQA:
 ``
 cd VQA_Toolkit/aigve
-python main_aigve.py /home/xinhao/VQA_Toolkit/aigve/configs/gstvqa.py --work-dir ./output
+python main_aigve.py AIGVE_Tool/aigve/configs/gstvqa.py --work-dir ./output
 ``
 
 For SimpleVQA:
 ``
 cd VQA_Toolkit/aigve
-python main_aigve.py /home/xinhao/VQA_Toolkit/aigve/configs/simplevqa.py --work-dir ./output
+python main_aigve.py AIGVE_Tool/aigve/configs/simplevqa.py --work-dir ./output
 ``
 
 For LightVQAPlus:
 ``
 cd VQA_Toolkit/aigve
-python main_aigve.py /home/xinhao/VQA_Toolkit/aigve/configs/lightvqa_plus.py --work-dir ./output
+python main_aigve.py /home/xinhao/AIGVE_Tool/aigve/configs/lightvqa_plus.py --work-dir ./output
+
 ``
 
 For GSTVQACrossData:
 ``
 cd VQA_Toolkit/aigve
-python main_aigve.py /home/xinhao/VQA_Toolkit/aigve/configs/gstvqa_crossdata.py --work-dir ./output
+python main_aigve.py AIGVE_Tool/aigve/configs/gstvqa_crossdata.py --work-dir ./output
 ``
 
 For CLIPSim:
 ``
 cd VQA_Toolkit/aigve
-python main_aigve.py /home/xinhao/VQA_Toolkit/aigve/configs/clipsim.py --work-dir ./output
+python main_aigve.py AIGVE_Tool/aigve/configs/clipsim.py --work-dir ./output
 ``
 
 For VideoPhy:
 ``
 cd VQA_Toolkit/aigve
-python main_aigve.py /home/xinhao/VQA_Toolkit/aigve/configs/clipsim.py --work-dir ./output
+python main_aigve.py AIGVE_Tool/aigve/configs/clipsim.py --work-dir ./output
 ``
 
 ## To-do:

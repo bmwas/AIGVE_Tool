@@ -21,7 +21,7 @@ val_dataloader = dict(
     dataset=dict(
         type=CLIPTempDataset,
         processor_name='openai/clip-vit-base-patch32',
-        prompt_dir='/home/exouser/VQA_tool/VQA_Toolkit/data/toy/annotations/evaluate.json',
-        video_dir='/home/exouser/VQA_tool/VQA_Toolkit/data/toy/evaluate/',
+        prompt_dir='AIGVE_Tool/data/toy/annotations/evaluate.json',
+        video_dir='AIGVE_Tool/data/toy/evaluate/',
     )
 )

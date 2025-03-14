@@ -15,8 +15,8 @@ val_dataloader = dict(
     sampler=dict(type=DefaultSampler, shuffle=False),
     dataset=dict(
         type=VideoScoreDataset,
-        ann_file = '/storage/xiao/VQA_Toolkit/data/toy/annotations/evaluate.json',
-        data_root='/storage/xiao/VQA_Toolkit/data/toy/evaluate'
+        ann_file = 'AIGVE_Tool/data/toy/annotations/evaluate.json',
+        data_root='AIGVE_Tool/data/toy/evaluate'
     ),
 )
 

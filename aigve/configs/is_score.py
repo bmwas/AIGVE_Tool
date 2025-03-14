@@ -29,8 +29,8 @@ val_dataloader = dict(
     sampler=dict(type=DefaultSampler, shuffle=False),
     dataset=dict(
         type=ToyDataset,
-        data_root='/home/zhuosheng/VQA_Toolkit/aigve/data/toy/evaluate',
-        ann_file='/home/zhuosheng/VQA_Toolkit/aigve/data/toy/annotations/evaluate.json',
+        data_root='AIGVE_Tool/aigve/data/toy/evaluate',
+        ann_file='AIGVE_Tool/aigve/data/toy/annotations/evaluate.json',
         modality=dict(use_video=True, use_text=False, use_image=False)
     )
 )

@@ -54,11 +54,11 @@ class LightVQAPlus(BaseMetric):
         """
         results = []
         spatial_features_tuple, temporal_features_tuple, bns_features_tuple, bc_features_tuple, video_name_tuple = data_samples
-        print('spatial_features_tuple len: ', len(spatial_features_tuple)) # B
-        print('spatial_features_tuple[0]: ', spatial_features_tuple[0].shape) # torch.Size([8, 3, 672, 1120])
-        print('temporal_features_tuple[0]: ', temporal_features_tuple[0].shape) # torch.Size([1, 2304])
-        print('bns_features_tuple[0]: ', bns_features_tuple[0].shape) # torch.Size([8, 300])
-        print('bc_features_tuple[0]: ', bc_features_tuple[0].shape) # torch.Size([8, 20])
+        # print('spatial_features_tuple len: ', len(spatial_features_tuple)) # B
+        # print('spatial_features_tuple[0]: ', spatial_features_tuple[0].shape) # torch.Size([8, 3, 672, 1120])
+        # print('temporal_features_tuple[0]: ', temporal_features_tuple[0].shape) # torch.Size([1, 2304])
+        # print('bns_features_tuple[0]: ', bns_features_tuple[0].shape) # torch.Size([8, 300])
+        # print('bc_features_tuple[0]: ', bc_features_tuple[0].shape) # torch.Size([8, 20])
 
         batch_size = len(spatial_features_tuple)
         with torch.no_grad():
