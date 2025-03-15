@@ -39,8 +39,6 @@ class CLIPTempScore(BaseMetric):
         self.model = CLIPModel.from_pretrained(self.model_name).to(self.device)
         self.model.eval()
 
-
-# def process(self, data_batch: dict, data_samples: Sequence[dict]) -> None:
     def process(self, data_batch: Sequence, data_samples: Sequence) -> None:
         """CLIPTempScore process
         Process one batch of data samples and predictions. The processed

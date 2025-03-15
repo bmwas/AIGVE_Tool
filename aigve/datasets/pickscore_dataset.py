@@ -67,16 +67,17 @@ class PickScoreDataset(Dataset):
     
         return input_prompt, input_frame_tensor
 
-DATASETS.register_module(module=PickScoreDataset, force=True)
 
-if __name__ == '__main__':
-    processor_name_or_path = "laion/CLIP-ViT-H-14-laion2B-s32B-b79K"
-    prompt_dir = 'AIGVE_Tool/data/toy/annotations/evaluate.json'
-    video_dir = 'AIGVE_Tool/data/toy/evaluate/'
+# DATASETS.register_module(module=PickScoreDataset, force=True)
 
-    pickscore_dataset = PickScoreDataset(processor_name=processor_name_or_path,
-                                         video_dir=video_dir,
-                                         prompt_dir=prompt_dir)
+# if __name__ == '__main__':
+#     processor_name_or_path = "laion/CLIP-ViT-H-14-laion2B-s32B-b79K"
+#     prompt_dir = 'AIGVE_Tool/data/toy/annotations/evaluate.json'
+#     video_dir = 'AIGVE_Tool/data/toy/evaluate/'
+
+#     pickscore_dataset = PickScoreDataset(processor_name=processor_name_or_path,
+#                                          video_dir=video_dir,
+#                                          prompt_dir=prompt_dir)
     
-    for index, data in enumerate(pickscore_dataset):
-        print(index, data)
+#     for index, data in enumerate(pickscore_dataset):
+#         print(index, data)

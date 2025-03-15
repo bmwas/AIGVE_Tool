@@ -63,6 +63,5 @@ class VIEDataset(Dataset):
     
         return prompt, input_frames_path
 
-# DATASETS.register_module(module=PickScoreDataset, force=True)
     
     

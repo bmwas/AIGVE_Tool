@@ -122,19 +122,19 @@ def process(blip_model, data_samples: Sequence) -> None:
 
 
 
-if __name__ == '__main__':
-    prompt_dir = 'AIGVE_Tool/data/toy/annotations/evaluate.json'
-    video_dir = 'AIGVE_Tool/data/toy/evaluate/'
-    processor_name = 'Salesforce/blip-itm-base-coco'
-    blip_model_name = 'Salesforce/blip-itm-base-coco'
+# if __name__ == '__main__':
+#     prompt_dir = 'AIGVE_Tool/data/toy/annotations/evaluate.json'
+#     video_dir = 'AIGVE_Tool/data/toy/evaluate/'
+#     processor_name = 'Salesforce/blip-itm-base-coco'
+#     blip_model_name = 'Salesforce/blip-itm-base-coco'
 
-    blip_model = BlipForImageTextRetrieval.from_pretrained(blip_model_name).to("cuda")
-    blip_dataset = BLIPSimDataset(processor_name=processor_name,
-                                  video_dir=video_dir, prompt_dir=prompt_dir)
-    blip_dataloader = DataLoader(blip_dataset, batch_size=4, shuffle=False)
+#     blip_model = BlipForImageTextRetrieval.from_pretrained(blip_model_name).to("cuda")
+#     blip_dataset = BLIPSimDataset(processor_name=processor_name,
+#                                   video_dir=video_dir, prompt_dir=prompt_dir)
+#     blip_dataloader = DataLoader(blip_dataset, batch_size=4, shuffle=False)
     
-    for index, data in enumerate(blip_dataloader):
-        result = process(blip_model=blip_model, 
-                        data_samples=data)
+#     for index, data in enumerate(blip_dataloader):
+#         result = process(blip_model=blip_model, 
+#                         data_samples=data)
 
   

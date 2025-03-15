@@ -55,17 +55,10 @@ class VQALoop(BaseLoop):
         self.runner.call_hook('before_val_epoch')
         self.runner.model.eval()
 
-        # clear val loss
-        # self.val_loss.clear()
         for idx, data_batch in enumerate(self.dataloader):
             self.run_iter(idx, data_batch)
 
-        # compute metrics
         metrics = self.evaluator.evaluate(len(self.dataloader.dataset))
-
-        # if self.val_loss:
-        #     loss_dict = _parse_losses(self.val_loss, 'val')
-        #     metrics.update(loss_dict)
 
         self.runner.call_hook('after_val_epoch', metrics=metrics)
         self.runner.call_hook('after_val')
@@ -80,13 +73,7 @@ class VQALoop(BaseLoop):
         """
         self.runner.call_hook(
             'before_val_iter', batch_idx=idx, data_batch=data_batch)
-        # outputs should be sequence of BaseDataElement
-        # with autocast(enabled=self.fp16):
-        #     outputs = self.runner.model.val_step(data_batch)
         outputs = data_batch
-
-        # outputs, self.val_loss = _update_losses(outputs, self.val_loss)
-
         self.evaluator.process(data_batch=data_batch, data_samples=outputs)
         self.runner.call_hook(
             'after_val_iter',

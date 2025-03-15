@@ -7,14 +7,8 @@ covering diverse aspects of video evaluation, including neural-network-based ass
 distribution comparison, vision-language alignment, and multi-faceted analysis.
 """
 
-
 __version__ = '0.0.1'
 
-# from . import model, zootopia
-# from . import module, head, layer, config
-# from . import expansion, compression, transformation, reconciliation, remainder, interdependence, fusion
-# from . import koala
-# from . import data, output
 from .datasets import ToyDataset, \
     GSTVQADataset, SimpleVQADataset, LightVQAPlusDataset, \
     CLIPSimDataset, CLIPTempDataset, BLIPSimDataset, PickScoreDataset, \
@@ -24,7 +18,6 @@ from .metrics import VideoPhy, VideoScore, \
     DSGScore, TIFAScore, VIEEvalScore, CLIPSimScore, CLIPTempScore, PickScore, BlipSimScore, \
     FIDScore, FVDScore, \
     GstVqa, SimpleVqa, LightVQAPlus
-# from . import visual, util
 
 
 __all__ = [
