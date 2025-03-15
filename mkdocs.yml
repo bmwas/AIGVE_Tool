@@ -2,7 +2,7 @@
 site_name: AIGVE -- AI Generated Video Evaluation toolkit 
 site_url: https://aigve.org
 
-repo_url: https://github.com/ShaneXiangH/VQA_Toolkit
+repo_url: https://github.com/ShaneXiangH/AIGVE_Tool
 edit_uri: blob/main/docs/
 repo_name: Edit on Github
 copyright: Copyright &copy; 2025  <a href="https://www.ifmlab.org/">IFM Lab</a>. All rights reserved.
@@ -111,6 +111,7 @@ plugins:
             docstring_style: google
             heading_level: 3
             show_required_tag: false
+            path: ["aigve"]
             # show_default_values: false
             # show_if_no_docstring: false
             # signature_crossrefs: true
@@ -147,12 +148,12 @@ extra:
       content: index, follow
   social:
     - icon: fontawesome/brands/github
-      link: https://github.com/ShaneXiangH/VQA_Toolkit
+      link: https://github.com/ShaneXiangH/AIGVE_Tool
 
   # the footnote generator notice, copyright
   #generator: false
-  toolkit: 'AIGVE'
-  our: 'AIGVE'
+  toolkit: 'AIGVE-Tool'
+  our: 'AIGVE-Tool'
   author: 'Xinhao Xiang, Xiao Liu, Zizhong Li, Zhongsheng Liu'
   affiliation: 'IFM Lab'
 
@@ -187,6 +188,7 @@ nav:
       - documentations/metrics/is_score.md
       - documentations/metrics/gstvqa.md
       - documentations/metrics/simplevqa.md
+      - documentations/metrics/lightvqaplus.md
       - documentations/metrics/modular_bvqa.md
       - documentations/metrics/pickscore.md
       - documentations/metrics/tifa.md

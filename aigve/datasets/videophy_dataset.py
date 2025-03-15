@@ -5,7 +5,7 @@ import json
 import re
 import torch
 from transformers import LlamaTokenizer
-from core.registry import DATASETS
+from aigve.core.registry import DATASETS
 from functools import lru_cache
 
 # Lazy import to avoid circular import

@@ -7,15 +7,15 @@ import torch
 import torch.nn as nn
 import numpy as np
 from mmengine.evaluator import BaseMetric
-from core.registry import METRICS
+from aigve.core.registry import METRICS
 from typing import Dict
-from utils import add_git_submodule, submodule_exists
+from aigve.utils import add_git_submodule, submodule_exists
 
 @METRICS.register_module()
-class SimpleVQA(BaseMetric):
+class SimpleVqa(BaseMetric):
     """SimpleVQA metric for evaluating video quality."""
     def __init__(self, model_path: str, is_gpu: bool = True):
-        super(SimpleVQA, self).__init__()
+        super(SimpleVqa, self).__init__()
         self.model_path = model_path
         self.device = torch.device("cuda" if is_gpu else "cpu")
         self.submodel_path = os.path.join(os.getcwd(), 'metrics/video_quality_assessment/nn_based/simplevqa')

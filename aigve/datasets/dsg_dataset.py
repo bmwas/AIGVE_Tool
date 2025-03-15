@@ -15,7 +15,7 @@ from torch.utils.data import Dataset
 from metrics.text_video_alignment.gpt_based.dsg.DSG.dsg.openai_utils import openai_completion
 from metrics.text_video_alignment.gpt_based.dsg.DSG.dsg.query_utils import generate_dsg
 from metrics.text_video_alignment.gpt_based.dsg.DSG.dsg.parse_utils import parse_tuple_output, parse_question_output, parse_dependency_output
-from core.registry import DATASETS
+from aigve.core.registry import DATASETS
 
 
 @DATASETS.register_module()

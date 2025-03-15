@@ -16,13 +16,14 @@ __version__ = '0.0.1'
 # from . import koala
 # from . import data, output
 from .datasets import ToyDataset, \
-    GSTVQADataset, GSTVQADatasetCrossData, SimpleVQADataset, KONVID1KDataset_ModularBVQA, \
-    CLIPSimDataset, KineticsDataset, CLIPTempDataset, BLIPSimDataset, PickScoreDataset, \
-    VideoPhyDataset
+    GSTVQADataset, SimpleVQADataset, LightVQAPlusDataset, \
+    CLIPSimDataset, CLIPTempDataset, BLIPSimDataset, PickScoreDataset, \
+    VIEDataset, TIFADataset, DSGDataset, \
+    VideoPhyDataset, VideoScoreDataset
 from .metrics import VideoPhy, VideoScore, \
     DSGScore, TIFAScore, VIEEvalScore, CLIPSimScore, CLIPTempScore, PickScore, BlipSimScore, \
     FIDScore, FVDScore, \
-    GSTVQA, GSTVQACrossData, SimpleVQA
+    GstVqa, GSTVQACrossData, SimpleVqa, LightVQAPlus
 # from . import visual, util
 
 
@@ -33,26 +34,30 @@ __all__ = [
     # ---- other libraries ----
     # ---- dataloaders ----
     'ToyDataset', 
-    'GSTVQADataset', 'GSTVQADatasetCrossData', 'SimpleVQADataset', 'KONVID1KDataset_ModularBVQA',
-    'CLIPSimDataset', 'KineticsDataset', 'CLIPTempDataset', 'BLIPSimDataset', 'PickScoreDataset',
-    'VideoPhyDataset'
+    'GSTVQADataset', 'SimpleVQADataset', 'LightVQAPlusDataset',
+    'CLIPSimDataset', 'CLIPTempDataset', 'BLIPSimDataset', 'PickScoreDataset',
+    'VIEDataset', 'TIFADataset', 'DSGDataset',
+    'VideoPhyDataset', 'VideoScoreDataset'
     # ---- metrics ----
-    'VideoPhy', 
-    'VideoScore',
-    
-    'DSGScore', 
-    'TIFAScore', 
-    'VIEEvalScore',
-    'CLIPSimScore', 
-    'CLIPTempScore', 
-    'PickScore', 
-    'BlipSimScore',
-
     'FIDScore',
     'FVDScore',
 
-    'GSTVQA', 
+    'GstVqa', 
     'GSTVQACrossData',
-    'SimpleVQA'
+    'SimpleVqa',
+    'LightVQAPlus',
+    
+    'CLIPSimScore', 
+    'CLIPTempScore', 
+    'BlipSimScore'
+    'PickScore', 
+
+    'VIEEvalScore',
+    'TIFAScore', 
+    'DSGScore', 
+    
+    'VideoPhy', 
+    'VideoScore',
+
     # ---- visualization and utility ----
 ]

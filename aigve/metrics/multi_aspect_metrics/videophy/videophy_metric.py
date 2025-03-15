@@ -5,7 +5,7 @@ from mmengine.evaluator import BaseMetric
 from sympy.logic.inference import entails
 from transformers import LlamaTokenizer
 
-from core.registry import METRICS
+from aigve.core.registry import METRICS
 from mmengine.logging import MMLogger
 import torch
 import torch.nn as nn
@@ -13,7 +13,7 @@ import numpy as np
 from .mplug_owl_video.modeling_mplug_owl import MplugOwlForConditionalGeneration
 from .mplug_owl_video.processing_mplug_owl import MplugOwlImageProcessor, MplugOwlProcessor
 
-from utils import add_git_submodule, submodule_exists
+from aigve.utils import add_git_submodule, submodule_exists
 
 
 

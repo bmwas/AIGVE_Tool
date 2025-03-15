@@ -5,18 +5,18 @@ import json
 import torch
 import torch.nn as nn
 import numpy as np
-from typing import Dict, Sequence
+from typing import Dict, Sequence, Tuple
 # from scipy import stats
 from mmengine.evaluator import BaseMetric
-from core.registry import METRICS
-from utils import add_git_submodule, submodule_exists
+from aigve.core.registry import METRICS
+from aigve.utils import add_git_submodule, submodule_exists
 
 @METRICS.register_module()
-class GSTVQA(BaseMetric):
-    """GSTVQA metric modified for the toy dataset. (Supporting 2944-dim features)."""
+class GstVqa(BaseMetric):
+    """GstVQA metric modified for the toy dataset. (Supporting 2944-dim features)."""
 
     def __init__(self, model_path: str):
-        super(GSTVQA, self).__init__()
+        super(GstVqa, self).__init__()
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.submodel_path = os.path.join(os.getcwd(), 'metrics/video_quality_assessment/nn_based/gstvqa')
         if not submodule_exists(self.submodel_path):
@@ -30,7 +30,7 @@ class GSTVQA(BaseMetric):
         self.model.eval()
         # self.criterion = nn.L1Loss().to(self.device)
 
-    def compute_stat_features(self, features: torch.Tensor, num_valid_frames: int):
+    def compute_stat_features(self, features: torch.Tensor, num_valid_frames: int) -> Tuple[torch.Tensor]:
         """Compute statistical features mean_var, std_var, mean_mean, std_mean from extracted deep features.
 
         Args:

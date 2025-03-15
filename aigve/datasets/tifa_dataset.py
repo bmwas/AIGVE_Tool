@@ -18,7 +18,7 @@ from torch.utils.data import Dataset
 from transformers import AutoProcessor
 from metrics.text_video_alignment.gpt_based.dsg.DSG.dsg.openai_utils import openai_completion
 from metrics.text_video_alignment.gpt_based.TIFA.tifa.tifascore import get_question_and_answers, filter_question_and_answers, UnifiedQAModel, tifa_score_single
-from core.registry import DATASETS
+from aigve.core.registry import DATASETS
 
 @DATASETS.register_module()
 class TIFADataset(Dataset):

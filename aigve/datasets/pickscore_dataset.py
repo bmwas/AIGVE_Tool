@@ -6,7 +6,7 @@ import json
 import torch
 from torch.utils.data import Dataset
 from transformers import AutoProcessor
-from core.registry import DATASETS
+from aigve.core.registry import DATASETS
 
 @DATASETS.register_module()
 class PickScoreDataset(Dataset):

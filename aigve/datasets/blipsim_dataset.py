@@ -9,7 +9,7 @@ import torch
 from torch.utils.data import Dataset, DataLoader
 from typing import Sequence
 from transformers import AutoProcessor, BlipForImageTextRetrieval
-from core.registry import DATASETS
+from aigve.core.registry import DATASETS
 
 @DATASETS.register_module()
 class BLIPSimDataset(Dataset):

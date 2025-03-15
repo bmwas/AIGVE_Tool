@@ -1,5 +1,5 @@
 # Copyright (c) IFM Lab. All rights reserved.
-from core import VQALoop, VQAModel
+from aigve.core import VQALoop, VQAModel
 
 default_scope = None
 

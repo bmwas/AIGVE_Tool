@@ -2,10 +2,10 @@
 
 from typing import Dict, List, Optional, Sequence, Union
 from mmengine.evaluator import BaseMetric
-from core.registry import METRICS
+from aigve.core.registry import METRICS
 from mmengine.logging import MMLogger
 
-from utils import add_git_submodule, submodule_exists
+from aigve.utils import add_git_submodule, submodule_exists
 import torch
 import torch.nn as nn
 import numpy as np
@@ -23,7 +23,7 @@ class GSTVQACrossData(BaseMetric):
             names to disambiguate homonymous metrics of different evaluators.
             Default: None.
         metric_path (str): the file path of the metric 
-        train_index (int): The specific model used. Details on: https://github.com/Baoliang93/GSTVQA/blob/main/TCSVT_Release/GVQA_Release/GVQA_Cross/cross_test.py#L162
+        train_index (int, Optional): The specific model used. Details on: https://github.com/Baoliang93/GSTVQA/blob/main/TCSVT_Release/GVQA_Release/GVQA_Cross/cross_test.py#L162
     """
 
     default_prefix: Optional[str] = 'llm_score'

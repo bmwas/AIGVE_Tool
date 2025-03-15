@@ -1,3 +1,3 @@
 # class GSTVQA
 
-::: aigve.metrics.video_quality_assessement.nn_based.gstvqa.GSTVQA
+::: aigve.metrics.video_quality_assessment.nn_based.gstvqa.GstVqa

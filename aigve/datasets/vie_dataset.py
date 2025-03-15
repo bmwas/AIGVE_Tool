@@ -13,7 +13,7 @@ os.environ["OPENAI_API_KEY"] = ''
 import cv2
 import json
 from torch.utils.data import Dataset
-from core.registry import DATASETS
+from aigve.core.registry import DATASETS
 
 @DATASETS.register_module()
 class VIEDataset(Dataset):

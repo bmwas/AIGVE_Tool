@@ -3,7 +3,7 @@
 from typing import Any, Callable, Iterable, TypeVar, Generic, List, Optional, Union
 from os import path as osp
 
-from core.registry import DATASETS
+from aigve.core.registry import DATASETS
 from mmengine.dataset import BaseDataset
 
 

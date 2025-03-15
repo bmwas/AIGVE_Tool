@@ -1,5 +1,5 @@
 # Copyright (c) IFM Lab. All rights reserved.
-from utils import LoadVideoFromFile
+from aigve.utils import LoadVideoFromFile
 from mmengine.dataset.sampler import DefaultSampler
 from aigve.datasets import ToyDataset
 

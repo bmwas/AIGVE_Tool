@@ -21,50 +21,48 @@ If you find `AIGVE` library and `...` papers useful in your work, please cite th
 ## Library Organization
 
 
-### 🧠 **Neural Network-Based Evaluation Metrics**
-These metrics leverage deep learning models to assess AI-generated video quality based on learned representations.
+### 📊 **Distribution Comparison-Based Evaluation Metrics**
+These metrics assess the quality of generated videos by comparing the distribution of real and generated samples.
 
-- ✅ **[GSTVQA](../documentations/metrics/gstvqa.md)**: Video Quality Assessment using spatiotemporal deep learning models.
-- ✅ **[ModularBVQA](../documentations/metrics/modular_bvqa.md)**: A modular framework for Blind Video Quality Assessment (BVQA).
+- ✅ **[FID](../documentations/metrics/fid.md)**: Frechet Inception Distance (FID) quantifies the similarity between real and generated video feature distributions by measuring the Wasserstein-2 distance.
+- ✅ **[FVD](../documentations/metrics/fvd.md)**: Frechet Video Distance (FVD) extends the FID approach to video domain by leveraging spatio-temporal features extracted from action recognition networks.
+- ✅ **[IS](../documentations/metrics/is_score.md)**: Inception Score (IS) evaluates both the quality and diversity of generated content by analyzing conditional label distributions.
 
 ---
 
-### 📊 **Distribution-Based Evaluation Metrics**
-These metrics assess the quality of generated videos by comparing the distribution of real and generated samples.
+### 🧠 **Video-only Neural Network-Based Evaluation Metrics**
+These metrics leverage deep learning models to assess AI-generated video quality based on learned representations.
 
-- ✅ **[FID](../documentations/metrics/fid.md)**: Frechet Inception Distance (FID) measures the visual fidelity of generated samples.
-- ✅ **[FVD](../documentations/metrics/fvd.md)**: Frechet Video Distance (FVD) extends FID for temporal coherence in videos.
-- ✅ **[IS](../documentations/metrics/is_score.md)**: Inception Score (IS) evaluates the diversity and realism of generated content.
+- ✅ **[GSTVQA](../documentations/metrics/gstvqa.md)**: Generalized Spatio-Temporal VQA (GSTVQA) employs graph-based spatio-temporal analysis to assess video quality.
+- ✅ **[SimpleVQA](../documentations/metrics/simplevqa.md)**: Simple Video Quality Assessment (Simple-VQA) utilizes deep learning features for no-reference video quality assessment.
+- ✅ **[LightVQA+](../documentations/metrics/lightvqaplus.md)**: Light Video Quality Assessment Plus (Light-VQA+) incorporates exposure quality guidance to evaluate video quality.
 
 ---
 
 ### 🔍 **Vision-Language Similarity-Based Evaluation Metrics**
 These metrics evaluate **alignment, similarity, and coherence** between visual and textual representations, often using embeddings from models like CLIP and BLIP.
 
-- ✅ **[CLIPSim](../documentations/metrics/clipsim.md)**: Measures image-text similarity using CLIP embeddings.
-- ✅ **[CLIPTemp](../documentations/metrics/cliptemp.md)**: Assesses temporal consistency in video-text alignment.
-- ✅ **[BLIPSim](../documentations/metrics/blipsim.md)**: Evaluates cross-modal similarity and retrieval-based alignment.
-- ✅ **[Pickscore](../documentations/metrics/pickscore.md)**: Ranks text-image pairs based on alignment quality.
+- ✅ **[CLIPSim](../documentations/metrics/clipsim.md)**: CLIP Similarity (CLIPSim) leverages CLIP embeddings to measure semantic similarity between videos and text.
+- ✅ **[CLIPTemp](../documentations/metrics/cliptemp.md)**: CLIP Temporal (CLIPTemp) extends CLIPSim by incorporating temporal consistency assessment.
+- ✅ **[BLIPSim](../documentations/metrics/blipsim.md)**: Bootstrapped Language-Image Pre-training Similarity (BLIPSim) uses advanced pre-training techniques to improve video-text alignment evaluation.
+- ✅ **[Pickscore](../documentations/metrics/pickscore.md)**: PickScore incorporates human preference data to provide more perceptually aligned measurement of video-text matching.
 
 ---
 
 ### 🧠 **Vision-Language Understanding-Based Evaluation Metrics**
 These metrics assess **higher-level understanding, reasoning, and factual consistency** in vision-language models.
 
-- ✅ **[VIEScore](../documentations/metrics/viescore.md)**: Evaluates video grounding and entity-based alignment.
-- ✅ **[TIFA](../documentations/metrics/tifa.md)**: Measures textual integrity and factual accuracy in video descriptions.
-- ✅ **[DSG](../documentations/metrics/dsg.md)**: A deep structured grounding metric for assessing cross-modal comprehension.
+- ✅ **[VIEScore](../documentations/metrics/viescore.md)**: Video Information Evaluation Score (VIEScore) provides explainable assessments of conditional image synthesis.
+- ✅ **[TIFA](../documentations/metrics/tifa.md)**: Text-Image Faithfulness Assessment (TIFA) employs question-answering techniques to evaluate text-to-image alignment.
+- ✅ **[DSG](../documentations/metrics/dsg.md)**: Davidsonian Scene Graph (DSG) improves fine-grained evaluation reliability through advanced scene graph representations.
 
 ---
 
 ### 🔄 **Multi-Faceted Evaluation Metrics**
 These metrics integrate **structured, multi-dimensional assessments** to provide a **holistic benchmarking framework** for AI-generated videos.
 
-- ✅ **[VideoPhy](../documentations/metrics/videophy.md)**: Evaluates physics-based video understanding and reasoning.
-- ✅ **[VideoScore](../documentations/metrics/viescore.md)**: Evaluates structured video quality assessment across multiple perceptual and reasoning-based dimensions.
-<!-- - ✅ **[VBench](../documentations/metrics/vbench.md)**: Evaluates structured video quality assessment across multiple perceptual and reasoning-based dimensions.
-- ✅ **[EvalCrafter](../documentations/metrics/eval_crafter.md)**: Customizable and modular framework for structured AI evaluation. -->
-
+- ✅ **[VideoPhy](../documentations/metrics/videophy.md)**: Video Physics Evaluation (VideoPhy) specifically assesses the physical plausibility of generated videos.
+- ✅ **[VideoScore](../documentations/metrics/viescore.md)**: Video Score (VideoScore) simulates fine-grained human feedback across multiple evaluation dimensions.
 ---
 
 ## Key Features

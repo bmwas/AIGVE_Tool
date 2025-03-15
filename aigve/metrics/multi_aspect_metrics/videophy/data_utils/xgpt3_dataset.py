@@ -15,7 +15,7 @@ from icecream import ic
 from PIL import Image, ImageFile
 from torch.utils.data import Dataset, Subset
 
-from utils import get_args
+from aigve.utils import get_args
 
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 ImageFile.MAX_IMAGE_PIXELS = None

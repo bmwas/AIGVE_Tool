@@ -11,8 +11,8 @@ from PIL import Image
 import clip
 import torch.nn as nn
 from functools import lru_cache
-from core.registry import DATASETS
-from utils import add_git_submodule, submodule_exists
+from aigve.core.registry import DATASETS
+from aigve.utils import add_git_submodule, submodule_exists
 # import torch.multiprocessing as mp
 # mp.set_start_method("spawn", force=True)
 
@@ -136,7 +136,7 @@ class LightVQAPlusDataset(Dataset):
         # print('spatial_features: ', spatial_features.shape) # torch.Size([8, 3, 672, 1120])
         return spatial_features
 
-    def get_global_sf(self, video_path):
+    def get_global_sf(self, video_path) -> torch.Tensor:
         """Extracts global brightness & noise features across full video.
 
         Args:
@@ -278,7 +278,7 @@ class LightVQAPlusDataset(Dataset):
 
         return spatial_features, final_res  # Shape: [8, 300]
 
-    def extract_bc_features(self, video_path):
+    def extract_bc_features(self, video_path) -> torch.Tensor:
         """
         Extracts Brightness Consistency features using CLIP-based temporal processing.
         
@@ -379,7 +379,7 @@ class LightVQAPlusDataset(Dataset):
         
         return final_res
 
-    def extract_temporal_features(self, video_path):
+    def extract_temporal_features(self, video_path) -> torch.Tensor:
         """Extracts SlowFast motion features on the entire video segment.
 
         Args:

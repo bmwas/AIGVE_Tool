@@ -1,32 +1,30 @@
-# AIGVE
+# AIGVE-Tool
 AI Generated Video Evaluation toolkit
 
 
 ## Implemented:
 
 ### Models:
-#### NN based evaluation metrics:
+#### Video-Only Neural Network-Based evaluation metrics:
 1. [GSTVQA](.aigve/configs/gstvqa.py) 
 2. [SimpleVQA](.aigve/configs/simplevqa.py) 
 3. [LightVQA_Plus](.aigve/configs/lightvqa_plus.py)
 
 
-#### Distribuition based evaluation metrics:
+#### Distribuition Comparison-Based evaluation metrics:
 These metrics primarily assess the quality of generated samples by comparing distributions of real and generated data:
 1. [FID](.aigve/configs/fid.py)
 2. [FVD](.aigve/configs/fvd.py)
 3. [IS](.aigve/configs/is_score.py)
 
-
-<!-- #### Text-video alignment based methods: -->
-#### Vision-Language Similarity based evaluation metrics:
+#### Vision-Language Similarity-Based evaluation metrics:
 These metrics primarily evaluate alignment, similarity, and coherence between visual and textual representations. They focus on how well images and text match, often using embeddings from models like CLIP and BLIP:
 1. [CLIPSim](.aigve/configs/clipsim.py) 
 2. [CLIPTemp](.aigve/configs/cliptemp.py) 
 3. [BLIP](.aigve/configs/blipsim.py)
 4. [Pickscore](.aigve/configs/pickscore.py)
 
-#### Vision-Language Understanding based evaluation metrics:
+#### Vision-Language Understanding-Based evaluation metrics:
 These metrics assess higher-level understanding, reasoning, and factual consistency in vision-language models. They go beyond similarity, evaluating semantic correctness, factual alignment, and structured comprehension:
 1. [VIEScore](.aigve/configs/viescore.py) 
 2. [TIFA](.aigve/configs/tifa.py)
@@ -46,10 +44,10 @@ These metrics are structured, multi-dimensional evaluation metrics designed to a
 
 ## Environment
 
-conda env remove --name vqa
+conda env remove --name aigve
 ```
 conda env create -f environment.yml
-conda activate vqa
+conda activate aigve
 conda install pytorch==2.1.0 torchvision==0.16.0 torchaudio==2.1.0 pytorch-cuda=11.8 -c pytorch -c nvidia
 ```
 (MMCV from v1.7.2 support PyTorch 2.1.0 and 2.0.0)
@@ -102,11 +100,6 @@ cd VQA_Toolkit/aigve
 python main_aigve.py AIGVE_Tool/aigve/configs/clipsim.py --work-dir ./output
 ``
 
-## To-do:
-
-Frameworks written on Detectron2 frameworks:
-1. LLM_Score 
-
 
 ## Acknowledge
 
@@ -115,5 +108,5 @@ The Toolkit is build top the top of [MMEngine](https://github.com/open-mmlab/mme
 We acknowledge original repositories of various VQA methods:
 [GSTVQA](https://github.com/Baoliang93/GSTVQA),
 [CLIPSim](https://github.com/zhengxu-1997/),
-[ModularBVQA](https://github.com/winwinwenwen77/ModularBVQA),
+<!-- [ModularBVQA](https://github.com/winwinwenwen77/ModularBVQA), -->
 <!-- [StarVQA](https://github.com/GZHU-DVL/StarVQA) -->

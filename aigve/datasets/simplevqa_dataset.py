@@ -7,7 +7,7 @@ import torch
 from torch.utils.data import Dataset
 from torchvision import transforms
 from PIL import Image
-from core.registry import DATASETS
+from aigve.core.registry import DATASETS
 # import math
 
 @DATASETS.register_module()
