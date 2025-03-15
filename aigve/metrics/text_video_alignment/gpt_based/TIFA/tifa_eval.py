@@ -45,13 +45,10 @@ class TIFAScore(BaseMetric):
     """ Initialize the ``TIFAScore`` evaluator.
     
     Args:   
-            openai_key (str): The user's api key of the LLM models openai provides.
-            llm_model (str): The name of the LLM model used in the TIFAScore evaluator. Defaults to ``gpt-3.5-turbo``.
-            unifiedqa_model_name (str): The name of the ``UnifiedQAModel`` used in TIFAScore evaluator. Defaults to ``allenai/unifiedqa-v2-t5-large-1363200``.
-            vqa_model_name (str): The name of the ``VQAModel used`` in TIFAScore evaluator. Defaults to ``mplug-large``.
-
-    Returns:
-            None
+        openai_key (str): The user's api key of the LLM models openai provides.
+        llm_model (str): The name of the LLM model used in the TIFAScore evaluator. Defaults to ``gpt-3.5-turbo``.
+        unifiedqa_model_name (str): The name of the ``UnifiedQAModel`` used in TIFAScore evaluator. Defaults to ``allenai/unifiedqa-v2-t5-large-1363200``.
+        vqa_model_name (str): The name of the ``VQAModel used`` in TIFAScore evaluator. Defaults to ``mplug-large``.
     """
     def __init__(self, 
                  openai_key,

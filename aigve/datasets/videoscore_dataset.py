@@ -75,7 +75,7 @@ class VideoScoreDataset(BaseDataset):
         else:
             self.max_num_frames = 48
 
-    def __len__(self):
+    def __len__(self) -> int:
         """
         Returns:
             int: the length of the dataset

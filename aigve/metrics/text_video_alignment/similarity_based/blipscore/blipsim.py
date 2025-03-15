@@ -21,11 +21,8 @@ class BlipSimScore(BaseMetric):
     """ Initialize the ``BLIPSimScore`` evaluator.
     
     Args:
-            model_name (str): The name of the BLIP model. Defaults to ``Salesforce/blip-itm-base-coco``.
-            logit_scale (bool): Whether to calcualte the cosine similarity as logits. Defaults to False.
-
-    Returns:
-            None
+        model_name (str): The name of the BLIP model. Defaults to ``Salesforce/blip-itm-base-coco``.
+        logit_scale (bool): Whether to calcualte the cosine similarity as logits. Defaults to False.
     """
     def __init__(self,
                  model_name: str = "Salesforce/blip-itm-base-coco",

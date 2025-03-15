@@ -21,13 +21,10 @@ class CLIPSimScore(BaseMetric):
     """ Initialize the ``CLIPSimScore`` evaluator.
     
     Args:
-            processor_name (str): The name of the CLIP processor, which wraps a CLIP feature extractor and a CLIP tokenizer into this single procesor. 
-                                  Defaults to ``openai/clip-vit-base-patch32``.
-            model_name (str): The name of the CLIP model. Defaults to ``openai/clip-vit-base-patch32``.
-            logit_scale (bool): Whether to calcualte the cosine similarity as logits. Defaults to False.
-
-    Returns:
-            None
+        processor_name (str): The name of the CLIP processor, which wraps a CLIP feature extractor and a CLIP tokenizer into this single procesor. 
+                                Defaults to ``openai/clip-vit-base-patch32``.
+        model_name (str): The name of the CLIP model. Defaults to ``openai/clip-vit-base-patch32``.
+        logit_scale (bool): Whether to calcualte the cosine similarity as logits. Defaults to False.
     """
     def __init__(self,
                  processor_name: str = "openai/clip-vit-base-patch32",
@@ -45,8 +42,6 @@ class CLIPSimScore(BaseMetric):
         self.model = CLIPModel.from_pretrained(self.model_name).to(self.device)
         self.model.eval()
 
-
-# def process(self, data_batch: dict, data_samples: Sequence[dict]) -> None:
     def process(self, data_batch: Sequence, data_samples: Sequence) -> None:
         """CLIPSimScore process
         Process one batch of data samples and predictions. The processed

@@ -17,7 +17,7 @@ import numpy as np
 
 from aigve.core.registry import METRICS
 from copy import deepcopy
-from typing import Dict, Optional, Sequence, Union
+from typing import Dict, Optional, Sequence, Union, List
 from transformers import CLIPProcessor, CLIPModel
 
 import torchvision.transforms as transforms
@@ -31,11 +31,8 @@ class DSGScore(BaseMetric):
     """ Initialize the ``DSGScore`` evaluator.
     
     Args:
-            model_name (str): The name of the VQA model used in the DSGScore evaluator. Defaults to ``InstructBLIP``, you can also choose the "MPLUG" as the VQA model.
-            verbose (bool): Whether the intermediate output processes is required. Defaults to False.
-
-    Returns:
-            None
+        vqa_model_name (str): The name of the VQA model used in the DSGScore evaluator. Defaults to ``InstructBLIP``, you can also choose the "MPLUG" as the VQA model.
+        verbose (bool): Whether the intermediate output processes is required. Defaults to False.
     """
     def __init__(self, 
                  vqa_model_name: str = "InstructBLIP",
@@ -61,16 +58,25 @@ class DSGScore(BaseMetric):
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     
-    def evaluate_image_dsg(self, qid_list, frame_index, frame):
+    def evaluate_image_dsg(self, qid_list, frame_index, frame) -> Dict[str, Union[int, dict, float]]:
         """ Evaluate a generated image with DSG evaluator; this is the intermediate process of the ``process`` function. 
     
         Args:
-                qid_list (List[str]): The list of DSG parse question generation results.
-                frame_index (int): The index number of the currently evaluated frame.
-                frame (List[List[float]): The current evaluated frame.
+            qid_list (List[str]): The list of DSG parse question generation results.
+            frame_index (int): The index number of the currently evaluated frame.
+            frame (List[List[float]]): The current evaluated frame.
     
         Returns:
-                None
+            Dict[str, Union[int, dict, float]]: A dictionary containing evaluation results with the following keys:
+                - 'frame_index' (int): The index of the evaluated frame.
+                - 'qid2tuple' (dict): Mapping of question IDs to tuples.
+                - 'qid2dependency' (dict): Mapping of question IDs to dependencies.
+                - 'qid2question' (dict): Mapping of question IDs to actual questions.
+                - 'qid2answer' (dict): Mapping of question IDs to predicted answers.
+                - 'qid2scores' (dict): Mapping of question IDs to scores before dependency filtering.
+                - 'qid2validity' (dict): Mapping of question IDs to boolean validity after dependency filtering.
+                - 'average_score_with_dependency' (float): Average score considering dependency filtering.
+                - 'average_score_without_dependency' (float): Average score before dependency filtering.
         """
         if self.verbose:
             print("#"*50)

@@ -23,12 +23,9 @@ class VIEEvalScore(BaseMetric):
     """ Initialize the ``VIEEvalScore`` evaluator.
     
     Args:
-            llm_backbone (str): The name of the LLM model used in the VIEEvalScore evaluator. Defaults to ``got4o``.
-            api_key_path (str): The user's api key path to initialize LLM models provides by openai.
-            task(str): The task the VIEEvalScore evaluator conducts. Defaults to ''t2v''.
-
-    Returns:
-            None
+        llm_backbone (str): The name of the LLM model used in the VIEEvalScore evaluator. Defaults to ``got4o``.
+        api_key_path (str): The user's api key path to initialize LLM models provides by openai.
+        task (str): The task the VIEEvalScore evaluator conducts. Defaults to ''t2v''.
     """
     def __init__(self,
                  llm_backbone: str = "gpt4o",

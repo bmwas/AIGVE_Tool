@@ -23,7 +23,7 @@ from .datasets import ToyDataset, \
 from .metrics import VideoPhy, VideoScore, \
     DSGScore, TIFAScore, VIEEvalScore, CLIPSimScore, CLIPTempScore, PickScore, BlipSimScore, \
     FIDScore, FVDScore, \
-    GstVqa, GSTVQACrossData, SimpleVqa, LightVQAPlus
+    GstVqa, SimpleVqa, LightVQAPlus
 # from . import visual, util
 
 
@@ -43,7 +43,6 @@ __all__ = [
     'FVDScore',
 
     'GstVqa', 
-    'GSTVQACrossData',
     'SimpleVqa',
     'LightVQAPlus',
     
