@@ -11,8 +11,8 @@ from PIL import Image
 import clip
 import torch.nn as nn
 from functools import lru_cache
-from aigve.core.registry import DATASETS
-from aigve.utils import add_git_submodule, submodule_exists
+from core.registry import DATASETS
+from utils import add_git_submodule, submodule_exists
 # import torch.multiprocessing as mp
 # mp.set_start_method("spawn", force=True)
 

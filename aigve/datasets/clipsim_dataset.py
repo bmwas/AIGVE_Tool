@@ -7,7 +7,7 @@ import torch
 from torch.utils.data import Dataset
 from transformers import AutoProcessor, CLIPModel
 from typing import Sequence
-from aigve.core.registry import DATASETS
+from core.registry import DATASETS
 
 @DATASETS.register_module()
 class CLIPSimDataset(Dataset):

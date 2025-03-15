@@ -7,7 +7,7 @@ import time
 import logging
 import numpy as np
 
-from aigve.core.registry import METRICS
+from core.registry import METRICS
 from typing import Dict, Optional, Sequence, Union
 from transformers import AutoProcessor, AutoModel
 

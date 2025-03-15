@@ -1,7 +1,7 @@
 # Copyright (c) IFM Lab. All rights reserved.
 
 from mmengine.model import BaseModel
-from aigve.core import MODELS
+from core import MODELS
 import math
 
 @MODELS.register_module()

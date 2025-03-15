@@ -2,7 +2,7 @@
 
 from typing import Optional
 
-from aigve.core.registry import TRANSFORMS
+from core.registry import TRANSFORMS
 from mmcv.transforms.base import BaseTransform
 
 from PIL import Image, ImageSequence

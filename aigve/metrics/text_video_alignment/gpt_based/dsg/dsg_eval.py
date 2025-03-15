@@ -15,7 +15,7 @@ import time
 import logging
 import numpy as np
 
-from aigve.core.registry import METRICS
+from core.registry import METRICS
 from copy import deepcopy
 from typing import Dict, Optional, Sequence, Union, List
 from transformers import CLIPProcessor, CLIPModel
@@ -24,7 +24,7 @@ import torchvision.transforms as transforms
 from mmengine.evaluator import BaseMetric
 from mmengine.logging import MMLogger
 from tqdm import tqdm
-from aigve.utils import add_git_submodule, submodule_exists
+from utils import add_git_submodule, submodule_exists
 
 @METRICS.register_module()
 class DSGScore(BaseMetric):

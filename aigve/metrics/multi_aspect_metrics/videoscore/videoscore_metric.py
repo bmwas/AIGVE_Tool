@@ -6,7 +6,7 @@ from mmengine.evaluator import BaseMetric
 from sympy.logic.inference import entails
 from transformers import LlamaTokenizer
 
-from aigve.core.registry import METRICS
+from core.registry import METRICS
 from mmengine.logging import MMLogger
 import torch
 from .videoscore_utils import _read_video_pyav

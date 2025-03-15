@@ -1,7 +1,7 @@
 # Copyright (c) IFM Lab. All rights reserved.
-from aigve.metrics.video_quality_assessment.distribution_based.fvd import FVDScore
+from metrics.video_quality_assessment.distribution_based.fvd import FVDScore
 from mmengine.dataset import DefaultSampler
-from aigve.datasets import ToyDataset
+from datasets import ToyDataset
 
 model = dict(
     type=FVDScore,

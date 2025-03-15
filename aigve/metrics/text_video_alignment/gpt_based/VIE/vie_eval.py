@@ -9,13 +9,13 @@ sys.path.append(os.path.dirname(LAST_SCRIPT_DIR))
 
 import torch
 import numpy as np
-from aigve.core.registry import METRICS
+from core.registry import METRICS
 from PIL import Image
 from typing import Sequence, Dict
 
 from mmengine.evaluator import BaseMetric
 from mmengine.logging import MMLogger
-from aigve.utils import add_git_submodule, submodule_exists
+from utils import add_git_submodule, submodule_exists
 
 
 @METRICS.register_module()

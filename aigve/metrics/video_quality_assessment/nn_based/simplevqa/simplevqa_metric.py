@@ -7,9 +7,9 @@ import torch
 import torch.nn as nn
 import numpy as np
 from mmengine.evaluator import BaseMetric
-from aigve.core.registry import METRICS
+from core.registry import METRICS
 from typing import Dict
-from aigve.utils import add_git_submodule, submodule_exists
+from utils import add_git_submodule, submodule_exists
 
 @METRICS.register_module()
 class SimpleVqa(BaseMetric):

@@ -6,7 +6,7 @@ import json
 import torch
 from transformers import AutoProcessor
 from torch.utils.data import Dataset
-from aigve.core.registry import DATASETS
+from core.registry import DATASETS
 
 @DATASETS.register_module()
 class CLIPTempDataset(Dataset):

@@ -8,8 +8,8 @@ import numpy as np
 from typing import Dict, Sequence, Tuple
 # from scipy import stats
 from mmengine.evaluator import BaseMetric
-from aigve.core.registry import METRICS
-from aigve.utils import add_git_submodule, submodule_exists
+from core.registry import METRICS
+from utils import add_git_submodule, submodule_exists
 
 @METRICS.register_module()
 class GstVqa(BaseMetric):

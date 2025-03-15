@@ -10,7 +10,7 @@ import logging
 import openai
 import numpy as np
 
-from aigve.core.registry import METRICS
+from core.registry import METRICS
 from copy import deepcopy
 from typing import Dict, Optional, Sequence, Union
 
@@ -21,7 +21,7 @@ from functools import lru_cache
 # Lazy import to avoid circular import
 @lru_cache(maxsize=1)
 def lazy_import():
-    from aigve.utils import add_git_submodule, submodule_exists
+    from utils import add_git_submodule, submodule_exists
     submodel_path = 'metrics/text_video_alignment/gpt_based/dsg'
     if not submodule_exists(submodel_path):
         add_git_submodule(

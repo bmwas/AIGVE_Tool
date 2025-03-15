@@ -6,7 +6,7 @@ import torchvision.models as models
 import torch.nn as nn
 from torch.utils.data import Dataset
 import torch.nn.functional as F
-from aigve.core.registry import DATASETS
+from core.registry import DATASETS
 
 class FeatureExtractor(nn.Module):
     """Feature extractor using either VGG16 or ResNet18."""

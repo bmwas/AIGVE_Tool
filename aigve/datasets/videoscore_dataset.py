@@ -6,7 +6,7 @@ import re
 import torch
 from transformers import AutoProcessor
 
-from aigve.core.registry import DATASETS
+from core.registry import DATASETS
 import os
 import av
 import numpy as np

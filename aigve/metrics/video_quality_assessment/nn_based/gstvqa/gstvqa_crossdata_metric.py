@@ -2,10 +2,10 @@
 
 from typing import Dict, List, Optional, Sequence, Union
 from mmengine.evaluator import BaseMetric
-from aigve.core.registry import METRICS
+from core.registry import METRICS
 from mmengine.logging import MMLogger
 
-from aigve.utils import add_git_submodule, submodule_exists
+from utils import add_git_submodule, submodule_exists
 import torch
 import torch.nn as nn
 import numpy as np
