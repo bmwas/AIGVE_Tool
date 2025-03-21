@@ -10,7 +10,7 @@ from mmengine.evaluator import Evaluator
 import logging
 
 @LOOPS.register_module()
-class VQALoop(BaseLoop):
+class AIGVELoop(BaseLoop):
     """Loop for VQA metric evaluation.
 
     Args:

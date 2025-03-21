@@ -78,7 +78,7 @@ python main_aigve.py AIGVE_Tool/aigve/configs/simplevqa.py --work-dir ./output
 For LightVQAPlus:
 ``
 cd VQA_Toolkit/aigve
-python main_aigve.py /home/xinhao/AIGVE_Tool/aigve/configs/lightvqa_plus.py --work-dir ./output
+python main_aigve.py AIGVE_Tool/aigve/configs/lightvqa_plus.py --work-dir ./output
 
 ``
 

@@ -46,11 +46,13 @@ class LightVQAPlus(BaseMetric):
         Args:
             data_batch (Sequence): A batch of data from the dataloader (not used here).
             data_samples (List[Tuple[torch.Tensor], Tuple[torch.Tensor], Tuple[torch.Tensor], Tuple[str]]):
+                A list containing five tuples:
                 - spatial_features (torch.Tensor): Extracts 8 evenly spaced key frames. Shape: [8, 3, 672, 1120].
                 - temporal_features (torch.Tensor): Motion features from SlowFast. Shape: [1, feature_dim(2304)].
                 - bns_features (torch.Tensor): Brightness & Noise features. Shape: [8, 300].
                 - bc_features (torch.Tensor): Temporal brightness contrast features. Shape: [8, final_dim(20)].
                 - video_name (str): Video filename.
+                The len of each tuples are the batch size.
         """
         results = []
         spatial_features_tuple, temporal_features_tuple, bns_features_tuple, bc_features_tuple, video_name_tuple = data_samples

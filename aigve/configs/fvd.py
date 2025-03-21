@@ -1,5 +1,5 @@
 # Copyright (c) IFM Lab. All rights reserved.
-from metrics.video_quality_assessment.distribution_based.fvd import FVDScore
+from metrics.video_quality_assessment.distribution_based.fvd_metric import FVDScore
 from mmengine.dataset import DefaultSampler
 from datasets import ToyDataset
 

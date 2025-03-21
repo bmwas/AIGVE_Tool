@@ -1,6 +1,7 @@
 # Copyright (c) IFM Lab. All rights reserved.
 
 from .toy_dataset import ToyDataset
+from .fid_dataset import FidDataset
 
 from .gstvqa_dataset import GSTVQADataset
 from .simplevqa_dataset import SimpleVQADataset
@@ -18,7 +19,7 @@ from .dsg_dataset import DSGDataset
 from .videophy_dataset import VideoPhyDataset
 from .videoscore_dataset import VideoScoreDataset
 
-__all__ = ['ToyDataset', 
+__all__ = ['ToyDataset', 'FidDataset',
            'GSTVQADataset', 'SimpleVQADataset', 'LightVQAPlusDataset', 
            'CLIPSimDataset', 'CLIPTempDataset', 'BLIPSimDataset', 'PickScoreDataset',
            'VIEDataset', 'TIFADataset', 'DSGDataset',

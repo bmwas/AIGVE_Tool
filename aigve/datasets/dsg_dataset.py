@@ -12,10 +12,17 @@ sys.path.append(os.path.dirname(LAST_SCRIPT_DIR))
 
 from copy import deepcopy
 from torch.utils.data import Dataset
-from metrics.text_video_alignment.gpt_based.dsg.DSG.dsg.openai_utils import openai_completion
-from metrics.text_video_alignment.gpt_based.dsg.DSG.dsg.query_utils import generate_dsg
-from metrics.text_video_alignment.gpt_based.dsg.DSG.dsg.parse_utils import parse_tuple_output, parse_question_output, parse_dependency_output
 from core.registry import DATASETS
+from functools import lru_cache
+from utils import add_git_submodule, submodule_exists
+
+# Lazy import to avoid circular import
+@lru_cache(maxsize=1)
+def lazy_import():
+    from metrics.text_video_alignment.gpt_based.dsg.DSG.dsg.openai_utils import openai_completion
+    from metrics.text_video_alignment.gpt_based.dsg.DSG.dsg.query_utils import generate_dsg
+    from metrics.text_video_alignment.gpt_based.dsg.DSG.dsg.parse_utils import parse_tuple_output, parse_question_output, parse_dependency_output
+    return openai_completion, generate_dsg, parse_tuple_output, parse_question_output, parse_dependency_output
 
 
 @DATASETS.register_module()
@@ -34,7 +41,19 @@ class DSGDataset(Dataset):
             print("#"*50)
             print("1) Generate DSG from text with LLM")
             print("#"*50)
-    
+        
+        self.submodel_path = os.path.join(os.getcwd(), 'metrics/text_video_alignment/gpt_based/dsg')
+        if not submodule_exists(self.submodel_path):
+            add_git_submodule(
+                repo_url='https://github.com/j-min/DSG.git', 
+                submodule_path=self.submodel_path
+            )
+        dsg_path = os.path.join(self.submodel_path, "DSG")
+        if dsg_path not in sys.path:
+            sys.path.insert(0, dsg_path)
+        self.openai_completion, self.generate_dsg, self.parse_tuple_output, self.parse_question_output, self.parse_dependency_output = lazy_import()
+
+        
     def _openai_setup(self):
         print('set up openai client')
         openai.api_key = self.openai_key

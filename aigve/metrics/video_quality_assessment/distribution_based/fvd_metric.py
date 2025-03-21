@@ -3,14 +3,13 @@ import numpy as np
 # from tensorflow.keras.models import Model
 from scipy.linalg import sqrtm
 # from tensorflow.keras.applications.inception_v3 import preprocess_input
-from mmengine.model import BaseModel
-from mmengine.registry import MODELS, METRICS
+from mmengine.evaluator import BaseMetric
+from mmengine.registry import METRICS
 from typing import Dict, Sequence
 from mmengine.logging import MMLogger
 
-@MODELS.register_module()
 @METRICS.register_module()
-class FVDScore(BaseModel):
+class FVDScore(BaseMetric):
     def __init__(self, model_path, feature_layer=-2):
         super().__init__()
         self.i3d_model = self.load_i3d_model(model_path, feature_layer)

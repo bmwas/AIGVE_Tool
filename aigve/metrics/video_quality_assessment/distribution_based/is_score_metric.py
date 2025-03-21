@@ -1,15 +1,15 @@
 # Copyright (c) IFM Lab. All rights reserved.
 # from tensorflow.keras.applications.inception_v3 import InceptionV3, preprocess_input
-from mmengine.model import BaseModel
-from mmengine.registry import MODELS, METRICS
+from mmengine.evaluator import BaseMetric
+from mmengine.registry import METRICS
 import numpy as np
 from typing import Dict, Sequence
 from mmengine.logging import MMLogger
 # import tensorflow as tf
 
-@MODELS.register_module()
+
 @METRICS.register_module()
-class ISScore(BaseModel):
+class ISScore(BaseMetric):
     """
     Inception Score (IS) implementation.
     

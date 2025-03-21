@@ -74,7 +74,7 @@ class GstVqa(BaseMetric):
                 - A tuple of `deep_features`: Each item is a Tensor of shape [T, 2944]. 
                 - A tuple of `num_frames`: Each item is an integer representing the number of valid frames.
                 - A tuple of `video_name`: Each item is a string representing the file name for the video.
-                The len of these three tuples are the batch size.
+                The len of each three tuples are the batch size.
         """
         # data_samples an example: [
         #     (tensor([[0., 0., 0.,  ..., 0., 0., 0.],

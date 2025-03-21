@@ -1,5 +1,5 @@
 # Copyright (c) IFM Lab. All rights reserved.
-from metrics.video_quality_assessment.distribution_based.is_score import ISScore
+from metrics.video_quality_assessment.distribution_based.is_score_metric import ISScore
 from mmengine.dataset import DefaultSampler
 from datasets import ToyDataset
 

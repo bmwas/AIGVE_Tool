@@ -9,7 +9,7 @@ distribution comparison, vision-language alignment, and multi-faceted analysis.
 
 __version__ = '0.0.1'
 
-from .datasets import ToyDataset, \
+from .datasets import ToyDataset, FidDataset, \
     GSTVQADataset, SimpleVQADataset, LightVQAPlusDataset, \
     CLIPSimDataset, CLIPTempDataset, BLIPSimDataset, PickScoreDataset, \
     VIEDataset, TIFADataset, DSGDataset, \
@@ -26,7 +26,7 @@ __all__ = [
     # ---- component functions ----
     # ---- other libraries ----
     # ---- dataloaders ----
-    'ToyDataset', 
+    'ToyDataset', 'FidDataset',
     'GSTVQADataset', 'SimpleVQADataset', 'LightVQAPlusDataset',
     'CLIPSimDataset', 'CLIPTempDataset', 'BLIPSimDataset', 'PickScoreDataset',
     'VIEDataset', 'TIFADataset', 'DSGDataset',

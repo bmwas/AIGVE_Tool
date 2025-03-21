@@ -35,14 +35,12 @@ class LightVQAPlusDataset(Dataset):
         - video_name (str): Video filename.
     """
 
-    def __init__(self, video_dir, prompt_dir, feature_dir="extracted_features", min_video_seconds=8):
+    def __init__(self, video_dir, prompt_dir, min_video_seconds=8):
         super(LightVQAPlusDataset, self).__init__()
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.video_dir = video_dir
         self.prompt_dir = prompt_dir
-        self.feature_dir = feature_dir
         self.min_video_seconds = min_video_seconds
-        os.makedirs(self.feature_dir, exist_ok=True)
 
         self.video_names = self._read_video_names()
 
@@ -79,7 +77,6 @@ class LightVQAPlusDataset(Dataset):
         # print(sys.path)
 
         # Load SlowFast model
-        
         slowfast, _ = lazy_import()
         self.slowfast_model = slowfast()
 
@@ -451,15 +448,6 @@ class LightVQAPlusDataset(Dataset):
         spatial_features, bns_features = self.extract_bns_features(video_path)
         bc_features = self.extract_bc_features(video_path)
         temporal_features = self.extract_temporal_features(video_path)
-
-        # # Save extracted features
-        # feature_path = os.path.join(self.feature_dir, f"{video_name}_features.pth")
-        # torch.save({
-        #     "spatial": spatial_features,
-        #     "temporal": temporal_features,
-        #     "bns": bns_features,
-        #     "bc": bc_features
-        # }, feature_path)
 
         return spatial_features, temporal_features, bns_features, bc_features, video_name
 
