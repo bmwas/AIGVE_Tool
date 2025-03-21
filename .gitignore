@@ -4,6 +4,7 @@
 **/output/
 **/tmp
 **/work_dirs
+**.pth
 
 # **/data/
 **/__MACOSX/
@@ -12,7 +13,7 @@
 **/konvid_1k/
 **/AIGVE_Bench.zip
 **/KoNViD-1kinfo-original.mat
-**/*_results_*.json
+**/*_results*.json
 **/SimpleVQA
 **/Light_VQA_plus
 

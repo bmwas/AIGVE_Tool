@@ -9,7 +9,7 @@ with read_base():
     from ._base_.default import *
 
 val_dataloader = dict(
-    batch_size=2,  # FID evaluation typically processes batches of images
+    batch_size=2,  
     num_workers=1,
     persistent_workers=True,
     drop_last=False,

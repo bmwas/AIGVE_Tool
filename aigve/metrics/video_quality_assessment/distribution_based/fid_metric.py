@@ -46,7 +46,7 @@ class FIDScore(BaseMetric):
         Returns:
             torch.Tensor: Preprocessed tensor of shape [T, C, H, W].
         """
-        # video_tensor = self.transform(video_tensor / 255.0)
+        video_tensor = self.transform(video_tensor / 255.0)
         return video_tensor
 
     def calculate_statistics(self, video_tensor: torch.Tensor) -> tuple[np.ndarray, np.ndarray]:
@@ -78,7 +78,7 @@ class FIDScore(BaseMetric):
         Returns:
             float: FID score.
         """
-        mu1, sigma1 = self.calculate_statistics(real)
+        mu1, sigma1 = self.calculate_statistics(real) # Shape[2048], Shape[2048, 2048]
         mu2, sigma2 = self.calculate_statistics(fake)
 
         # Compute FID score
@@ -119,7 +119,11 @@ class FIDScore(BaseMetric):
                 gen_tensor = gen_tensor_tuple[i]
                 fid_score = self.calculate_fid(real_tensor, gen_tensor)
 
-                results.append({"Real video_name": real_video_name, "Generated video_name": gen_video_name, "FID_Score": fid_score})
+                results.append({
+                    "Real video_name": real_video_name, 
+                    "Generated video_name": gen_video_name, 
+                    "FID_Score": fid_score
+                })
                 print(f"Processed score {fid_score:.4f} between {real_video_name} and {gen_video_name}")
 
         self.results.extend(results)
