@@ -34,13 +34,6 @@ class FidDataset(Dataset):
         prompt_dir (str): Path to JSON file that lists ground-truth and generated video filenames.
         max_len (int): Maximum number of frames to load per video. Default: 500.
         if_pad (bool): Whether to pad videos to exactly `max_len` frames. If False, videos can have variable lengths.
-    
-    Returns:
-        Tuple[torch.Tensor, torch.Tensor]:
-            - Real video tensor of shape [T, C, H, W].
-            - Generated video tensor of shape [T, C, H, W].
-            - Ground-truth video name.
-            - Generated video name.
     """
 
     def __init__(self, video_dir, prompt_dir, max_len=500, if_pad=False):
@@ -96,7 +89,7 @@ class FidDataset(Dataset):
     def __len__(self):
         return len(self.gt_video_names)
 
-    def __getitem__(self, index):
+    def __getitem__(self, index) -> tuple[torch.Tensor, torch.Tensor, str, str]:
         """
         Returns:
             Tuple[torch.Tensor, torch.Tensor, str, str]: 

@@ -40,7 +40,7 @@ class FVDScore(BaseMetric):
             transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])  # Normalize to [-1, 1]
         ])
 
-    def load_i3d_model(self, model_path: str, feature_layer: int):
+    def load_i3d_model(self, model_path: str, feature_layer: int) -> torch.nn.Module:
         """
         Load a pre-trained I3D model and modify it to extract features.
 

@@ -2,6 +2,8 @@
 **/__pycached__ 
 **/_ignore
 **/output/
+dist/
+*.egg-info/
 **/tmp
 **/work_dirs
 **.pth
