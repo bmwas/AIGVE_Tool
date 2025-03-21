@@ -181,7 +181,10 @@ class FVDScore(BaseMetric):
         print(f"FVD mean score: {mean_score:.4f}")
 
         json_file_path = os.path.join(os.getcwd(), "fvd_results.json")
-        final_results = {"video_results": self.results, "FVD_Mean_Score": mean_score}
+        final_results = {
+            "video_results": self.results, 
+            "FVD_Mean_Score": mean_score
+        }
         with open(json_file_path, "w") as json_file:
             json.dump(final_results, json_file, indent=4)
         print(f"FVD mean score saved to {json_file_path}")

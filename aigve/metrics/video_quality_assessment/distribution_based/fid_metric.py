@@ -135,7 +135,10 @@ class FIDScore(BaseMetric):
         print(f"FID mean score: {mean_score:.4f}")
 
         json_file_path = os.path.join(os.getcwd(), "fid_results.json")
-        final_results = {"video_results": self.results, "FID_Mean_Score": mean_score}
+        final_results = {
+            "video_results": self.results, 
+            "FID_Mean_Score": mean_score
+        }
         with open(json_file_path, "w") as json_file:
             json.dump(final_results, json_file, indent=4)
         print(f"FID mean score saved to {json_file_path}")

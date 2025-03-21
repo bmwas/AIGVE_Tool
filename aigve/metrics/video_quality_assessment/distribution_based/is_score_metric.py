@@ -1,11 +1,15 @@
 # Copyright (c) IFM Lab. All rights reserved.
-# from tensorflow.keras.applications.inception_v3 import InceptionV3, preprocess_input
+
+import os, json
+from typing import Dict, Sequence
+import torch
+import torch.nn as nn
+import torchvision.transforms as transforms
+import torchvision.models as models
+import numpy as np
 from mmengine.evaluator import BaseMetric
 from mmengine.registry import METRICS
-import numpy as np
-from typing import Dict, Sequence
-from mmengine.logging import MMLogger
-# import tensorflow as tf
+
 
 
 @METRICS.register_module()
@@ -21,100 +25,148 @@ class ISScore(BaseMetric):
         model_name (str): Name of the model to use. Currently only 'inception_v3' is supported.
         input_shape (tuple): Input shape for the model (height, width, channels).
         splits (int): Number of splits to use when calculating the score.
+        is_gpu (bool): Whether to use GPU. Defaults to True.
     """
 
-    def __init__(self, model_name='inception_v3', input_shape=(299, 299, 3), splits=10):
-        super().__init__()
-        if model_name == 'inception_v3':
-            self.model = InceptionV3(include_top=True, input_shape=input_shape)
-        else:
-            raise ValueError("Only 'inception_v3' is currently supported.")
-        
+    def __init__(
+            self, 
+            model_name: str = 'inception_v3', 
+            input_shape: tuple = (299, 299, 3), 
+            splits: int = 10,
+            is_gpu: bool = True):
+        super(ISScore, self).__init__()
+        self.device = torch.device("cuda" if is_gpu and torch.cuda.is_available() else "cpu")
         self.splits = splits
-        self.results = []
 
-    def preprocess_images(self, images):
+        if model_name == 'inception_v3':
+            self.model = models.inception_v3(pretrained=True, transform_input=False)
+            self.model.fc = nn.Identity()  # Remove classification head
+            self.model.eval().to(self.device)
+        else:
+            raise ValueError(f"Model '{model_name}' is not supported for Inception Score computation.")
+        
+        self.transform = transforms.Compose([
+            transforms.Resize((input_shape[0], input_shape[1])),  # InceptionV3 input size
+            transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])  # Normalize to [-1, 1]
+        ])
+
+    def preprocess_tensor(self, images: torch.Tensor) -> torch.Tensor:
         """
-        Preprocess the images for the InceptionV3 model.
-
-        Parameters:
-        images (numpy array): Input images.
-
-        Returns:
-        numpy array: Preprocessed images.
-        """
-        return preprocess_input(images)
-
-    def process(self, data_batch: dict, data_samples: Sequence[dict]) -> None:
-        """
-        Process one batch of data samples and predictions.
+        Resize and normalize images.
 
         Args:
-            data_batch (dict): A batch of data from the dataloader.
-            data_samples (Sequence[dict]): A batch of data samples that
-                contain annotations and predictions.
+            images (torch.Tensor): Tensor of shape [B, C, H, W].
+
+        Returns:
+            torch.Tensor: Preprocessed images.
         """
-        result = dict()
-        images = data_samples
+        return self.transform(images / 255.0)
 
-        # Calculate IS score
-        is_score, is_std = self.calculate_is(images)
-        result['is_score'] = is_score
-        result['is_std'] = is_std
-
-        self.results.append(result)
-
-    def compute_metrics(self, results: list) -> Dict[str, float]:
+    def compute_inception_features(self, images: torch.Tensor) -> torch.Tensor:
         """
-        Compute the metrics from processed results.
+        Compute Inception features for a batch of images.
 
         Args:
-            results (list): The processed results of each batch.
+            images (torch.Tensor): Preprocessed image tensor.
 
         Returns:
-            Dict[str, float]: The computed metrics.
+            torch.Tensor: Feature activations from InceptionV3.
         """
-        logger: MMLogger = MMLogger.get_current_instance()
+        images = self.preprocess_tensor(images).to(self.device)
+        with torch.no_grad():
+            features = self.model(images).cpu()
+        return features
 
-        is_scores = np.zeros(len(results))
-        is_stds = np.zeros(len(results))
-        
-        for i, result in enumerate(results):
-            is_scores[i] = result['is_score']
-            is_stds[i] = result['is_std']
-        
-        mean_is = np.mean(is_scores)
-        mean_std = np.mean(is_stds)
-        
-        print("Test results: IS Score={:.4f} ± {:.4f}".format(mean_is, mean_std))
-
-        return {'is': mean_is, 'is_std': mean_std}
-
-    def calculate_is(self, images):
+    def calculate_is(self, images: torch.Tensor) -> tuple[float, float]:
         """
-        Calculate the Inception Score for a set of images.
+        Compute Inception Score.
 
-        Parameters:
-        images (numpy array): Input images.
+        Args:
+            images (torch.Tensor): Image tensor [B, C, H, W].
 
         Returns:
-        tuple: The mean and standard deviation of the inception score.
+            Tuple[float, float]: Mean and standard deviation of Inception Score.
         """
-        # Preprocess images
-        images = self.preprocess_images(images)
-        
-        # Get predictions
-        preds = self.model.predict(images)
-        
-        # Calculate scores for each split
+        features = self.compute_inception_features(images)
+        preds = torch.nn.functional.softmax(features, dim=1).numpy()
+
+        # Split into chunks
         scores = []
-        n = preds.shape[0]
-        split_size = n // self.splits
-        
+        batch_size = preds.shape[0]
+        split_size = batch_size // self.splits
+
         for i in range(self.splits):
             part = preds[i * split_size:(i + 1) * split_size]
             kl = part * (np.log(part) - np.log(np.expand_dims(np.mean(part, axis=0), 0)))
             kl = np.mean(np.sum(kl, axis=1))
             scores.append(np.exp(kl))
-            
-        return np.mean(scores), np.std(scores)
+
+        return float(np.mean(scores)), float(np.std(scores))
+    
+    def process(self, data_batch: dict, data_samples: Sequence[dict]) -> None:
+        """
+        Process one batch of data samples and compute IS.
+
+        Args:
+            data_batch (dict): A batch of data from the dataloader (not used here).
+            data_samples (List[Tuple[torch.Tensor], Tuple[torch.Tensor], Tuple[str], Tuple[str]]):
+                A list containing two tuples:
+                - A tuple of `real_tensor` (torch.Tensor): Real video tensor [T, C, H, W].
+                - A tuple of `gen_tensor` (torch.Tensor): Generated video tensor [T, C, H, W].
+                - A tuple of `real_video_name` (str): Ground-truth video filename.
+                - A tuple of `gen_video_name` (str): Generated video filename.
+                The len of each tuples are the batch size.
+        """
+        results = []
+        real_tensor_tuple, gen_tensor_tuple, real_video_name_tuple, gen_video_name_tuple = data_samples
+
+        batch_size = len(gen_tensor_tuple)
+        with torch.no_grad():
+            for i in range(batch_size):
+                real_video_name = real_video_name_tuple[i]
+                gen_video_name = gen_video_name_tuple[i]
+                real_tensor = real_tensor_tuple[i]
+                gen_tensor = gen_tensor_tuple[i]
+                is_score, is_std = self.calculate_is(gen_tensor)
+
+                results.append({
+                    "Real video_name": real_video_name, 
+                    "Generated video_name": gen_video_name, 
+                    "IS_Score": is_score,
+                    "IS_Std": is_std
+                })
+                print(f"Processed IS score {is_score:.4f} ± {is_std:.4f} for {gen_video_name}")
+
+        self.results.extend(results)
+
+    def compute_metrics(self, results: list) -> Dict[str, float]:
+        """
+        Compute the final IS score.
+
+        Args:
+            results (list): List of IS scores for each batch.
+
+        Returns:
+            Dict[str, float]: Dictionary containing mean IS score and standard deviation.
+        """
+        scores = np.array([res["IS_Score"] for res in self.results])
+        stds = np.array([res["IS_Std"] for res in self.results])
+
+        mean_score = np.mean(scores) if scores.size > 0 else 0.0
+        mean_std = np.mean(stds) if stds.size > 0 else 0.0
+
+        print(f"IS mean score: {mean_score:.4f} ± {mean_std:.4f}")
+
+        json_file_path = os.path.join(os.getcwd(), "is_results.json")
+        final_results = {
+            "video_results": self.results, 
+            "IS_Mean_Score": mean_score, 
+            "IS_Mean_Std": mean_std
+        }
+        with open(json_file_path, "w") as json_file:
+            json.dump(final_results, json_file, indent=4)
+        print(f"IS mean score saved to {json_file_path}")
+
+        return {"IS_Mean_Score": mean_score, "IS_Mean_Std": mean_std}
+
+    
