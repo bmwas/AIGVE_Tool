@@ -13,15 +13,43 @@
 
 ## Citing Us
 
-If you find `AIGVE` library and `...` papers useful in your work, please cite the papers as follows:
-```
+`aigve` is developed based on the AIGVE-Tool paper from IFM Lab, which can be downloaded via the following links:
 
+* AIGVE-Tool Paper (2025): [https://arxiv.org/abs/2503.14064](https://arxiv.org/abs/2503.14064)
+
+If you find `AIGVE` library and the AIGVE-Tool papers useful in your work, please cite the papers as follows:
+```
+@misc{xiang2025aigvetoolaigeneratedvideoevaluation,
+      title={AIGVE-Tool: AI-Generated Video Evaluation Toolkit with Multifaceted Benchmark}, 
+      author={Xinhao Xiang and Xiao Liu and Zizhong Li and Zhuosheng Liu and Jiawei Zhang},
+      year={2025},
+      eprint={2503.14064},
+      archivePrefix={arXiv},
+      primaryClass={cs.CV},
+      url={https://arxiv.org/abs/2503.14064}, 
+}
 ```
 
 ## Library Organization
 
+| Components                                                                  | Descriptions                                                          |
+|:----------------------------------------------------------------------------|:----------------------------------------------------------------------|
+| [`aigve`](https://www.aigve.org/documentations/aigve/)                      | The library for assessing AI-generated video quality                  |
+| [`aigve.config`](https://www.aigve.org/documentations/config/)              | a library for parameter configuration and management                  |
+| [`aigve.core`](https://www.aigve.org/documentations/core/)                  | a library for video evaluation process design                         |
+| [`aigve.datasets`](https://www.aigve.org/documentations/datasets/)          | a library for dataset loading design                                  |
+| [`aigve.metrics`](https://www.aigve.org/documentations/metrics/)            | a library for video evaluation metrics design and building            |
+| [`aigve.utils`](https://www.aigve.org/documentations/utils/)                | a library for utility function definition                             |
 
-### 📊 **Distribution Comparison-Based Evaluation Metrics**
+
+
+
+## Evaluation Metrics Zoo
+
+###  **Distribution Comparison-Based Evaluation Metrics**
+
+<!-- <h2><img src="../../assets/icons/dis_based.png" alt="chart icon" style="height: 1.2em; vertical-align: middle;"> <strong>Distribution Comparison-Based Evaluation Metrics</strong></h2> -->
+
 These metrics assess the quality of generated videos by comparing the distribution of real and generated samples.
 
 - ✅ **[FID](../documentations/metrics/fid.md)**: Frechet Inception Distance (FID) quantifies the similarity between real and generated video feature distributions by measuring the Wasserstein-2 distance.
@@ -30,7 +58,7 @@ These metrics assess the quality of generated videos by comparing the distributi
 
 ---
 
-### 🧠 **Video-only Neural Network-Based Evaluation Metrics**
+### **Video-only Neural Network-Based Evaluation Metrics**
 These metrics leverage deep learning models to assess AI-generated video quality based on learned representations.
 
 - ✅ **[GSTVQA](../documentations/metrics/gstvqa.md)**: Generalized Spatio-Temporal VQA (GSTVQA) employs graph-based spatio-temporal analysis to assess video quality.
@@ -39,7 +67,7 @@ These metrics leverage deep learning models to assess AI-generated video quality
 
 ---
 
-### 🔍 **Vision-Language Similarity-Based Evaluation Metrics**
+### **Vision-Language Similarity-Based Evaluation Metrics**
 These metrics evaluate **alignment, similarity, and coherence** between visual and textual representations, often using embeddings from models like CLIP and BLIP.
 
 - ✅ **[CLIPSim](../documentations/metrics/clipsim.md)**: CLIP Similarity (CLIPSim) leverages CLIP embeddings to measure semantic similarity between videos and text.
@@ -49,7 +77,7 @@ These metrics evaluate **alignment, similarity, and coherence** between visual a
 
 ---
 
-### 🧠 **Vision-Language Understanding-Based Evaluation Metrics**
+### **Vision-Language Understanding-Based Evaluation Metrics**
 These metrics assess **higher-level understanding, reasoning, and factual consistency** in vision-language models.
 
 - ✅ **[VIEScore](../documentations/metrics/viescore.md)**: Video Information Evaluation Score (VIEScore) provides explainable assessments of conditional image synthesis.

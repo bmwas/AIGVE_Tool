@@ -7,7 +7,7 @@ Interested investors and sponsors may contact [Xinhao Xiang via email](mailto:xh
 ## For contributing
 
 Contributing to the project, including report/fix bugs, add new features, improve documentation, and send feedbacks,
-can all be done via the project github issue page at [https://github.com/ShaneXiangH/VQA_Toolkit/issues](https://github.com/ShaneXiangH/VQA_Toolkit/issues).
+can all be done via the project github issue page at [https://github.com/ShaneXiangH/AIGVE_Tool/issues](https://github.com/ShaneXiangH/AIGVE_Tool/issues).
 
 ## For Licenses
 

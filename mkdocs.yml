@@ -82,13 +82,11 @@ markdown_extensions:
       pygments_lang_class: true
   - pymdownx.inlinehilite
   - pymdownx.snippets
-  - pymdownx.superfences
   - pymdownx.arithmatex:
       generic: true
       block_tag: 'pre'
   - pymdownx.tasklist:
       custom_checkbox: true
-  - pymdownx.superfences
   - pymdownx.tabbed:
       alternate_style: true
   - attr_list
@@ -201,17 +199,17 @@ nav:
     - tutorials/index.md
   - Examples:
     - examples/index.md
-  - Blogs:
-    - blog/index.md
+  # - Blogs:
+  #   - blog/index.md
   - News:
     - news/index.md
-    # - Research News: news/research.md
+    - Research News: news/research.md
     # #- New Products: news/product.md
-    # - Library Updates: news/toolkit.md
+    - Library Updates: news/toolkit.md
   - Contact us:
     - contact/index.md
     # - contact/sponsors.md
-    # - contact/contributing.md
+    - contact/contributing.md
     #- contact/privacy.md
     - contact/license.md
     #- contact/certificate.md

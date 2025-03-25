@@ -1,0 +1,7 @@
+# MANIFEST.in
+
+include README.md
+include LICENSE
+include aigve/*.toml
+
+recursive-include docs *
