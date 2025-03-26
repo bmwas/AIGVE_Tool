@@ -206,7 +206,7 @@ nav:
       - 5. Running AIGV Evaluations: tutorials/beginner/running.md
     - Advanced Tutorials:
       - tutorials/advanced/index.md
-      - tutorials/advanced/loop.md
+      - 1. The AIGVE Loop: tutorials/advanced/loop.md
              
   - Examples:
     - examples/index.md

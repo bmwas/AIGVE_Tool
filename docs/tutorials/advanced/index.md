@@ -7,4 +7,4 @@ This page will be updated as new tutorials are posted, so please check back regu
 
 | Advanced Tutorial ID  |        Tutorial Title        | Released Date | 
 |:---------------------:|:----------------------------:|:-------------:|
-| [Advanced Tutorial 1](./loop.md) | The AIGVE Loop |      March 23, 2025      |        
+| [Advanced Tutorial 1](./loop.md) | The AIGVE Loop |      TBD      |        

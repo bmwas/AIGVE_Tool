@@ -1,8 +1,8 @@
 # Tutorial on Configuration Files
 
-AIGVE use [MMEngine's Python style config system](https://mmengine.readthedocs.io/en/latest/advanced_tutorials/config.html). It has a modular and inheritance design, which is convenient to conduct various experiments. 
-It allows you to define all parameters in one centralized location, enabling easy access data just like getting values from `dict`.
-AIGVE's config system provides an inheritance mechanism, which could help you better organize and manage the configuration files.
+AIGVE uses [MMEngine's Python-style configuration system](https://mmengine.readthedocs.io/en/latest/advanced_tutorials/config.html). It follows a modular and inheritance-based design, which is convenient to conduct various evaluation experiments. 
+It allows you to define all parameters in one centralized location, enabling easy corresponding data access just like getting values from Python `dict`.
+AIGVE's configuration system also supports inheritance, enabling better organization and management of complex configurations.
 
 ## Config file content
 
@@ -10,7 +10,7 @@ AIGVE uses a modular design, all modules with different functions can be configu
 
 ### Default Base configuration
 
-These configuration defines default configuration of the [MMEngine runner system](https://github.com/open-mmlab/mmengine/blob/main/mmengine/runner/runner.py). This includes specifying the evaluation loop class, the model wrapper, logging levels, and hook behavior. Since these configuration are not dependent on specific evaluation metrics, they are defined in the base configuration to ensure reusability and maintain a clean structure.
+These configurations define the default setup of the [MMEngine runner system](https://github.com/open-mmlab/mmengine/blob/main/mmengine/runner/runner.py). This includes specifying the evaluation loop class, the model wrapper, logging levels, and hook behavior. Since these configuration are not specific to a particular evaluation metric, they are defined in the base configuration for better modularity and reusability.
 
 ```python
 from mmengine.config import read_base
@@ -36,16 +36,16 @@ val_cfg = dict(type=AIGVELoop)
 
 * `default_scope` and `log_level` control default scoping and logging behaviors.
 
-* `model` is a required component of MMEngine's runner pipeline. In AIGVE, it is by default set to [`AIGVEModel`](https://github.com/ShaneXiangH/AIGVE_Tool/blob/main/aigve/core/models.py), allowing loaded data batch to flow directly into the evaluator without model-specific logic.
+* `model` is a required component of MMEngine's runner pipeline. Since AIGVE is an evaluation-only framework, it is by default set to [`AIGVEModel`](https://github.com/ShaneXiangH/AIGVE_Tool/blob/main/aigve/core/models.py), allowing loaded data batch to flow directly into the evaluator without model-specific logic.
 
 * `default_hooks` is by default set to `None` to disable default behaviors.
 
-* `val_cfg` defines the whole evaluation pipeline behaviors. It is set to [`AIGVELoop`](https://github.com/ShaneXiangH/AIGVE_Tool/blob/main/aigve/core/loops.py), the core loop class in AIGVE for running evaluations from datasets loading to metric evaluation.
+* `val_cfg` defines the whole evaluation pipeline behaviors. It is set to [`AIGVELoop`](https://github.com/ShaneXiangH/AIGVE_Tool/blob/main/aigve/core/loops.py), the core loop class in AIGVE for running evaluations from datasets loading to metric evaluation. For more details about `AIGVELoop`, please refer to [Tutorial on the AIGVE Loop](../advanced/loop.md). 
 
 
 ### Dataset & Loader configuration
 
-Following [`AIGVELoop`](https://github.com/ShaneXiangH/AIGVE_Tool/blob/main/aigve/core/loops.py), `val_dataloader` is required for batch data loading. For different AIGVE metrics, they may use different data sources, data loading manners, data sampling strategies, or data preprocessing methods. As a result, they may use different dataloader classes or set different parameters to build it. All our customizable dataLoaders are inherited from [PyTorch's `Dataset` class](https://pytorch.org/tutorials/beginner/basics/data_tutorial.html). In `gstvqa`, its `val_dataloader` is configured as: 
+Following [`AIGVELoop`](https://github.com/ShaneXiangH/AIGVE_Tool/blob/main/aigve/core/loops.py), `val_dataloader` is required for batch data loading. Different AIGVE metrics may require distinct data sources, data loading manners, data sampling strategies, or data preprocessing pipelines. As such, they may use different dataloader classes or set different parameters to build it. All AIGVE customizable dataLoaders are inherited from [PyTorch's `Dataset` class](https://pytorch.org/tutorials/beginner/basics/data_tutorial.html). In `gstvqa`, its `val_dataloader` is configured as: 
 
 ```python
 from mmengine.dataset import DefaultSampler
@@ -89,6 +89,23 @@ val_evaluator = dict(
 )
 ```
 
-* the `gstvqa` is configured to use [`GstVqa`](https://github.com/ShaneXiangH/AIGVE_Tool/blob/main/aigve/metrics/video_quality_assessment/nn_based/gstvqa/gstvqa_metric.py#L15). `model_path` is the parameters defined in the `GstVqa`. 
+* the `gstvqa` is configured to use [`GstVqa`](https://github.com/ShaneXiangH/AIGVE_Tool/blob/main/aigve/metrics/video_quality_assessment/nn_based/gstvqa/gstvqa_metric.py#L15). `model_path` is a parameters defined in the `GstVqa` evaluator and should point to a pre-trained model checkpoint.
 
 * For more details about customizing such metric evaluator, please refer to [Tutorial on Modular Metrics](./evaluator.md). 
+
+
+---
+
+## What's Next?
+
+After configuring the evaluation pipeline, you can proceed to:
+
+- [Prepare datasets in MMFormat](./dataset.md)
+
+- [Customize dataloaders](./dataloader.md)
+
+- [Customize evaluation metrics](./evaluator.md)
+
+- [Run the AIGVE loop on your own metrics or datasets](./running.md)
+
+- [Have a deeper view of the ALGVE Loop](../advanced/loop.md)
