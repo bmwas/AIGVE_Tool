@@ -1,11 +1,11 @@
 # Quickstart Tutorial
 
-<div style="display: flex; justify-content: space-between;">
+<!-- <div style="display: flex; justify-content: space-between;">
 <span style="text-align: left;">
     Author: Xinhao Xiang <br>
     (Released: Mar 23, 2025; latest Revision: Mar 23, 2025.)
-</span>
-<span style="text-align: right;">
+</span> -->
+<!-- <span style="text-align: right;">
     <a href="https://github.com/jwzhanggy/tinyBIG/blob/main/docs/notes/quickstart_tutorial.ipynb">
     <img src="https://raw.githubusercontent.com/jwzhanggy/tinyBIG/main/docs/assets/img/ipynb_icon.png" alt="Jupyter Logo" style="height: 2em; vertical-align: middle; margin-right: 4px;">
     </a>
@@ -14,9 +14,9 @@
     <img src="https://raw.githubusercontent.com/jwzhanggy/tinyBIG/main/docs/assets/img/python_icon.svg" alt="Python Logo" style="height: 2em; vertical-align: middle; margin-right: 10px;">
     </a>
 </span>
-</div>
+</div> -->
 
--------------------------
+<!-- -------------------------
 
 In this quickstart tutorial,we demonstrate how to evaluate AI-generated videos using the modular configuration and unified evaluation pipeline via the APIs provided by `aigve`, leveraging its customizable dataloaders, standardized AIGVELoop workflow, and comprehensive suite of modular metrics.
 
@@ -382,4 +382,4 @@ also it only uses `9330` learnable parameters, much less than that of MLP and KA
 ## What is the Next?
 
 After finishing this quickstart tutorial, you may also check the [Tutorials tab](../tutorials/index.md) and the [Examples tab](../examples/index.md) of this website
-for more in-depth tutorial articles and code examples developed based on the `tinybig` library.
+for more in-depth tutorial articles and code examples developed based on the `tinybig` library. -->
