@@ -1,6 +1,6 @@
 from mmengine.config import read_base
 from mmengine.dataset import DefaultSampler
-from metrics.video_quality_assessment.nn_based.gstvqa.gstvqa_metric import GSTVQA
+from metrics.video_quality_assessment.nn_based.gstvqa.gstvqa_metric import GstVqa
 from datasets import GSTVQADataset
 
 with read_base():
@@ -24,6 +24,6 @@ val_dataloader = dict(
 )
 
 val_evaluator = dict(
-    type=GSTVQA,
+    type=GstVqa,
     model_path="metrics/video_quality_assessment/nn_based/gstvqa/GSTVQA/TCSVT_Release/GVQA_Release/GVQA_Cross/models/training-all-data-GSTVQA-konvid-EXP0-best",
 )

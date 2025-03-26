@@ -35,9 +35,9 @@ def lazy_import():
             submodule_path=submodel_path
         )   
     from ..dsg.DSG.dsg.openai_utils import openai_completion
-    from .tifa.tifascore import get_question_and_answers, filter_question_and_answers, UnifiedQAModel, tifa_score_single, VQAModel
+    from .tifa.tifascore import get_question_and_answers, filter_question_and_answers, UnifiedQAModel, tifa_score_single, AIGVEModel
     
-    return openai_completion, get_question_and_answers, filter_question_and_answers, UnifiedQAModel, tifa_score_single, VQAModel
+    return openai_completion, get_question_and_answers, filter_question_and_answers, UnifiedQAModel, tifa_score_single, AIGVEModel
 
 
 @METRICS.register_module()
@@ -48,7 +48,7 @@ class TIFAScore(BaseMetric):
         openai_key (str): The user's api key of the LLM models openai provides.
         llm_model (str): The name of the LLM model used in the TIFAScore evaluator. Defaults to ``gpt-3.5-turbo``.
         unifiedqa_model_name (str): The name of the ``UnifiedQAModel`` used in TIFAScore evaluator. Defaults to ``allenai/unifiedqa-v2-t5-large-1363200``.
-        vqa_model_name (str): The name of the ``VQAModel used`` in TIFAScore evaluator. Defaults to ``mplug-large``.
+        vqa_model_name (str): The name of the ``AIGVEModel used`` in TIFAScore evaluator. Defaults to ``mplug-large``.
     """
     def __init__(self, 
                  openai_key,
@@ -63,7 +63,7 @@ class TIFAScore(BaseMetric):
         self.openai_completion, self.get_question_and_answers, self.filter_question_and_answers, self.unifiedqa_model, self.tifa_score_single, self.vqa_model = lazy_import()
         self.unifiedqa_model = self.UnifiedQAModel(self.unifiedqa_model_name)
         self.vqa_model_name = vqa_model_name
-        self.vqa_model = self.VQAModel(self.vqa_model_name)
+        self.vqa_model = self.AIGVEModel(self.vqa_model_name)
         
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 

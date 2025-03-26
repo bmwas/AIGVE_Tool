@@ -8,7 +8,7 @@
 
 * Official Website: [https://www.aigve.org/](https://www.aigve.org/)
 * Github Repository: [https://github.com/ShaneXiangH/VQA_Toolkit](https://github.com/ShaneXiangH/VQA_Toolkit)
-<!-- * PyPI Package: [https://pypi.org/project/tinybig/](https://pypi.org/project/tinybig/) -->
+* PyPI Package: [https://pypi.org/project/aigve/](https://pypi.org/project/aigve/)
 * IFM Lab [https://www.ifmlab.org/](https://www.ifmlab.org/)
 
 ## Citing Us
@@ -19,10 +19,11 @@
 
 If you find `AIGVE` library and the AIGVE-Tool papers useful in your work, please cite the papers as follows:
 ```
-@misc{xiang2025aigvetoolaigeneratedvideoevaluation,
+@article{xiang2025aigvetoolaigeneratedvideoevaluation,
       title={AIGVE-Tool: AI-Generated Video Evaluation Toolkit with Multifaceted Benchmark}, 
       author={Xinhao Xiang and Xiao Liu and Zizhong Li and Zhuosheng Liu and Jiawei Zhang},
       year={2025},
+      journal={arXiv preprint arXiv:2503.14064},
       eprint={2503.14064},
       archivePrefix={arXiv},
       primaryClass={cs.CV},
@@ -86,7 +87,7 @@ These metrics assess **higher-level understanding, reasoning, and factual consis
 
 ---
 
-### 🔄 **Multi-Faceted Evaluation Metrics**
+### **Multi-Faceted Evaluation Metrics**
 These metrics integrate **structured, multi-dimensional assessments** to provide a **holistic benchmarking framework** for AI-generated videos.
 
 - ✅ **[VideoPhy](../documentations/metrics/videophy.md)**: Video Physics Evaluation (VideoPhy) specifically assesses the physical plausibility of generated videos.
@@ -112,4 +113,4 @@ These metrics integrate **structured, multi-dimensional assessments** to provide
 Copyright © 2025 [IFM Lab](https://www.ifmlab.org/). All rights reserved.
 
 * `AIGVE` source code is published under the terms of the MIT License. 
-* `AIGVE` documentation and the `...` papers are licensed under a Creative Commons Attribution-Share Alike 4.0 Unported License ([CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/)). 
+* `AIGVE` documentation and the `AIGVE-Tool` papers are licensed under a Creative Commons Attribution-Share Alike 4.0 Unported License ([CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/)). 

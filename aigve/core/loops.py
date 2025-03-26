@@ -11,7 +11,7 @@ import logging
 
 @LOOPS.register_module()
 class AIGVELoop(BaseLoop):
-    """Loop for VQA metric evaluation.
+    """Loop for AIGVE metric evaluation.
 
     Args:
         runner (Runner): A reference of runner.

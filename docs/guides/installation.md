@@ -62,7 +62,7 @@ pip install setuptools
 
 The `aigve` library is developed based on several dependency packages. 
 
-**Option 1**: We recommend to create a specific conda environment for `AIGVE-Tool`:
+**Option 1 (recommended)**: Create a specific conda environment for `AIGVE-Tool`:
 ```shell
 conda env create -f environment.yml
 conda activate aigve
@@ -71,7 +71,9 @@ conda install pytorch==2.1.0 torchvision==0.16.0 torchaudio==2.1.0 pytorch-cuda=
 
 --------------------
 
-**Option 2**: The updated dependency [requirement.txt](https://github.com/ShaneXiangH/AIGVE_Tool/blob/main/requirement.txt) of `aigve`
+**Option 2**: Install dependency packages from requirement.txt:
+
+The updated dependency [requirement.txt](https://github.com/ShaneXiangH/AIGVE_Tool/blob/main/requirement.txt) of `aigve`
 can be downloaded from the [project github repository](https://github.com/ShaneXiangH/AIGVE_Tool).
 After downloading the requirement.txt, you can install all these dependencies with the pip command:
 

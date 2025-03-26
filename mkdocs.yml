@@ -150,8 +150,8 @@ extra:
 
   # the footnote generator notice, copyright
   #generator: false
-  toolkit: 'AIGVE-Tool'
-  our: 'AIGVE-Tool'
+  toolkit: 'AIGVE'
+  our: 'AIGVE'
   author: 'Xinhao Xiang, Xiao Liu, Zizhong Li, Zhongsheng Liu'
   affiliation: 'IFM Lab'
 
@@ -197,6 +197,17 @@ nav:
       - documentations/utils/index.md
   - Tutorials:
     - tutorials/index.md
+    - Beginner's Tutorials:
+      - tutorials/beginner/index.md
+      - 1. Configuration Files: tutorials/beginner/config.md
+      - 2. Dataset Preparation: tutorials/beginner/dataset.md
+      - 3. Customizable Dataloaders: tutorials/beginner/dataloader.md
+      - 4. Modular Metrics: tutorials/beginner/evaluator.md
+      - 5. Running AIGV Evaluations: tutorials/beginner/running.md
+    - Advanced Tutorials:
+      - tutorials/advanced/index.md
+      - tutorials/advanced/loop.md
+             
   - Examples:
     - examples/index.md
   # - Blogs:
