@@ -80,8 +80,8 @@ These metrics integrate **structured, multi-dimensional assessments** to provide
 
 
 ## Default built-in Dataset:
-1. [Toy dataset](.aigve/data/toy) 
-2. [AIGVE-Bench toy](.aigve/data/AIGVE_Bench_Toy)
+1. [Toy dataset](aigve/data/toy) 
+2. [AIGVE-Bench toy](aigve/data/AIGVE_Bench_Toy)
 
 ## Installation
 
