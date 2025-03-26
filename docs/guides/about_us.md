@@ -36,7 +36,7 @@ If you find `AIGVE` library and the AIGVE-Tool papers useful in your work, pleas
 | Components                                                                  | Descriptions                                                          |
 |:----------------------------------------------------------------------------|:----------------------------------------------------------------------|
 | [`aigve`](https://www.aigve.org/documentations/aigve/)                      | The library for assessing AI-generated video quality                  |
-| [`aigve.config`](https://www.aigve.org/documentations/config/)              | a library for parameter configuration and management                  |
+| [`aigve.configs`](https://www.aigve.org/documentations/configs/)              | a library for parameter configuration and management                  |
 | [`aigve.core`](https://www.aigve.org/documentations/core/)                  | a library for video evaluation process design                         |
 | [`aigve.datasets`](https://www.aigve.org/documentations/datasets/)          | a library for dataset loading design                                  |
 | [`aigve.metrics`](https://www.aigve.org/documentations/metrics/)            | a library for video evaluation metrics design and building            |

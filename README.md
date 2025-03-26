@@ -13,7 +13,7 @@
 | Components                                                                  | Descriptions                                                          |
 |:----------------------------------------------------------------------------|:----------------------------------------------------------------------|
 | [`aigve`](https://www.aigve.org/documentations/aigve/)                      | The library for assessing AI-generated video quality                  |
-| [`aigve.config`](https://www.aigve.org/documentations/config/)              | a library for parameter configuration and management                  |
+| [`aigve.configs`](https://www.aigve.org/documentations/configs/)              | a library for parameter configuration and management                  |
 | [`aigve.core`](https://www.aigve.org/documentations/core/)                  | a library for video evaluation process design                         |
 | [`aigve.datasets`](https://www.aigve.org/documentations/datasets/)          | a library for dataset loading design                                  |
 | [`aigve.metrics`](https://www.aigve.org/documentations/metrics/)            | a library for video evaluation metrics design and building            |
@@ -29,37 +29,37 @@
 
 These metrics assess the quality of generated videos by comparing the distribution of real and generated samples.
 
-- ✅ **[FID](../documentations/metrics/fid.md)**: Frechet Inception Distance (FID) quantifies the similarity between real and generated video feature distributions by measuring the Wasserstein-2 distance.
-- ✅ **[FVD](../documentations/metrics/fvd.md)**: Frechet Video Distance (FVD) extends the FID approach to video domain by leveraging spatio-temporal features extracted from action recognition networks.
-- ✅ **[IS](../documentations/metrics/is_score.md)**: Inception Score (IS) evaluates both the quality and diversity of generated content by analyzing conditional label distributions.
+- ✅ **[FID](.aigve/configs/fid.py)**: Frechet Inception Distance (FID) quantifies the similarity between real and generated video feature distributions by measuring the Wasserstein-2 distance.
+- ✅ **[FVD](.aigve/configs/fvd.p)**: Frechet Video Distance (FVD) extends the FID approach to video domain by leveraging spatio-temporal features extracted from action recognition networks.
+- ✅ **[IS](.aigve/configs/is_score.py)**: Inception Score (IS) evaluates both the quality and diversity of generated content by analyzing conditional label distributions.
 
 ---
 
 ### **Video-only Neural Network-Based Evaluation Metrics**
 These metrics leverage deep learning models to assess AI-generated video quality based on learned representations.
 
-- ✅ **[GSTVQA](../documentations/metrics/gstvqa.md)**: Generalized Spatio-Temporal VQA (GSTVQA) employs graph-based spatio-temporal analysis to assess video quality.
-- ✅ **[SimpleVQA](../documentations/metrics/simplevqa.md)**: Simple Video Quality Assessment (Simple-VQA) utilizes deep learning features for no-reference video quality assessment.
-- ✅ **[LightVQA+](../documentations/metrics/lightvqaplus.md)**: Light Video Quality Assessment Plus (Light-VQA+) incorporates exposure quality guidance to evaluate video quality.
+- ✅ **[GSTVQA](.aigve/configs/gstvqa.py)**: Generalized Spatio-Temporal VQA (GSTVQA) employs graph-based spatio-temporal analysis to assess video quality.
+- ✅ **[SimpleVQA](.aigve/configs/simplevqa.py)**: Simple Video Quality Assessment (Simple-VQA) utilizes deep learning features for no-reference video quality assessment.
+- ✅ **[LightVQA+](.aigve/configs/lightvqa_plus.py)**: Light Video Quality Assessment Plus (Light-VQA+) incorporates exposure quality guidance to evaluate video quality.
 
 ---
 
 ### **Vision-Language Similarity-Based Evaluation Metrics**
 These metrics evaluate **alignment, similarity, and coherence** between visual and textual representations, often using embeddings from models like CLIP and BLIP.
 
-- ✅ **[CLIPSim](../documentations/metrics/clipsim.md)**: CLIP Similarity (CLIPSim) leverages CLIP embeddings to measure semantic similarity between videos and text.
-- ✅ **[CLIPTemp](../documentations/metrics/cliptemp.md)**: CLIP Temporal (CLIPTemp) extends CLIPSim by incorporating temporal consistency assessment.
-- ✅ **[BLIPSim](../documentations/metrics/blipsim.md)**: Bootstrapped Language-Image Pre-training Similarity (BLIPSim) uses advanced pre-training techniques to improve video-text alignment evaluation.
-- ✅ **[Pickscore](../documentations/metrics/pickscore.md)**: PickScore incorporates human preference data to provide more perceptually aligned measurement of video-text matching.
+- ✅ **[CLIPSim](.aigve/configs/clipsim.py)**: CLIP Similarity (CLIPSim) leverages CLIP embeddings to measure semantic similarity between videos and text.
+- ✅ **[CLIPTemp](.aigve/configs/cliptemp.py)**: CLIP Temporal (CLIPTemp) extends CLIPSim by incorporating temporal consistency assessment.
+- ✅ **[BLIPSim](.aigve/configs/blipsim.py)**: Bootstrapped Language-Image Pre-training Similarity (BLIPSim) uses advanced pre-training techniques to improve video-text alignment evaluation.
+- ✅ **[Pickscore](.aigve/configs/pickscore.py)**: PickScore incorporates human preference data to provide more perceptually aligned measurement of video-text matching.
 
 ---
 
 ### **Vision-Language Understanding-Based Evaluation Metrics**
 These metrics assess **higher-level understanding, reasoning, and factual consistency** in vision-language models.
 
-- ✅ **[VIEScore](../documentations/metrics/viescore.md)**: Video Information Evaluation Score (VIEScore) provides explainable assessments of conditional image synthesis.
-- ✅ **[TIFA](../documentations/metrics/tifa.md)**: Text-Image Faithfulness Assessment (TIFA) employs question-answering techniques to evaluate text-to-image alignment.
-- ✅ **[DSG](../documentations/metrics/dsg.md)**: Davidsonian Scene Graph (DSG) improves fine-grained evaluation reliability through advanced scene graph representations.
+- ✅ **[VIEScore](.aigve/configs/viescore.py)**: Video Information Evaluation Score (VIEScore) provides explainable assessments of conditional image synthesis.
+- ✅ **[TIFA](.aigve/configs/tifa.py)**: Text-Image Faithfulness Assessment (TIFA) employs question-answering techniques to evaluate text-to-image alignment.
+- ✅ **[DSG](.aigve/configs/dsg.py)**: Davidsonian Scene Graph (DSG) improves fine-grained evaluation reliability through advanced scene graph representations.
 
 ---
 
