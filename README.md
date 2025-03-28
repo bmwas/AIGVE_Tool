@@ -79,7 +79,7 @@ These metrics integrate **structured, multi-dimensional assessments** to provide
 - **Cutting-Edge AI Assessment**: Supports various AI-generated video tasks.
 
 
-## Default built-in Dataset:
+## Built-in Dataset:
 1. [Toy dataset](aigve/data/toy) 
 2. [AIGVE-Bench toy](aigve/data/AIGVE_Bench_toy)
 

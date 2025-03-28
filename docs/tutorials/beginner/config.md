@@ -1,8 +1,8 @@
 # Tutorial on Configuration Files
 
-AIGVE uses [MMEngine's Python-style configuration system](https://mmengine.readthedocs.io/en/latest/advanced_tutorials/config.html). It follows a modular and inheritance-based design, which is convenient to conduct various evaluation experiments. 
-It allows you to define all parameters in one centralized location, enabling easy corresponding data access just like getting values from Python `dict`.
-AIGVE's configuration system also supports inheritance, enabling better organization and management of complex configurations.
+This tutorial introduces how to configure and organize the modular components of AIGVE from configuration files. AIGVE uses [MMEngine's Python-style configuration system](https://mmengine.readthedocs.io/en/latest/advanced_tutorials/config.html). It follows a modular and inheritance-based design, which is convenient to conduct various evaluation experiments. It allows you to define all parameters in one centralized location, enabling easy corresponding data access just like getting values from Python `dict`. AIGVE's configuration system also supports inheritance, enabling better organization and management of complex configurations.
+
+---
 
 ## Config file content
 
@@ -93,6 +93,17 @@ val_evaluator = dict(
 
 * For more details about customizing such metric evaluator, please refer to [Tutorial on Modular Metrics](./evaluator.md). 
 
+---
+
+## Tips for Configuration Files
+
+* Place shared/default settings in `_base_` folders and reuse them across multiple configs to avoid duplication and keep configs clean.
+
+* Ensure paths configurations such as `video_dir`, `prompt_dir`, and `model_path` are correct.
+
+* Keep each config modular. Separate different functional blocks into logical sections (e.g., dataloader, evaluator, etc.)
+
+* Use toy-version dataset to test new configs and logics before scaling up.
 
 ---
 
