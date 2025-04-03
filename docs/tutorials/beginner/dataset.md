@@ -177,6 +177,8 @@ Your custom dataloader can then parse and use these fields accordingly. For more
 
 ## What's Next?
 
+After prepared a new dataset, you can proceed to:
+
 - [Customize dataloaders](./dataloader.md)
 
 - [Customize evaluation metrics](./evaluator.md)
