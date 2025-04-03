@@ -39,16 +39,10 @@ class ISScore(BaseMetric):
         self.splits = splits
 
         if model_name == 'inception_v3':
-            self.model = models.inception_v3(pretrained=True, transform_input=False)
-            self.model.fc = nn.Identity()  # Remove classification head
+            self.model = models.inception_v3(pretrained=True, transform_input=False, aux_logits=True)
             self.model.eval().to(self.device)
         else:
             raise ValueError(f"Model '{model_name}' is not supported for Inception Score computation.")
-        
-        self.transform = transforms.Compose([
-            transforms.Resize((input_shape[0], input_shape[1])),  # InceptionV3 input size
-            transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])  # Normalize to [-1, 1]
-        ])
 
     def preprocess_tensor(self, images: torch.Tensor) -> torch.Tensor:
         """
@@ -60,7 +54,11 @@ class ISScore(BaseMetric):
         Returns:
             torch.Tensor: Preprocessed images.
         """
-        return self.transform(images / 255.0)
+        images = nn.functional.interpolate(images, size=(299, 299), mode='bilinear', align_corners=False)
+        mean = torch.tensor([0.485, 0.456, 0.406], device=images.device).view(1, -1, 1, 1)
+        std = torch.tensor([0.229, 0.224, 0.225], device=images.device).view(1, -1, 1, 1)
+        images = (images - mean) / std
+        return images
 
     def compute_inception_features(self, images: torch.Tensor) -> torch.Tensor:
         """
@@ -74,10 +72,12 @@ class ISScore(BaseMetric):
         """
         images = self.preprocess_tensor(images).to(self.device)
         with torch.no_grad():
-            features = self.model(images).cpu()
-        return features
+            output = self.model(images)
+            if isinstance(output, tuple):
+                output = output[0]
+        return output.cpu()
 
-    def calculate_is(self, images: torch.Tensor) -> tuple[float, float]:
+    def calculate_is(self, preds: np.ndarray) -> float:
         """
         Compute Inception Score.
 
@@ -85,23 +85,11 @@ class ISScore(BaseMetric):
             images (torch.Tensor): Image tensor [B, C, H, W].
 
         Returns:
-            Tuple[float, float]: Mean and standard deviation of Inception Score.
+            (float): Mean and standard deviation of Inception Score.
         """
-        features = self.compute_inception_features(images)
-        preds = torch.nn.functional.softmax(features, dim=1).numpy()
-
-        # Split into chunks
-        scores = []
-        batch_size = preds.shape[0]
-        split_size = batch_size // self.splits
-
-        for i in range(self.splits):
-            part = preds[i * split_size:(i + 1) * split_size]
-            kl = part * (np.log(part) - np.log(np.expand_dims(np.mean(part, axis=0), 0)))
-            kl = np.mean(np.sum(kl, axis=1))
-            scores.append(np.exp(kl))
-
-        return float(np.mean(scores)), float(np.std(scores))
+        kl = preds * (np.log(preds + 1e-10) - np.log(np.expand_dims(np.mean(preds, axis=0), 0) + 1e-10))
+        kl_mean = np.mean(np.sum(kl, axis=1))
+        return float(np.exp(kl_mean))
     
     def process(self, data_batch: dict, data_samples: Sequence[dict]) -> None:
         """
@@ -123,19 +111,18 @@ class ISScore(BaseMetric):
         batch_size = len(gen_tensor_tuple)
         with torch.no_grad():
             for i in range(batch_size):
-                real_video_name = real_video_name_tuple[i]
                 gen_video_name = gen_video_name_tuple[i]
-                real_tensor = real_tensor_tuple[i]
                 gen_tensor = gen_tensor_tuple[i]
-                is_score, is_std = self.calculate_is(gen_tensor)
+
+                logits = self.compute_inception_features(gen_tensor)
+                preds = torch.nn.functional.softmax(logits, dim=1).numpy()
+                is_score = self.calculate_is(preds)
 
                 results.append({
-                    "Real video_name": real_video_name, 
                     "Generated video_name": gen_video_name, 
                     "IS_Score": is_score,
-                    "IS_Std": is_std
                 })
-                print(f"Processed IS score {is_score:.4f} ± {is_std:.4f} for {gen_video_name}")
+                print(f"Processed IS score {is_score:.4f} for {gen_video_name}")
 
         self.results.extend(results)
 
@@ -150,23 +137,20 @@ class ISScore(BaseMetric):
             Dict[str, float]: Dictionary containing mean IS score and standard deviation.
         """
         scores = np.array([res["IS_Score"] for res in self.results])
-        stds = np.array([res["IS_Std"] for res in self.results])
 
         mean_score = np.mean(scores) if scores.size > 0 else 0.0
-        mean_std = np.mean(stds) if stds.size > 0 else 0.0
 
-        print(f"IS mean score: {mean_score:.4f} ± {mean_std:.4f}")
+        print(f"IS mean score: {mean_score:.4f}")
 
         json_file_path = os.path.join(os.getcwd(), "is_results.json")
         final_results = {
             "video_results": self.results, 
             "IS_Mean_Score": mean_score, 
-            "IS_Mean_Std": mean_std
         }
         with open(json_file_path, "w") as json_file:
             json.dump(final_results, json_file, indent=4)
         print(f"IS mean score saved to {json_file_path}")
 
-        return {"IS_Mean_Score": mean_score, "IS_Mean_Std": mean_std}
+        return {"IS_Mean_Score": mean_score}
 
     
