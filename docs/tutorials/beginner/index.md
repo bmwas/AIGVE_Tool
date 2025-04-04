@@ -16,6 +16,6 @@ This page will be updated as new tutorials are posted, so please check back regu
 |    [Tutorial 0](../../guides/quick_start.md)       |         Quickstart Tutorial          |   TBD    |        
 |     [Tutorial 1](./config.md)     |       Configuration Files       |   March 25, 2025    |        
 |  [Tutorial 2](./dataset.md)   |  Dataset Preparation  | March 26, 2025 |     
-|  [Tutorial 3](./dataloader.md)  |    Customizable Dataloaders    | TBD   | 
-| [Tutorial 4](./evaluator.md) | Modular Metrics | TBD | 
+|  [Tutorial 3](./dataloader.md)  |    Customizable Dataloaders    | March 27, 2025   | 
+| [Tutorial 4](./evaluator.md) | Modular Metrics | March 29, 2025 | 
 | [Tutorial 5](./running.md) | Running AIGV Evaluations  | TBD | 

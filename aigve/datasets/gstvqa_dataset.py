@@ -89,7 +89,7 @@ class GSTVQADataset(Dataset):
     def __len__(self):
         return len(self.prompts)
 
-    def __getitem__(self, index):
+    def __getitem__(self, index) -> tuple[torch.Tensor, int, str]:
         """
         Returns a tuple of:
             deep_features (torch.Tensor): Shape [max_len, 2944]

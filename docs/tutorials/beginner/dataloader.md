@@ -1,6 +1,7 @@
 # Tutorial on Customizable Dataloaders
 
-AIGVE supports flexible dataloader design to handle diverse datasets, video formats, and evaluation settings. Each dataloader inherits from [PyTorch's Dataset class](https://pytorch.org/tutorials/beginner/basics/data_tutorial.html), and can be easily customized to load videos, extract features, and return evaluation-ready inputs. This tutorial introduces how to implement and customize dataloaders in AIGVE. Taking [`GSTVQADataset`](https://github.com/ShaneXiangH/AIGVE_Tool/blob/main/aigve/datasets/gstvqa_dataset.py#L62) as an example, we will introduce how to customize a dataloader in AIGVE to support various data-related tasks such as reads video inputs, parses prompts, extracts features, and feeds standardized tensors to the evaluator.
+AIGVE supports flexible dataloader design to handle diverse datasets, video formats, and evaluation settings. Each dataloader inherits from [PyTorch's Dataset class](https://pytorch.org/tutorials/beginner/basics/data_tutorial.html), and can be easily customized to load videos, extract features, and return evaluation-ready inputs. 
+This tutorial introduces how to implement and customize dataloaders in AIGVE. Taking [`GSTVQADataset`](https://github.com/ShaneXiangH/AIGVE_Tool/blob/main/aigve/datasets/gstvqa_dataset.py#L62) as an example, we will introduce how to customize a dataloader in AIGVE to support various data-related tasks such as reads video inputs, parses prompts, extracts features, and feeds standardized tensors to the evaluator.
 
 ## Design Overview
 
@@ -25,6 +26,7 @@ All custom datasets in AIGVE inherit from [`torch.utils.data.Dataset`](https://p
 
 Each dataset class defines its own logic for reading videos, parsing annotations, feature extraction, and returning evaluation-ready outputs. 
 While AIGVE natively supports datasets formatted using MMFormat-style JSON annotations (see [Tutorial on Dataset Preparation](./dataset.md)), it is compatible with any custom format as long as the dataloader returns the expected sample format for evaluation.
+
 A minimal dataloader example that loading from standard AIGVE JSON annotations looks like this:
 
 ```python
@@ -165,6 +167,4 @@ After customizing the dataloader under a dataset, you can proceed to:
 
 - [Run the AIGVE loop on your own metrics or datasets](./running.md)
 
----
 
-This `GSTVQADataset` defined the unique logics about video data management, including handling diverse video sources reading, prompt retrieval, resolution normalization, frame sampling and padding, format conversion, feature extraction and pre-processing.
