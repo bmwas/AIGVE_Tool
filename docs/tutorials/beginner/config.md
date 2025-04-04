@@ -89,7 +89,9 @@ val_evaluator = dict(
 )
 ```
 
-* the `gstvqa` is configured to use [`GstVqa`](https://github.com/ShaneXiangH/AIGVE_Tool/blob/main/aigve/metrics/video_quality_assessment/nn_based/gstvqa/gstvqa_metric.py#L15). `model_path` is a parameters defined in the `GstVqa` evaluator and should point to a pre-trained model checkpoint.
+* the `gstvqa` is configured to use [`GstVqa`](https://github.com/ShaneXiangH/AIGVE_Tool/blob/main/aigve/metrics/video_quality_assessment/nn_based/gstvqa/gstvqa_metric.py#L15). 
+
+* Some metrics require downloading pretrained models manually. Make sure they are downloaded correctly and placed in the correct paths as specified in the configuration files. For example here, please make sure your `model_path` contains the path of pretrained model you downloaded.
 
 * For more details about customizing such metric evaluator, please refer to [Tutorial on Modular Metrics](./evaluator.md). 
 
@@ -104,6 +106,8 @@ val_evaluator = dict(
 * Keep each config modular. Separate different functional blocks into logical sections (e.g., dataloader, evaluator, etc.)
 
 * Use toy-version dataset to test new configs and logics before scaling up.
+
+* Some metrics require downloading pretrained models manually. Make sure they are downloaded correctly and placed in the correct paths as specified in the configuration files. 
 
 ---
 

@@ -69,7 +69,7 @@ val_evaluator = dict(
     model_path='path/to/gst_vqa_model.pth'
 )
 ```
-Please make sure your `model_path` contains the path of pretrained model you downloaded.
+**Note**: Some metrics require downloading pretrained models manually. Make sure they are downloaded correctly and placed in the correct paths as specified in the configuration files. For example here, please make sure your `model_path` contains the path of pretrained model you downloaded.
 
 ## Tips for Customizing Evaluation Metrics
 
@@ -80,6 +80,8 @@ Please make sure your `model_path` contains the path of pretrained model you dow
 * Make sure `data_samples` format corresponds to your dataset's `__getitem__()` output.
 
 * You may log or save results in `compute_metrics()` if needed.
+
+* Some metrics require downloading pretrained models manually. Make sure they are downloaded correctly and placed in the correct paths as specified in the configuration files.
 
 ## What's Next?
 

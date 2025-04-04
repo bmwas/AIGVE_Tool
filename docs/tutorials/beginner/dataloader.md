@@ -156,7 +156,9 @@ Please make sure your `video_dir` contains the visual data, and `prompt_dir` poi
 
 * Add support for frame sampling or resizing if needed.
 
-* Test your dataloader with a toy-version dataset before large-scale use
+* Test your dataloader with a toy-version dataset before large-scale use.
+
+* Some dataloaders may require downloading pretrained models manually. Make sure they are downloaded correctly and placed in the correct paths as specified in the configuration files.
 
 
 ## What's Next?

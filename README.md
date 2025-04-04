@@ -7,6 +7,8 @@
 * PyPI Package: [https://pypi.org/project/aigve/](https://pypi.org/project/aigve/)
 * IFM Lab [https://www.ifmlab.org/](https://www.ifmlab.org/)
 
+![AIGVE Toolkit Structure](docs/assets/img/toolkit_structure.png)
+
 
 ## Library Organization
 

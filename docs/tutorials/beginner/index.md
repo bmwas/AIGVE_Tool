@@ -1,7 +1,29 @@
 # Beginner's Tutorials
 
 
-This page will be updated as new tutorials are posted, so please check back regularly.
+This series of beginner-friendly tutorials will guide you through using the AIGVE Toolkit to evaluate AI-generated videos in a modular, reproducible, and efficient manner.
+
+You'll learn how to:
+
+* Understand and work with Configuration Files
+
+* Prepare your own datasets in AIGVE format 
+
+* Customize dataloaders for your own datasets
+
+* Implement or modify modular evaluation metrics 
+
+* Run evaluations from both predefined and custom pipelines
+
+Whether you're using AIGVE out-of-the-box or tailoring it for your own research, these tutorials will help you get started with confidence.
+
+We assume you have correctly installed the latest `aigve` and its dependency packages already.
+If you haven't installed them yet, please refer to the [installation](https://www.aigve.org/guides/installation/) page for the guidance.
+
+This tutorial is prepared based on the 
+[AIGVE-Tool paper](https://arxiv.org/abs/2503.14064). 
+We also recommend reading that paper first for detailed technical information about `aigve` toolkit.
+
 
 ## Tutorial Organization
 
@@ -13,9 +35,9 @@ This page will be updated as new tutorials are posted, so please check back regu
 
 |                     Tutorial ID                      |            Tutorial Title            |   Released Date   |               
 |:----------------------------------------------------:|:------------------------------------:|:-----------------:|
-|    [Tutorial 0](../../guides/quick_start.md)       |         Quickstart Tutorial          |   TBD    |        
+|    [Tutorial 0](../../guides/quick_start.md)       |         Quickstart Tutorial          |   March 29, 2025    |        
 |     [Tutorial 1](./config.md)     |       Configuration Files       |   March 25, 2025    |        
 |  [Tutorial 2](./dataset.md)   |  Dataset Preparation  | March 26, 2025 |     
 |  [Tutorial 3](./dataloader.md)  |    Customizable Dataloaders    | March 27, 2025   | 
 | [Tutorial 4](./evaluator.md) | Modular Metrics | March 29, 2025 | 
-| [Tutorial 5](./running.md) | Running AIGV Evaluations  | TBD | 
+| [Tutorial 5](./running.md) | Running AIGV Evaluations  | March 29, 2025 | 
