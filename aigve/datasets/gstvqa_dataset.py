@@ -146,5 +146,4 @@ class GSTVQADataset(Dataset):
             padding = torch.zeros((pad_size, 2944), device=deep_features.device)
             deep_features = torch.cat((deep_features, padding), dim=0)
         
-        
         return deep_features, num_frames, video_name

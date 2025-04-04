@@ -100,7 +100,7 @@ class FIDScore(BaseMetric):
         Args:
             data_batch (dict): A batch of data from the dataloader (not used here).
             data_samples (List[Tuple[torch.Tensor], Tuple[torch.Tensor], Tuple[str], Tuple[str]]):
-                A list containing two tuples:
+                A list containing four tuples:
                 - A tuple of `real_tensor` (torch.Tensor): Real video tensor [T, C, H, W].
                 - A tuple of `gen_tensor` (torch.Tensor): Generated video tensor [T, C, H, W].
                 - A tuple of `real_video_name` (str): Ground-truth video filename.

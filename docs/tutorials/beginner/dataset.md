@@ -1,6 +1,9 @@
 # Tutorial on Dataset Preparation
 
-AIGVE supports flexible and modular dataset loading, designed for a wide range of evaluation scenarios. To ensure compatibility with the evaluation loop and metric modules, datasets in AIGVE follow a unified format based on [MMFormat annotation schema](https://mmengine.readthedocs.io/en/latest/advanced_tutorials/basedataset.html). This tutorial introduces how to prepare and organize datasets for use with AIGVE. We will use [AIGVE-Bench toy dataset](https://github.com/ShaneXiangH/AIGVE_Tool/tree/main/aigve/data/AIGVE_Bench_toy) as an example to introduce the complete dataset preparation process, including directory structure, annotation format, and data organization following the AIGVE specification.
+AIGVE supports flexible and modular dataset loading, designed for a wide range of evaluation scenarios. 
+While AIGVE natively supports datasets formatted using the [MMFormat annotation schema](https://mmengine.readthedocs.io/en/latest/advanced_tutorials/basedataset.html), it is not limited to this format — any custom data format can be supported as long as the dataloader returns the fields expected by the evaluator.
+This tutorial introduces how to prepare and organize datasets for use with AIGVE. 
+We will use [AIGVE-Bench toy dataset](https://github.com/ShaneXiangH/AIGVE_Tool/tree/main/aigve/data/AIGVE_Bench_toy) as an example to introduce the complete dataset preparation process, including directory structure, annotation format, and data organization following the AIGVE specification.
 
 ---
 

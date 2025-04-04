@@ -79,13 +79,13 @@ class ISScore(BaseMetric):
 
     def calculate_is(self, preds: np.ndarray) -> float:
         """
-        Compute Inception Score.
+        Calculate the Inception Score (IS) for a set of predicted class probabilities.
 
         Args:
-            images (torch.Tensor): Image tensor [B, C, H, W].
+            preds (np.ndarray): Array of predicted softmax probabilities with shape [N, num_classes].
 
         Returns:
-            (float): Mean and standard deviation of Inception Score.
+            (float): Inception Score.
         """
         kl = preds * (np.log(preds + 1e-10) - np.log(np.expand_dims(np.mean(preds, axis=0), 0) + 1e-10))
         kl_mean = np.mean(np.sum(kl, axis=1))
@@ -98,7 +98,7 @@ class ISScore(BaseMetric):
         Args:
             data_batch (dict): A batch of data from the dataloader (not used here).
             data_samples (List[Tuple[torch.Tensor], Tuple[torch.Tensor], Tuple[str], Tuple[str]]):
-                A list containing two tuples:
+                A list containing four tuples:
                 - A tuple of `real_tensor` (torch.Tensor): Real video tensor [T, C, H, W].
                 - A tuple of `gen_tensor` (torch.Tensor): Generated video tensor [T, C, H, W].
                 - A tuple of `real_video_name` (str): Ground-truth video filename.
