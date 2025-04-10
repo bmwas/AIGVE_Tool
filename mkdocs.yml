@@ -208,8 +208,8 @@ nav:
       - tutorials/advanced/index.md
       - 1. The AIGVE Loop: tutorials/advanced/loop.md
              
-  - Examples:
-    - examples/index.md
+  # - Examples:
+  #   - examples/index.md
   # - Blogs:
   #   - blog/index.md
   - News:

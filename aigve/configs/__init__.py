@@ -18,7 +18,7 @@ benchmarking and experimentation more streamlined in a structured manner.
 ## AIGVE Configuration Example
 
 AIGVE uses **structured configuration files** to define evaluation settings. 
-Below is an example of a **[CLIPSim metric](https://github.com/ShaneXiangH/VQA_Toolkit/blob/main/aigve/configs/clipsim.py)** configuration file:
+Below is an example of a **[CLIPSim metric](https://github.com/ShaneXiangH/AIGVE_Tool/blob/main/aigve/configs/clipsim.py)** configuration file:
 
 ```python
 # Copyright (c) IFM Lab. All rights reserved.

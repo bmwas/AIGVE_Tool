@@ -6,10 +6,12 @@
 
 `AIGVE` (**AI Generated Video Evaluation Toolkit**) provides a **comprehensive** and **structured** evaluation framework for assessing AI-generated video quality developed by the [IFM Lab](https://www.ifmlab.org/). It integrates multiple evaluation metrics, covering diverse aspects of video evaluation, including neural-network-based assessment, distribution comparison, vision-language alignment, and multi-faceted analysis.
 
-* Official Website: [https://www.aigve.org/](https://www.aigve.org/)
-* Github Repository: [https://github.com/ShaneXiangH/VQA_Toolkit](https://github.com/ShaneXiangH/VQA_Toolkit)
-* PyPI Package: [https://pypi.org/project/aigve/](https://pypi.org/project/aigve/)
-* IFM Lab [https://www.ifmlab.org/](https://www.ifmlab.org/)
+* **Official Website**: [https://www.aigve.org/](https://www.aigve.org/)
+* **Github Repository**: [https://github.com/ShaneXiangH/AIGVE_Tool](https://github.com/ShaneXiangH/AIGVE_Tool)
+* **PyPI Package**: [https://pypi.org/project/aigve/](https://pypi.org/project/aigve/)
+* **IFM Lab** [https://www.ifmlab.org/](https://www.ifmlab.org/)
+
+![AIGVE Toolkit Structure](../assets/img/toolkit_structure.png)
 
 ## Citing Us
 
