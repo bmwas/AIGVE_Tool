@@ -2,8 +2,8 @@
 from mmengine.config import read_base
 from mmengine.dataset import DefaultSampler
 
-from datasets.videoscore_dataset import VideoScoreDataset
-from metrics.multi_aspect_metrics.videoscore.videoscore_metric import VideoScore
+from datasets.vbench_dataset import VbenchDataset
+from metrics.multi_aspect_metrics.vbench.vbench_metric import VbenchMetric
 import torch
 
 with read_base():
@@ -14,14 +14,17 @@ val_dataloader = dict(
     drop_last=False,
     sampler=dict(type=DefaultSampler, shuffle=False),
     dataset=dict(
-        type=VideoScoreDataset,
+        type=VbenchDataset,
         ann_file = 'AIGVE_Tool/data/toy/annotations/evaluate.json',
-        data_root='AIGVE_Tool/data/toy/evaluate'
+        data_root='AIGVE_Tool/data/toy/evaluate',
+
     ),
 )
 
 val_evaluator = dict(
-    type=VideoScore,
+    type=VbenchMetric,
     collect_device='cpu',
     prefix='videoscore',
+    eval_aspects=['background_consistency', 'motion_smoothness', 'dynamic_degree', 'aesthetic_quality', 'imaging_quality'], # 'subject_consistency',
+    eval_mode='custom_input',
 )

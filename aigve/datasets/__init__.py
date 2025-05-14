@@ -18,10 +18,11 @@ from .dsg_dataset import DSGDataset
 
 from .videophy_dataset import VideoPhyDataset
 from .videoscore_dataset import VideoScoreDataset
+from .vbench_dataset import VbenchDataset
 
 __all__ = ['ToyDataset', 'FidDataset',
            'GSTVQADataset', 'SimpleVQADataset', 'LightVQAPlusDataset', 
            'CLIPSimDataset', 'CLIPTempDataset', 'BLIPSimDataset', 'PickScoreDataset',
            'VIEDataset', 'TIFADataset', 'DSGDataset',
-           'VideoPhyDataset', 'VideoScoreDataset']
+           'VideoPhyDataset', 'VideoScoreDataset', 'VbenchDataset']
 

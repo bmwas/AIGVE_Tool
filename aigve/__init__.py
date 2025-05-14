@@ -13,11 +13,11 @@ from .datasets import ToyDataset, FidDataset, \
     GSTVQADataset, SimpleVQADataset, LightVQAPlusDataset, \
     CLIPSimDataset, CLIPTempDataset, BLIPSimDataset, PickScoreDataset, \
     VIEDataset, TIFADataset, DSGDataset, \
-    VideoPhyDataset, VideoScoreDataset
+    VideoPhyDataset, VideoScoreDataset, VbenchDataset
 from .metrics import VideoPhy, VideoScore, \
     DSGScore, TIFAScore, VIEEvalScore, CLIPSimScore, CLIPTempScore, PickScore, BlipSimScore, \
     FIDScore, FVDScore, \
-    GstVqa, SimpleVqa, LightVQAPlus
+    GstVqa, SimpleVqa, LightVQAPlus, VbenchMetric
 
 
 __all__ = [
@@ -30,7 +30,7 @@ __all__ = [
     'GSTVQADataset', 'SimpleVQADataset', 'LightVQAPlusDataset',
     'CLIPSimDataset', 'CLIPTempDataset', 'BLIPSimDataset', 'PickScoreDataset',
     'VIEDataset', 'TIFADataset', 'DSGDataset',
-    'VideoPhyDataset', 'VideoScoreDataset'
+    'VideoPhyDataset', 'VideoScoreDataset', 'VbenchDataset',
     # ---- metrics ----
     'FIDScore',
     'FVDScore',
@@ -50,6 +50,7 @@ __all__ = [
     
     'VideoPhy', 
     'VideoScore',
+    'VbenchMetric',
 
     # ---- visualization and utility ----
 ]

@@ -2,5 +2,6 @@
 
 from .videophy import VideoPhy
 from .videoscore import VideoScore
+from .vbench import VbenchMetric
 
-__all__ = ['VideoPhy', 'VideoScore']
+__all__ = ['VideoPhy', 'VideoScore', 'VbenchMetric']
