@@ -1,6 +1,6 @@
 # Copyright (c) IFM Lab. All rights reserved.
 
-name: vqa
+name: aigve
 channels:
   - pytorch
   - defaults
@@ -44,4 +44,5 @@ dependencies:
       - mkdocs-rss-plugin
       - mkdocs-exclude
       - mkdocstrings[python]
+      - vbench
       

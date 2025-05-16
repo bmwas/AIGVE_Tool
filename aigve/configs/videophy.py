@@ -3,9 +3,9 @@ from mmengine.config import read_base
 from mmengine.dataset import DefaultSampler
 
 from datasets.videophy_dataset import VideoPhyDataset
-from metrics.aigve.videophy.videophy_metric import VideoPhy
+from metrics.multi_aspect_metrics.videophy.videophy_metric import VideoPhy
 import torch
-from metrics.aigve.videophy.vidophy_utils import batchify
+from metrics.multi_aspect_metrics.vidophy_utils import batchify
 
 with read_base():
     from ._base_.default import *
