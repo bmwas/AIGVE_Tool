@@ -5,6 +5,7 @@
 * **Official Website**: [https://www.aigve.org/](https://www.aigve.org/)
 * **Github Repository**: [https://github.com/ShaneXiangH/AIGVE_Tool](https://github.com/ShaneXiangH/AIGVE_Tool)
 * **PyPI Package**: [https://pypi.org/project/aigve/](https://pypi.org/project/aigve/)
+* **AIGVE-Bench Full Dataset** [https://huggingface.co/datasets/xiaoliux/AIGVE-Bench](https://huggingface.co/datasets/xiaoliux/AIGVE-Bench)
 * **IFM Lab** [https://www.ifmlab.org/](https://www.ifmlab.org/)
 
 ![AIGVE Toolkit Structure](docs/assets/img/toolkit_structure.png)
@@ -84,6 +85,7 @@ These metrics integrate **structured, multi-dimensional assessments** to provide
 ## Built-in Dataset:
 1. [Toy dataset](aigve/data/toy) 
 2. [AIGVE-Bench toy](aigve/data/AIGVE_Bench_toy)
+3. [AIGVE-Bench]([aigve/data/AIGVE_Bench_toy](https://huggingface.co/datasets/xiaoliux/AIGVE-Bench))
 
 ## Installation
 
