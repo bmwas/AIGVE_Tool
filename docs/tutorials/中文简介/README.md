@@ -11,6 +11,7 @@
 * **Official Website**: [https://www.aigve.org/](https://www.aigve.org/)
 * **Github Repository**: [https://github.com/ShaneXiangH/AIGVE_Tool](https://github.com/ShaneXiangH/AIGVE_Tool)
 * **PyPI Package**: [https://pypi.org/project/aigve/](https://pypi.org/project/aigve/)
+* **AIGVE-Bench Full Dataset** [https://huggingface.co/datasets/xiaoliux/AIGVE-Bench](https://huggingface.co/datasets/xiaoliux/AIGVE-Bench)
 * **IFM Lab** [https://www.ifmlab.org/](https://www.ifmlab.org/)
 
 
