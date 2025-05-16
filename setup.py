@@ -28,6 +28,7 @@ requirements = [
     "decord==0.6.0",
     "pytorchvideo==0.1.5",
     "clip==1.0",
+    "vbench==0.1.5",
 
     # Optional docs tools
     "mkdocs-material==9.6.5",
@@ -38,7 +39,6 @@ requirements = [
     "mkdocs-rss-plugin==1.17.1",
     "mkdocs-exclude==1.0.2",
     "mkdocstrings-python==1.16.2"
-    "vbench==0.1.5"
 ]
 
 with open("README.md", "r", encoding="utf-8") as fh:

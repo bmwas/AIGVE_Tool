@@ -95,6 +95,7 @@ These metrics integrate **structured, multi-dimensional assessments** to provide
 
 - ✅ **[VideoPhy](../documentations/metrics/videophy.md)**: Video Physics Evaluation (VideoPhy) specifically assesses the physical plausibility of generated videos.
 - ✅ **[VideoScore](../documentations/metrics/viescore.md)**: Video Score (VideoScore) simulates fine-grained human feedback across multiple evaluation dimensions.
+- ✅ **[VBench](../documentations/metrics/vbench.md)**: VBench provides a comprehensive benchmark by combining multiple aspects such as consistency, realism, and alignment into a unified scoring system.
 ---
 
 ## Key Features
