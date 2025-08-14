@@ -427,7 +427,9 @@ def main():
         ),
     )
     ap.add_argument("--list-metrics", action="store_true", help="List available categories and metrics, then exit.")
-    ap.add_argument("--max-len", type=int, default=64, help="Max frames to read per video for evaluation.")
+    ap.add_argument("--max-len", type=int, default=64, help="Max frames to read per video for evaluation (overridden by --max-seconds if set).")
+    ap.add_argument("--max-seconds", type=float, default=None, help="Max seconds per video; converts to frames using --fps. Overrides --max-len if provided.")
+    ap.add_argument("--fps", type=float, default=25.0, help="Frames-per-second assumption used with --max-seconds (must be > 0).")
     ap.add_argument("--pad", action="store_true", help="Pad videos to exactly --max-len frames.")
     ap.add_argument("--use-cpu", action="store_true", help="Force CPU even if CUDA is available.")
     ap.add_argument("--fvd-model", default=None, help="Optional path to I3D/R3D checkpoint for FVD. If missing, default weights are used.")
@@ -495,6 +497,14 @@ def main():
         video_dir_path = input_dir
         prompt_json_path = out_json
 
+    # Derive effective max length in frames
+    effective_max_len = args.max_len
+    if args.max_seconds is not None:
+        if args.fps <= 0:
+            ap.error("--fps must be > 0 when using --max-seconds.")
+        effective_max_len = int(round(args.max_seconds * args.fps))
+        print(f"[Metrics] Using max_seconds={args.max_seconds} at fps={args.fps} -> max_len={effective_max_len} frames")
+
     # Optionally run metrics
     if args.compute:
         # Merge categories and explicit metrics into one CSV, then expand
@@ -508,7 +518,7 @@ def main():
                                   prompt_json=prompt_json_path,
                                   metrics=metrics_list,
                                   use_gpu=(not args.use_cpu),
-                                  max_len=args.max_len,
+                                  max_len=effective_max_len,
                                   if_pad=args.pad,
                                   fvd_model=Path(args.fvd_model) if args.fvd_model else None,
                                   gstvqa_model=Path(args.gstvqa_model) if args.gstvqa_model else None,

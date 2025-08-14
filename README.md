@@ -296,7 +296,7 @@ Use this helper to scan a mixed folder of ground-truth and generated videos, wri
   python scripts/prepare_annotations.py \
     --input-dir IN --stage-dataset ./my_dataset \
     --compute --categories distribution_based \
-    --max-len 64
+    --max-seconds 8 --fps 25
   ```
 
 - __Compute by category or mix__
@@ -329,12 +329,23 @@ Use this helper to scan a mixed folder of ground-truth and generated videos, wri
     --compute --categories distribution_based --metrics simplevqa
   ```
 
+  Control evaluation duration by seconds instead of frames:
+  ```bash
+  python scripts/prepare_annotations.py \
+    --input-dir IN --stage-dataset ./my_dataset \
+    --compute --categories distribution_based \
+    --max-seconds 8 --fps 25   # converts to frames (8*25=200)
+  ```
+  Notes: `--max-seconds` overrides `--max-len` and uses `--fps` (default 25.0) to convert seconds→frames. The effective frame count is printed.
+
 - __Other useful flags__
   - `--generated-suffixes synthetic,generated` to match gen file names. Defaults cover `_suffix` and `-suffix` variants.
   - `--use-cpu` to force CPU (otherwise uses CUDA if available).
   - `--fvd-model` to set a custom I3D/R3D checkpoint for FVD.
   - `--categories <CSV>` to select metrics by category. Available: `distribution_based`, `nn_based_video`.
   - `--list-metrics` to print available categories and metrics and exit (no input dir required).
+  - `--max-seconds <float>` to specify clip length in seconds; uses `--fps` (default 25.0) to compute frames.
+  - `--fps <float>` frames-per-second assumption used with `--max-seconds`.
 
 - __List available categories/metrics__
   ```bash
