@@ -121,6 +121,43 @@ conda activate aigve
 conda install pytorch==2.1.0 torchvision==0.16.0 torchaudio==2.1.0 pytorch-cuda=11.8 -c pytorch -c nvidia
 ```
 
+### Environment setup via `setup_env.sh` (recommended)
+
+The helper script automates environment creation, installs a compatible PyTorch build (GPU CUDA 11.8 or CPU-only), adds ONNX/protobuf, and filters/installs the rest of requirements without breaking the conda Torch install. It also fixes common issues (requests charset and tokenizers/transformers compatibility).
+
+Basic usages:
+
+- **GPU (default)**
+  ```bash
+  bash setup_env.sh
+  ```
+- **CPU-only**
+  ```bash
+  bash setup_env.sh --cpu
+  ```
+- **Custom env name**
+  ```bash
+  bash setup_env.sh --env-name myenv
+  ```
+- **With NLP extras (install transformers and compatible tokenizers)**
+  ```bash
+  bash setup_env.sh --with-nlp
+  ```
+- **Combine flags**
+  ```bash
+  bash setup_env.sh --cpu --with-nlp
+  bash setup_env.sh --env-name myenv --with-nlp
+  ```
+
+What the script does:
+- Re-creates the env from `environment.yml`.
+- Uninstalls any pip-installed Torch packages, then installs conda Torch: `pytorch=2.1.0` + `torchvision=0.16.0` + `torchaudio=2.1.0` with `pytorch-cuda=11.8` (or `cpuonly`).
+- Installs `onnx==1.14.1` and `protobuf>=4.23.4,<4.24`.
+- Installs `charset-normalizer` and `opencv-python-headless`.
+- Installs remaining requirements with `--no-deps` while filtering out torch pins.
+- If `--with-nlp` is set, installs `transformers>=4.44.0` and `tokenizers>=0.20,<0.21`; if `transformers` is already present, ensures a compatible `tokenizers` to avoid ImportErrors.
+- Prints sanity checks for Torch/ONNX and, when installed, Transformers/Tokenizers.
+
 ## Run:
 ``
 python main.py {metric_config_file}.py
@@ -167,8 +204,12 @@ Use this helper to scan a mixed folder of ground-truth and generated videos, wri
   # from repo root (first time)
   conda env create -f environment.yml
   conda activate aigve
-  # Optional one-step helper:
+  # Recommended helper (GPU default):
   bash setup_env.sh
+  # CPU-only or NLP extras:
+  #   bash setup_env.sh --cpu
+  #   bash setup_env.sh --with-nlp
+  #   bash setup_env.sh --env-name myenv --with-nlp
   ```
 
 - __Minimal: write annotations only__

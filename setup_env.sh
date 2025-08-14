@@ -7,14 +7,16 @@ set -euo pipefail
 # touching the conda-installed torch packages.
 #
 # Usage:
-#   bash setup_env.sh [--env-name aigve] [--cpu]
+#   bash setup_env.sh [--env-name aigve] [--cpu] [--with-nlp]
 # Examples:
 #   bash setup_env.sh                      # GPU install (CUDA 11.8 runtime via conda)
 #   bash setup_env.sh --env-name myenv     # GPU install into custom env name
 #   bash setup_env.sh --cpu                # CPU-only install
+#   bash setup_env.sh --with-nlp           # Also install transformers + compatible tokenizers
 
 ENV_NAME="aigve"
 CPU_ONLY=0
+NLP_EXTRAS=0
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -22,6 +24,8 @@ while [[ $# -gt 0 ]]; do
       ENV_NAME="$2"; shift; shift ;;
     --cpu)
       CPU_ONLY=1; shift ;;
+    --with-nlp)
+      NLP_EXTRAS=1; shift ;;
     *)
       echo "Unknown arg: $1"; exit 1 ;;
   esac
@@ -86,6 +90,23 @@ else
   echo "No requirement.txt found; skipping pip requirements."
 fi
 
+# 6b) Optional NLP extras (transformers + compatible tokenizers)
+if [[ "$NLP_EXTRAS" -eq 1 ]]; then
+  echo "Installing NLP extras: transformers + tokenizers"
+  conda run -n "$ENV_NAME" pip install "transformers>=4.44.0" "tokenizers>=0.20,<0.21" safetensors accelerate || true
+fi
+
+# 6c) If transformers is already present (from environment.yml or requirements),
+# ensure tokenizers is compatible to avoid runtime import errors.
+if conda run -n "$ENV_NAME" python - <<'PY'
+import importlib.util, sys
+sys.exit(0 if importlib.util.find_spec('transformers') else 1)
+PY
+then
+  echo "transformers detected in env; ensuring compatible tokenizers (>=0.20,<0.21)"
+  conda run -n "$ENV_NAME" pip install "tokenizers>=0.20,<0.21" || true
+fi
+
 # 7) Quick sanity checks
 conda run -n "$ENV_NAME" python - << 'PY'
 import sys
@@ -100,6 +121,19 @@ try:
     print('onnx:', onnx.__version__)
 except Exception as e:
     print('ONNX import failed:', e)
+try:
+    import importlib.util
+    if importlib.util.find_spec('transformers'):
+        import transformers
+        try:
+            import tokenizers
+            print('transformers:', transformers.__version__, 'tokenizers:', tokenizers.__version__)
+        except Exception as e:
+            print('Transformers present but tokenizers check failed:', e)
+    else:
+        print('transformers: not installed (ok unless using text-video metrics)')
+except Exception as e:
+    print('Transformers/tokenizers check failed:', e)
 PY
 
 echo "\nSetup complete. Activate the env and run, e.g.:"
