@@ -185,6 +185,24 @@ Use this helper to scan a mixed folder of ground-truth and generated videos, wri
     --stage-dataset ./my_dataset  # use --link to symlink instead of copy
   ```
 
+ - __Flag meanings: --input-dir and --stage-dataset__
+   - `--input-dir IN`: Path to a mixed folder that contains both ground-truth and generated videos. The script pairs files by basename using suffixes (default: `synthetic,generated`), trying both `_suffix` and `-suffix` forms. Example: `4056.mp4` (GT) pairs with `4056_synthetic.mp4` (GEN). If not staging, the annotations JSON is written next to this folder by default as `IN/annotations.json` unless you set `--out-json`.
+   - `--stage-dataset DST`: Build a clean AIGVE-style dataset at `DST/` and use it for metrics. Creates:
+     - `DST/evaluate/` containing copies (or symlinks with `--link`) of all GT and GEN videos.
+     - `DST/annotations/evaluate.json` listing each GT/GEN pair.
+     When staging is enabled, `--out-json` is ignored and metrics use `video_dir = DST/evaluate/` and `prompt_dir = DST/annotations/evaluate.json`.
+
+   Example staged layout:
+   ```
+   my_dataset/
+     evaluate/
+       4056.mp4
+       4056_synthetic.mp4
+     annotations/
+       evaluate.json
+   ```
+   Tip: add `--link` to avoid copying large files (creates symlinks instead).
+
 - __Compute distribution metrics (FID/IS/FVD)__
   ```bash
   python scripts/prepare_annotations.py \

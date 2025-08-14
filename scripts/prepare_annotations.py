@@ -63,12 +63,13 @@ def _tokenize_suffixes(suffix_csv: str) -> List[str]:
     raw = [s.strip() for s in suffix_csv.split(",") if s.strip()]
     tokens: List[str] = []
     for s in raw:
-        # If user passed full token (with leading underscore/hyphen), keep as-is
-        tokens.append(s)
-        # Also consider common separators if not already included
-        if not s.startswith("_") and not s.startswith("-"):
+        # Prefer separator forms first so base stems are clean (no trailing '_'/'-')
+        if s.startswith("_") or s.startswith("-"):
+            tokens.append(s)
+        else:
             tokens.append("_" + s)
             tokens.append("-" + s)
+            tokens.append(s)
     # Preserve order while removing duplicates
     seen = set()
     out = []
