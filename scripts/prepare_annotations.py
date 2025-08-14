@@ -44,8 +44,15 @@ import argparse
 import json
 import os
 import shutil
+import sys
 from pathlib import Path
 from typing import Dict, List, Tuple, Optional
+
+# Ensure project root (parent of this script) is on sys.path so 'aigve' package imports when run directly
+_THIS_DIR = Path(__file__).resolve().parent
+_PROJECT_ROOT = _THIS_DIR.parent
+if str(_PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(_PROJECT_ROOT))
 
 VIDEO_EXTS = {".mp4", ".mov", ".mkv", ".avi", ".webm", ".m4v"}
 
