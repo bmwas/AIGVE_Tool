@@ -74,6 +74,12 @@ conda run -n "$ENV_NAME" pip install opencv-python-headless
 # (These may pull incompatible transformers or heavy deps.)
 conda run -n "$ENV_NAME" pip uninstall -y vbench mantis mantis-vl || true
 
+# 5c) Ensure consistent numeric stack (NumPy/SciPy) via conda to avoid ABI mismatches
+# Remove any pip wheels that may have been installed from environment.yml
+conda run -n "$ENV_NAME" pip uninstall -y numpy scipy || true
+# Install conda-forge builds known to work well with PyTorch 2.1 and SciPy stack
+conda install -n "$ENV_NAME" -y -c conda-forge "numpy==1.26.4" "scipy==1.11.4"
+
 # 6) Install remaining requirements WITHOUT touching torch packages
 # - Filters out top-level torch/torchvision/torchaudio/pytorch pins
 # - Skips Mantis git package (not required for FID/IS/FVD)
@@ -81,7 +87,7 @@ REQ_FILE="requirement.txt"
 if [[ -f "$REQ_FILE" ]]; then
   TMP_REQ="$(mktemp)"
   awk 'BEGIN{IGNORECASE=0} \
-       /^(pytorch|torch|torchvision|torchaudio)[[:space:]=]/ {next} \
+       /^(pytorch|torch|torchvision|torchaudio|numpy|scipy)[[:space:]=]/ {next} \
        /Mantis\\.git/ {next} \
        {print}' "$REQ_FILE" > "$TMP_REQ"
   conda run -n "$ENV_NAME" pip install -r "$TMP_REQ" --no-deps
@@ -121,6 +127,11 @@ try:
     print('onnx:', onnx.__version__)
 except Exception as e:
     print('ONNX import failed:', e)
+try:
+    import numpy, scipy
+    print('numpy:', numpy.__version__, 'scipy:', scipy.__version__)
+except Exception as e:
+    print('NumPy/SciPy check failed:', e)
 try:
     import importlib.util
     if importlib.util.find_spec('transformers'):

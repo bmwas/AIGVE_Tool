@@ -135,9 +135,9 @@ Basic usages:
   ```bash
   bash setup_env.sh --cpu
   ```
-- **Custom env name**
+- **Explicit env name (default is 'aigve')**
   ```bash
-  bash setup_env.sh --env-name myenv
+  bash setup_env.sh --env-name aigve
   ```
 - **With NLP extras (install transformers and compatible tokenizers)**
   ```bash
@@ -146,7 +146,7 @@ Basic usages:
 - **Combine flags**
   ```bash
   bash setup_env.sh --cpu --with-nlp
-  bash setup_env.sh --env-name myenv --with-nlp
+  bash setup_env.sh --env-name aigve --with-nlp
   ```
 
 What the script does:
@@ -209,7 +209,7 @@ Use this helper to scan a mixed folder of ground-truth and generated videos, wri
   # CPU-only or NLP extras:
   #   bash setup_env.sh --cpu
   #   bash setup_env.sh --with-nlp
-  #   bash setup_env.sh --env-name myenv --with-nlp
+  #   bash setup_env.sh --env-name aigve --with-nlp
   ```
 
 - __Minimal: write annotations only__
