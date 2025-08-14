@@ -65,7 +65,7 @@ fi
 conda run -n "$ENV_NAME" pip install "onnx==1.14.1" "protobuf>=4.23.4,<4.24"
 
 # 4) Fix requests warning (charset detection)
-conda run -n "$ENV_NAME" pip install charset-normalizer
+conda run -n "$ENV_NAME" pip install charset-normalizer chardet
 
 # 5) Ensure OpenCV (for cv2 usage in datasets)
 conda run -n "$ENV_NAME" pip install opencv-python-headless
@@ -129,6 +129,16 @@ try:
 except Exception as e:
     print('Torch import failed:', e)
 try:
+    import torchvision
+    print('torchvision:', torchvision.__version__)
+except Exception as e:
+    print('Torchvision import failed:', e)
+try:
+    import torchaudio
+    print('torchaudio:', torchaudio.__version__)
+except Exception as e:
+    print('Torchaudio import failed:', e)
+try:
     import onnx
     print('onnx:', onnx.__version__)
 except Exception as e:
@@ -138,6 +148,26 @@ try:
     print('numpy:', numpy.__version__, 'scipy:', scipy.__version__)
 except Exception as e:
     print('NumPy/SciPy check failed:', e)
+try:
+    import cv2
+    print('opencv-python-headless (cv2):', cv2.__version__)
+except Exception as e:
+    print('OpenCV import failed:', e)
+try:
+    import mmengine
+    print('mmengine:', mmengine.__version__)
+except Exception as e:
+    print('mmengine import failed:', e)
+try:
+    import mmcv
+    print('mmcv:', mmcv.__version__)
+except Exception as e:
+    print('mmcv import failed (ok if not needed):', e)
+try:
+    import mmdet
+    print('mmdet:', mmdet.__version__)
+except Exception as e:
+    print('mmdet import failed (ok if not needed):', e)
 try:
     import importlib.util
     if importlib.util.find_spec('transformers'):
@@ -151,6 +181,16 @@ try:
         print('transformers: not installed (ok unless using text-video metrics)')
 except Exception as e:
     print('Transformers/tokenizers check failed:', e)
+try:
+    import requests
+    try:
+        import charset_normalizer as _cn
+        print('requests:', requests.__version__, 'charset_normalizer:', _cn.__version__)
+    except Exception:
+        import chardet as _cd
+        print('requests:', requests.__version__, 'chardet:', _cd.__version__)
+except Exception as e:
+    print('Requests import failed:', e)
 PY
 
 # 7b) Enforce NumPy/SciPy presence (fatal if missing)
@@ -161,6 +201,17 @@ try:
     print('Verified: NumPy/SciPy importable')
 except Exception as e:
     print('FATAL: NumPy/SciPy not importable in this environment:', e)
+    sys.exit(1)
+PY
+
+# 7c) Enforce torch + torchvision presence (fatal if missing)
+conda run -n "$ENV_NAME" python - << 'PY'
+import sys
+try:
+    import torch, torchvision
+    print('Verified: torch/torchvision importable')
+except Exception as e:
+    print('FATAL: torch/torchvision not importable in this environment:', e)
     sys.exit(1)
 PY
 

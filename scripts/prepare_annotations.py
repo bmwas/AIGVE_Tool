@@ -53,10 +53,9 @@ _THIS_DIR = Path(__file__).resolve().parent
 _PROJECT_ROOT = _THIS_DIR.parent
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
-# Also add the 'aigve' package directory so imports like 'from core ...' work
-_AIGVE_DIR = _PROJECT_ROOT / 'aigve'
-if _AIGVE_DIR.is_dir() and str(_AIGVE_DIR) not in sys.path:
-    sys.path.insert(0, str(_AIGVE_DIR))
+# Do NOT add the 'aigve' package directory itself to sys.path; that would allow
+# top-level imports like 'metrics.*' to resolve separately from 'aigve.metrics.*',
+# causing duplicate module loads and registry re-registration.
 
 VIDEO_EXTS = {".mp4", ".mov", ".mkv", ".avi", ".webm", ".m4v"}
 
@@ -257,6 +256,14 @@ def run_reference_metrics(video_dir: Path,
         import importlib
         _core = importlib.import_module("aigve.core")
         sys.modules.setdefault("core", _core)
+
+    # Ensure legacy 'metrics.*' resolves to the same package as 'aigve.metrics'
+    try:
+        import metrics as _metrics  # type: ignore
+    except ModuleNotFoundError:
+        import importlib
+        _metrics = importlib.import_module("aigve.metrics")
+        sys.modules.setdefault("metrics", _metrics)
     # Lazy imports to avoid importing heavy modules unless needed
     from aigve.datasets.fid_dataset import FidDataset
     from aigve.metrics.video_quality_assessment.distribution_based.fid_metric import FIDScore

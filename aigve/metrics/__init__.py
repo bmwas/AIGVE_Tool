@@ -22,10 +22,7 @@ try:
 except Exception:
     pass
 
-# Import multi-aspect metrics optionally (may require mantis/vbench)
-try:
-    from .multi_aspect_metrics import VideoPhy, VideoScore, VbenchMetric
-    __all__ += ['VideoPhy', 'VideoScore', 'VbenchMetric']
-except Exception:
-    # Optional dependencies not installed; skip exposing these symbols
-    pass
+# Do not import multi-aspect metrics by default to avoid triggering optional
+# dependencies (e.g., flash-attn) at import time. These can be imported
+# explicitly by their module paths when needed, e.g.:
+#   from aigve.metrics.multi_aspect_metrics.videophy.videophy_metric import VideoPhy
