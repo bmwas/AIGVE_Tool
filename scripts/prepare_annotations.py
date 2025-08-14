@@ -249,6 +249,14 @@ def run_reference_metrics(video_dir: Path,
     fid_results.json, is_results.json, fvd_results.json, gstvqa_results.json,
     simplevqa_results.json, lightvqaplus_results.json.
     """
+    # Ensure legacy absolute imports like 'from core.registry import ...' resolve
+    # by aliasing 'core' -> 'aigve.core' before importing aigve subpackages.
+    try:
+        import core as _core  # type: ignore
+    except ModuleNotFoundError:
+        import importlib
+        _core = importlib.import_module("aigve.core")
+        sys.modules.setdefault("core", _core)
     # Lazy imports to avoid importing heavy modules unless needed
     from aigve.datasets.fid_dataset import FidDataset
     from aigve.metrics.video_quality_assessment.distribution_based.fid_metric import FIDScore

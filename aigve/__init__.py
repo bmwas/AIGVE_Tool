@@ -9,48 +9,7 @@ distribution comparison, vision-language alignment, and multi-faceted analysis.
 
 __version__ = '0.0.1'
 
-from .datasets import ToyDataset, FidDataset, \
-    GSTVQADataset, SimpleVQADataset, LightVQAPlusDataset, \
-    CLIPSimDataset, CLIPTempDataset, BLIPSimDataset, PickScoreDataset, \
-    VIEDataset, TIFADataset, DSGDataset, \
-    VideoPhyDataset, VideoScoreDataset, VbenchDataset
-from .metrics import VideoPhy, VideoScore, \
-    DSGScore, TIFAScore, VIEEvalScore, CLIPSimScore, CLIPTempScore, PickScore, BlipSimScore, \
-    FIDScore, FVDScore, \
-    GstVqa, SimpleVqa, LightVQAPlus, VbenchMetric
+# Keep __init__ lightweight; do not import subpackages here.
+# Submodules should be imported explicitly, e.g. `from aigve.datasets.fid_dataset import FidDataset`.
 
-
-__all__ = [
-    # ---- models and applications ----
-    # ---- modules ----
-    # ---- component functions ----
-    # ---- other libraries ----
-    # ---- dataloaders ----
-    'ToyDataset', 'FidDataset',
-    'GSTVQADataset', 'SimpleVQADataset', 'LightVQAPlusDataset',
-    'CLIPSimDataset', 'CLIPTempDataset', 'BLIPSimDataset', 'PickScoreDataset',
-    'VIEDataset', 'TIFADataset', 'DSGDataset',
-    'VideoPhyDataset', 'VideoScoreDataset', 'VbenchDataset',
-    # ---- metrics ----
-    'FIDScore',
-    'FVDScore',
-
-    'GstVqa', 
-    'SimpleVqa',
-    'LightVQAPlus',
-    
-    'CLIPSimScore', 
-    'CLIPTempScore', 
-    'BlipSimScore'
-    'PickScore', 
-
-    'VIEEvalScore',
-    'TIFAScore', 
-    'DSGScore', 
-    
-    'VideoPhy', 
-    'VideoScore',
-    'VbenchMetric',
-
-    # ---- visualization and utility ----
-]
+__all__ = ['__version__']
