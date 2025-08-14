@@ -98,8 +98,12 @@ fi
 
 # 6b) Optional NLP extras (transformers + compatible tokenizers)
 if [[ "$NLP_EXTRAS" -eq 1 ]]; then
-  echo "Installing NLP extras: transformers + tokenizers"
-  conda run -n "$ENV_NAME" pip install "transformers>=4.44.0" "tokenizers>=0.20,<0.21" safetensors accelerate || true
+  echo "Installing NLP extras: transformers + tokenizers (via conda-forge)"
+  if ! conda install -n "$ENV_NAME" -y -c conda-forge "transformers>=4.44.0" "tokenizers>=0.20,<0.21" safetensors accelerate; then
+    echo "[WARN] Could not install transformers/tokenizers via conda. Skipping NLP extras."
+    echo "       If you need text-video metrics, try:"
+    echo "         conda install -n $ENV_NAME -c conda-forge transformers tokenizers safetensors accelerate"
+  fi
 fi
 
 # 6c) If transformers is already present (from environment.yml or requirements),
@@ -110,7 +114,7 @@ sys.exit(0 if importlib.util.find_spec('transformers') else 1)
 PY
 then
   echo "transformers detected in env; ensuring compatible tokenizers (>=0.20,<0.21)"
-  conda run -n "$ENV_NAME" pip install "tokenizers>=0.20,<0.21" || true
+  conda install -n "$ENV_NAME" -y -c conda-forge "tokenizers>=0.20,<0.21" || echo "[WARN] tokenizers install skipped (conda failed). If needed, install manually."
 fi
 
 # 7) Quick sanity checks
