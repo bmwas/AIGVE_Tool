@@ -158,6 +158,77 @@ For VideoPhy:
 python main_aigve.py AIGVE_Tool/aigve/configs/clipsim.py --work-dir ./output
 ``
 
+## Prepare annotations and compute metrics (scripts/prepare_annotations.py)
+
+Use this helper to scan a mixed folder of ground-truth and generated videos, write an AIGVE-style annotations JSON, optionally stage a dataset layout, and compute metrics by category.
+
+- __Activate conda env__
+  ```bash
+  # from repo root (first time)
+  conda env create -f environment.yml
+  conda activate aigve
+  # Optional one-step helper:
+  bash setup_env.sh
+  ```
+
+- __Minimal: write annotations only__
+  ```bash
+  python scripts/prepare_annotations.py \
+    --input-dir /path/to/mixed_videos \
+    --out-json  /path/to/mixed_videos/annotations.json
+  ```
+
+- __Stage dataset layout (evaluate/ + annotations/evaluate.json)__
+  ```bash
+  python scripts/prepare_annotations.py \
+    --input-dir IN \
+    --stage-dataset ./my_dataset  # use --link to symlink instead of copy
+  ```
+
+- __Compute distribution metrics (FID/IS/FVD)__
+  ```bash
+  python scripts/prepare_annotations.py \
+    --input-dir IN \
+    --stage-dataset ./my_dataset \
+    --compute --metrics all \
+    --max-len 64
+  ```
+  Notes: `all` maps to `fid,is,fvd` for backward compatibility.
+
+- __Compute by category or mix__
+  ```bash
+  # Video-only NN metrics
+  python scripts/prepare_annotations.py \
+    --input-dir IN --stage-dataset ./my_dataset \
+    --compute --metrics nn_based_video \
+    --gstvqa-model /path/to/GSTVQA.ckpt \
+    --simplevqa-model /path/to/UGC_BVQA_model.pth \
+    --lightvqa-plus-model /path/to/lightvqa_plus.pth \
+    --lightvqa-plus-swin  /path/to/swin_small_patch4_window7_224.pth
+
+  # Mix categories
+  python scripts/prepare_annotations.py \
+    --input-dir IN --stage-dataset ./my_dataset \
+    --compute --metrics distribution_based,nn_based_video
+
+  # Individual metrics (quote plus sign)
+  python scripts/prepare_annotations.py \
+    --input-dir IN --compute --metrics "lightvqa+" \
+    --lightvqa-plus-model /path/to/lightvqa_plus.pth \
+    --lightvqa-plus-swin  /path/to/swin_small_patch4_window7_224.pth
+  ```
+
+- __Other useful flags__
+  - `--generated-suffixes synthetic,generated` to match gen file names. Defaults cover `_suffix` and `-suffix` variants.
+  - `--use-cpu` to force CPU (otherwise uses CUDA if available).
+  - `--fvd-model` to set a custom I3D/R3D checkpoint for FVD.
+
+- __Outputs__ (written to current working directory as metrics run):
+  - `fid_results.json`, `is_results.json`, `fvd_results.json`
+  - `gstvqa_results.json`, `simplevqa_results.json`, `lightvqaplus_results.json`
+
+When staging, the script prints the resolved `video_dir` and `prompt_dir` you can reuse in configs.
+
 ## Citing Us
 
 `aigve` is developed based on the AIGVE-Tool paper from IFM Lab, which can be downloaded via the following links:
