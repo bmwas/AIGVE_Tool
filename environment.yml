@@ -19,7 +19,7 @@ dependencies:
       - mmcv==2.2.0
       - mmdet==3.3.0
       - mmengine==0.10.6
-      - transformers==4.46.3
+      # Removed transformers pin to avoid conflicts with transitive deps (e.g., vbench)
       - numpy==1.23.5
       - pandas==2.2.3
       - sympy==1.13.3
@@ -33,7 +33,7 @@ dependencies:
       - pytorchvideo
       # - importlib
       - gdown==5.2.0
-      - git+https://github.com/TIGER-AI-Lab/Mantis.git
+      # Removed Mantis (pulls vbench/transformers); not needed for FID/IS/FVD
       - scipy==1.14.1
       - decord==0.6.0
       - mkdocs-material
