@@ -53,6 +53,10 @@ _THIS_DIR = Path(__file__).resolve().parent
 _PROJECT_ROOT = _THIS_DIR.parent
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
+# Also add the 'aigve' package directory so imports like 'from core ...' work
+_AIGVE_DIR = _PROJECT_ROOT / 'aigve'
+if _AIGVE_DIR.is_dir() and str(_AIGVE_DIR) not in sys.path:
+    sys.path.insert(0, str(_AIGVE_DIR))
 
 VIDEO_EXTS = {".mp4", ".mov", ".mkv", ".avi", ".webm", ".m4v"}
 
