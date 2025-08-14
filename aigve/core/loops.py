@@ -1,7 +1,7 @@
 # Copyright (c) IFM Lab. All rights reserved.
 
 from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
-from core.registry import LOOPS
+from .registry import LOOPS
 from mmengine.runner import BaseLoop, autocast
 from mmengine.logging import HistoryBuffer, print_log
 import torch

@@ -402,7 +402,7 @@ def run_reference_metrics(video_dir: Path,
 
 def main():
     ap = argparse.ArgumentParser(description="Prepare AIGVE annotations for reference-based metrics.")
-    ap.add_argument("--input-dir", required=True, help="Directory containing mixed GT and generated videos")
+    ap.add_argument("--input-dir", default=None, help="Directory containing mixed GT and generated videos")
     ap.add_argument("--out-json", default=None, help="Where to write the JSON. If --stage-dataset is set, this is ignored.")
     ap.add_argument("--generated-suffixes", default="synthetic,generated", help="Comma-separated list of suffix names appended to GT basenames (e.g., 'synthetic,generated'). The script tries both '_suffix' and '-suffix' variants.")
     ap.add_argument("--stage-dataset", default=None, help="Optional destination root to create an AIGVE-like dataset layout (evaluate/ and annotations/).")
@@ -413,11 +413,20 @@ def main():
         "--metrics",
         default="all",
         help=(
-            "CSV of metrics or categories to run: "
-            "fid,is,fvd,gstvqa,simplevqa,lightvqa+ or categories distribution_based,nn_based_video. "
-            "'all' maps to distribution_based (fid,is,fvd) for backward compatibility."
+            "CSV of metric names to run: "
+            "fid,is,fvd,gstvqa,simplevqa,lightvqa+. "
+            "Use --categories to select by category. 'all' maps to distribution_based (fid,is,fvd) for backward compatibility."
         ),
     )
+    ap.add_argument(
+        "--categories",
+        default="",
+        help=(
+            "CSV of categories to run: distribution_based, nn_based_video. "
+            "Merged with --metrics; order preserved and duplicates removed."
+        ),
+    )
+    ap.add_argument("--list-metrics", action="store_true", help="List available categories and metrics, then exit.")
     ap.add_argument("--max-len", type=int, default=64, help="Max frames to read per video for evaluation.")
     ap.add_argument("--pad", action="store_true", help="Pad videos to exactly --max-len frames.")
     ap.add_argument("--use-cpu", action="store_true", help="Force CPU even if CUDA is available.")
@@ -428,6 +437,27 @@ def main():
     ap.add_argument("--lightvqa-plus-model", default=None, help="Optional path to LightVQA+ checkpoint (.pth). If missing, tries default bundled path.")
     ap.add_argument("--lightvqa-plus-swin", default=None, help="Optional path to Swin weights for LightVQA+. If missing, tries default bundled path.")
     args = ap.parse_args()
+
+    # Optional: list available categories and metrics
+    if args.list_metrics:
+        print("Available categories:")
+        for cat, mets in METRIC_CATEGORIES.items():
+            print(f"  - {cat}: {', '.join(mets)}")
+        # Union of all metrics
+        all_metrics = []
+        seen = set()
+        for mets in METRIC_CATEGORIES.values():
+            for m in mets:
+                if m not in seen:
+                    all_metrics.append(m)
+                    seen.add(m)
+        print("All metrics:")
+        print("  " + ", ".join(all_metrics))
+        return
+
+    # Require input dir for normal operation
+    if not args.input_dir:
+        ap.error("--input-dir is required unless --list-metrics is used.")
 
     input_dir = Path(args.input_dir).expanduser().resolve()
     if not input_dir.is_dir():
@@ -467,10 +497,13 @@ def main():
 
     # Optionally run metrics
     if args.compute:
-        metrics_list = _parse_metrics_list(args.metrics)
+        # Merge categories and explicit metrics into one CSV, then expand
+        combined_spec = ",".join(v for v in [args.categories, args.metrics] if v)
+        metrics_list = _parse_metrics_list(combined_spec)
         if not metrics_list:
             print("[INFO] --compute set but no metrics selected; skipping evaluation.")
         else:
+            print(f"[Metrics] Selected: {metrics_list}")
             run_reference_metrics(video_dir=video_dir_path,
                                   prompt_json=prompt_json_path,
                                   metrics=metrics_list,

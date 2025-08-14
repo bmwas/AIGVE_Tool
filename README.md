@@ -118,7 +118,8 @@ Please check the [installation page](https://www.aigve.org/guides/installation/#
 conda env remove --name aigve
 conda env create -f environment.yml
 conda activate aigve
-conda install pytorch==2.1.0 torchvision==0.16.0 torchaudio==2.1.0 pytorch-cuda=11.8 -c pytorch -c nvidia
+# Canonical fix for Torch/Torchaudio conflicts (GPU, CUDA 11.8):
+conda install -n aigve -y -c pytorch -c nvidia "pytorch=2.1.0" "torchvision=0.16.0" "torchaudio=2.1.0" "pytorch-cuda=11.8"
 ```
 
 ### Environment setup via `setup_env.sh` (recommended)
@@ -157,6 +158,43 @@ What the script does:
 - Installs remaining requirements with `--no-deps` while filtering out torch pins.
 - If `--with-nlp` is set, installs `transformers>=4.44.0` and `tokenizers>=0.20,<0.21`; if `transformers` is already present, ensures a compatible `tokenizers` to avoid ImportErrors.
 - Prints sanity checks for Torch/ONNX and, when installed, Transformers/Tokenizers.
+
+#### Troubleshooting
+
+- __RequestsDependencyWarning: character detection dependency__
+  If you see:
+  `RequestsDependencyWarning: Unable to find acceptable character detection dependency (chardet or charset_normalizer).`
+  install one of them into the env:
+  ```bash
+  conda install -n aigve -y -c conda-forge charset-normalizer
+  # or
+  pip install charset-normalizer chardet
+  ```
+  Note: `setup_env.sh` already installs `charset-normalizer` and `chardet`. Run it if you have not.
+
+### Import and Registry Best Practices
+
+- __Avoid circular imports in `aigve.core`__
+  - Inside `aigve/core/*.py`, import registries via relative imports, e.g. `from .registry import MODELS, LOOPS` instead of `from core import MODELS`.
+  - This prevents `ImportError: cannot import name 'MODELS' from partially initialized module 'core'` when the legacy `core` shim points back to `aigve.core`.
+
+- __Legacy shims for backward compatibility__
+  - `core/` and `core/registry.py` are lightweight shims that re-export `aigve.core` and `aigve.core.registry` so old imports like `from core.registry import METRICS` continue to work.
+  - When running standalone scripts (e.g., `scripts/prepare_annotations.py`) without installing the package, ensure only the project root is added to `sys.path` (not the `aigve/` folder) to avoid duplicate package imports.
+  - If you need legacy names, you can alias at runtime:
+    ```python
+    import importlib, sys
+    sys.modules.setdefault("core", importlib.import_module("aigve.core"))
+    sys.modules.setdefault("metrics", importlib.import_module("aigve.metrics"))
+    ```
+
+- __Lazy-load optional metrics to avoid heavy deps (e.g., flash-attn)__
+  - `aigve/metrics/__init__.py` does not eagerly import all subpackages.
+  - Import metric implementations explicitly as needed, e.g.:
+    ```python
+    from aigve.metrics.video_quality_assessment.distribution_based.fid_metric import FIDScore
+    ```
+  - This avoids importing optional dependencies unless those metrics are requested.
 
 ## Run:
 ``
@@ -253,13 +291,20 @@ Use this helper to scan a mixed folder of ground-truth and generated videos, wri
     --max-len 64
   ```
   Notes: `all` maps to `fid,is,fvd` for backward compatibility.
+  Recommended modern usage:
+  ```bash
+  python scripts/prepare_annotations.py \
+    --input-dir IN --stage-dataset ./my_dataset \
+    --compute --categories distribution_based \
+    --max-len 64
+  ```
 
 - __Compute by category or mix__
   ```bash
   # Video-only NN metrics
   python scripts/prepare_annotations.py \
     --input-dir IN --stage-dataset ./my_dataset \
-    --compute --metrics nn_based_video \
+    --compute --categories nn_based_video \
     --gstvqa-model /path/to/GSTVQA.ckpt \
     --simplevqa-model /path/to/UGC_BVQA_model.pth \
     --lightvqa-plus-model /path/to/lightvqa_plus.pth \
@@ -268,7 +313,7 @@ Use this helper to scan a mixed folder of ground-truth and generated videos, wri
   # Mix categories
   python scripts/prepare_annotations.py \
     --input-dir IN --stage-dataset ./my_dataset \
-    --compute --metrics distribution_based,nn_based_video
+    --compute --categories distribution_based,nn_based_video
 
   # Individual metrics (quote plus sign)
   python scripts/prepare_annotations.py \
@@ -277,10 +322,24 @@ Use this helper to scan a mixed folder of ground-truth and generated videos, wri
     --lightvqa-plus-swin  /path/to/swin_small_patch4_window7_224.pth
   ```
 
+  You can also mix categories with specific metric names:
+  ```bash
+  python scripts/prepare_annotations.py \
+    --input-dir IN --stage-dataset ./my_dataset \
+    --compute --categories distribution_based --metrics simplevqa
+  ```
+
 - __Other useful flags__
   - `--generated-suffixes synthetic,generated` to match gen file names. Defaults cover `_suffix` and `-suffix` variants.
   - `--use-cpu` to force CPU (otherwise uses CUDA if available).
   - `--fvd-model` to set a custom I3D/R3D checkpoint for FVD.
+  - `--categories <CSV>` to select metrics by category. Available: `distribution_based`, `nn_based_video`.
+  - `--list-metrics` to print available categories and metrics and exit (no input dir required).
+
+- __List available categories/metrics__
+  ```bash
+  python scripts/prepare_annotations.py --list-metrics
+  ```
 
 - __Outputs__ (written to current working directory as metrics run):
   - `fid_results.json`, `is_results.json`, `fvd_results.json`
