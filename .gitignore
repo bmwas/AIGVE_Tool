@@ -37,3 +37,8 @@ t2v_result
 venv
 **/__pycache__/
 **/VGG16_cat_features_KoNViD_original_resolution*/*
+
+**.mov
+.mov
+**.mp4
+.mp4
