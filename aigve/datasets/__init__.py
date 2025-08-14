@@ -2,24 +2,47 @@
 
 __all__ = []
 
-# Core/lightweight datasets
+# Core/lightweight datasets that shouldn't pull optional deps
 from .toy_dataset import ToyDataset
 from .fid_dataset import FidDataset
-from .gstvqa_dataset import GSTVQADataset
-from .simplevqa_dataset import SimpleVQADataset
-from .lightvqa_plus_dataset import LightVQAPlusDataset
-from .clipsim_dataset import CLIPSimDataset
-from .cliptemp_dataset import CLIPTempDataset
-from .blipsim_dataset import BLIPSimDataset
-from .pickscore_dataset import PickScoreDataset
-from .vie_dataset import VIEDataset
-from .tifa_dataset import TIFADataset
-from .dsg_dataset import DSGDataset
+__all__ += ['ToyDataset', 'FidDataset']
 
-__all__ += ['ToyDataset', 'FidDataset',
-            'GSTVQADataset', 'SimpleVQADataset', 'LightVQAPlusDataset',
-            'CLIPSimDataset', 'CLIPTempDataset', 'BLIPSimDataset', 'PickScoreDataset',
-            'VIEDataset', 'TIFADataset', 'DSGDataset']
+# NN-based video datasets (depend on torch, which is part of the env)
+try:
+    from .gstvqa_dataset import GSTVQADataset
+    __all__ += ['GSTVQADataset']
+except Exception:
+    pass
+
+try:
+    from .simplevqa_dataset import SimpleVQADataset
+    __all__ += ['SimpleVQADataset']
+except Exception:
+    pass
+
+try:
+    from .lightvqa_plus_dataset import LightVQAPlusDataset
+    __all__ += ['LightVQAPlusDataset']
+except Exception:
+    pass
+
+# Text-video alignment datasets (may require transformers/tokenizers, etc.)
+for _mod, _name in [
+    ('.clipsim_dataset', 'CLIPSimDataset'),
+    ('.cliptemp_dataset', 'CLIPTempDataset'),
+    ('.blipsim_dataset', 'BLIPSimDataset'),
+    ('.pickscore_dataset', 'PickScoreDataset'),
+    ('.vie_dataset', 'VIEDataset'),
+    ('.tifa_dataset', 'TIFADataset'),
+    ('.dsg_dataset', 'DSGDataset'),
+]:
+    try:
+        _m = __import__(__name__ + _mod, fromlist=[_name])
+        globals()[_name] = getattr(_m, _name)
+        __all__ += [_name]
+    except Exception:
+        # Optional deps not available; keep package importable for other use-cases
+        pass
 
 # Optional/heavy datasets guarded (may require extra deps like av/mantis/vbench)
 try:
