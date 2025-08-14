@@ -20,7 +20,6 @@ dependencies:
       - mmdet==3.3.0
       - mmengine==0.10.6
       # Removed transformers pin to avoid conflicts with transitive deps (e.g., vbench)
-      - numpy==1.23.5
       - pandas==2.2.3
       - sympy==1.13.3
       - einops==0.8.1
@@ -34,7 +33,6 @@ dependencies:
       # - importlib
       - gdown==5.2.0
       # Removed Mantis (pulls vbench/transformers); not needed for FID/IS/FVD
-      - scipy==1.14.1
       - decord==0.6.0
       - mkdocs-material
       - neoteroi-mkdocs

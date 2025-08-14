@@ -75,10 +75,12 @@ conda run -n "$ENV_NAME" pip install opencv-python-headless
 conda run -n "$ENV_NAME" pip uninstall -y vbench mantis mantis-vl || true
 
 # 5c) Ensure consistent numeric stack (NumPy/SciPy) via conda to avoid ABI mismatches
-# Remove any pip wheels that may have been installed from environment.yml
+# First remove any pip wheels that may have been installed from environment.yml
 conda run -n "$ENV_NAME" pip uninstall -y numpy scipy || true
-# Install conda-forge builds known to work well with PyTorch 2.1 and SciPy stack
-conda install -n "$ENV_NAME" -y -c conda-forge "numpy==1.26.4" "scipy==1.11.4"
+# Then remove conda records to force relinking in case pip deleted files under the hood
+conda remove -n "$ENV_NAME" -y numpy scipy || true
+# Finally, install conda-forge builds known to work well with PyTorch 2.1 and SciPy stack
+conda install -n "$ENV_NAME" -y -c conda-forge --force-reinstall "numpy==1.26.4" "scipy==1.11.4"
 
 # 6) Install remaining requirements WITHOUT touching torch packages
 # - Filters out top-level torch/torchvision/torchaudio/pytorch pins
@@ -149,6 +151,17 @@ try:
         print('transformers: not installed (ok unless using text-video metrics)')
 except Exception as e:
     print('Transformers/tokenizers check failed:', e)
+PY
+
+# 7b) Enforce NumPy/SciPy presence (fatal if missing)
+conda run -n "$ENV_NAME" python - << 'PY'
+import sys
+try:
+    import numpy as _np, scipy as _sp
+    print('Verified: NumPy/SciPy importable')
+except Exception as e:
+    print('FATAL: NumPy/SciPy not importable in this environment:', e)
+    sys.exit(1)
 PY
 
 echo "\nSetup complete. Activate the env and run, e.g.:"
