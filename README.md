@@ -227,6 +227,84 @@ For VideoPhy:
 python main_aigve.py AIGVE_Tool/aigve/configs/clipsim.py --work-dir ./output
 ``
 
+## Run the API locally (without Docker)
+
+Run the FastAPI server on your host using the GPU-enabled conda environment.
+
+### Prerequisites
+- NVIDIA driver installed on host; verify with `nvidia-smi`.
+- Conda (Anaconda/Miniconda/Mamba) installed.
+- GPU-only PyTorch build (CUDA 11.8) in the `aigve` env (use the helper below).
+
+### Create and activate the environment (GPU-only)
+```bash
+# From repo root
+conda env remove --name aigve -y || true
+conda env create -f environment.yml
+conda activate aigve
+
+# Enforce GPU-only Torch 2.1 + CUDA 11.8 and install extras
+bash setup_env.sh               # add --with-nlp if you need transformers
+```
+
+### Verify the GPU build
+```bash
+python - <<'PY'
+import torch, json
+print(json.dumps({
+  'torch': torch.__version__,
+  'cuda_available': torch.cuda.is_available(),
+  'cuda_version': getattr(torch.version, 'cuda', None),
+  'device_count': torch.cuda.device_count() if torch.cuda.is_available() else 0,
+}, indent=2))
+PY
+```
+
+If `cuda_available` is false, ensure the env has a CUDA build of torch:
+```bash
+conda install -n aigve -y -c pytorch -c nvidia \
+  "pytorch=2.1.0" "torchvision=0.16.0" "torchaudio=2.1.0" "pytorch-cuda=11.8"
+```
+
+### Start the API
+```bash
+# Default: port 2200
+uvicorn server.main:app --host 0.0.0.0 --port 2200
+# Optional: add workers/log level
+# uvicorn server.main:app --host 0.0.0.0 --port 2200 --workers 2 --log-level info
+```
+
+Open the docs: http://localhost:2200/docs
+
+### Call the API
+- Health:
+  ```bash
+  curl http://localhost:2200/healthz
+  ```
+- Example run (distribution metrics):
+  ```bash
+  curl -X POST http://localhost:2200/run \
+    -H 'Content-Type: application/json' \
+    -d '{
+      "input_dir": "/path/to/mixed_videos",
+      "stage_dataset": "/path/to/staged",
+      "compute": true,
+      "categories": "distribution_based",
+      "max_seconds": 8,
+      "fps": 25
+    }'
+  ```
+
+### Troubleshooting (local)
+- CUDA visible via `nvidia-smi` but `cuda_available=false`:
+  - Confirm conda Torch is a CUDA build: `conda list | grep -E "pytorch|pytorch-cuda"` (should show `pytorch-cuda 11.8`).
+  - Reinstall with the CUDA 11.8 instructions above.
+- No devices in PyTorch but you have multiple GPUs: make sure you didn't mask them; avoid an empty `CUDA_VISIBLE_DEVICES`. You can pick one explicitly:
+  ```bash
+  export CUDA_VISIBLE_DEVICES=0
+  ```
+- If FastAPI cannot find the script, ensure you start uvicorn from the repo root so `server/main.py` can resolve `scripts/prepare_annotations.py`.
+
 ## Docker
 
 This project ships with a Dockerized, conda-based environment that supports both CLI and REST API usage.
