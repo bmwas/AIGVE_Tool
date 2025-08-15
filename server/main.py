@@ -7,10 +7,12 @@ import sys
 import shlex
 import subprocess
 import json
+import time
 import re
 from typing import List, Optional
 
-from fastapi import FastAPI, HTTPException, UploadFile, File, Form
+import logging
+from fastapi import FastAPI, HTTPException, UploadFile, File, Form, Request
 from pydantic import BaseModel, Field
 
 # Optional torch import (server runs inside conda env where torch is present)
@@ -23,6 +25,37 @@ APP_ROOT = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
 SCRIPT_PATH = os.path.join(APP_ROOT, "scripts", "prepare_annotations.py")
 
 app = FastAPI(title="AIGVE Prepare Annotations API", version="1.0.0")
+
+# Logger setup (works alongside uvicorn's logging)
+logger = logging.getLogger("aigve.api")
+if not logger.handlers:
+    _handler = logging.StreamHandler(sys.stdout)
+    _fmt = logging.Formatter("%(asctime)s | %(levelname)s | %(name)s | %(message)s")
+    _handler.setFormatter(_fmt)
+    logger.addHandler(_handler)
+logger.setLevel(os.getenv("AIGVE_LOG_LEVEL", "INFO").upper())
+logger.propagate = False
+
+
+@app.middleware("http")
+async def _log_requests(request: Request, call_next):
+    rid = str(uuid.uuid4())[:8]
+    start = time.perf_counter()
+    logger.info("[%s] %s %s", rid, request.method, request.url.path)
+    # attach request id for handlers
+    try:
+        request.state.rid = rid
+    except Exception:
+        pass
+    try:
+        response = await call_next(request)
+    except Exception as e:
+        dur_ms = (time.perf_counter() - start) * 1000.0
+        logger.exception("[%s] Error handling %s %s after %.1f ms: %s", rid, request.method, request.url.path, dur_ms, e)
+        raise
+    dur_ms = (time.perf_counter() - start) * 1000.0
+    logger.info("[%s] %s %s -> %s in %.1f ms", rid, request.method, request.url.path, getattr(response, "status_code", "?"), dur_ms)
+    return response
 
 
 class PrepareAnnotationsRequest(BaseModel):
@@ -158,7 +191,7 @@ def _collect_artifacts(base_dir: str, stdout: str) -> List[dict]:
 
 
 @app.get("/healthz")
-def healthz():
+def healthz(request: Request):
     cuda_available = False
     cuda_version: Optional[str] = None
     device_count = 0
@@ -176,7 +209,7 @@ def healthz():
     except Exception as e:  # be resilient: health should not fail
         torch_error = str(e)
 
-    return {
+    info = {
         "status": "ok",
         "python": sys.version,
         "cwd": os.getcwd(),
@@ -187,13 +220,19 @@ def healthz():
         "device_count": device_count,
         "torch_error": torch_error,
     }
+    rid = getattr(getattr(request, "state", object()), "rid", "-")
+    logger.info("[%s] /healthz torch=%s cuda=%s devices=%s script_exists=%s", rid, torch_version, cuda_available, device_count, info["script_exists"])
+    return info
 
 
 @app.get("/help")
-def cli_help():
+def cli_help(request: Request):
     if not os.path.exists(SCRIPT_PATH):
         raise HTTPException(status_code=500, detail=f"Script not found at {SCRIPT_PATH}")
     cmd = [sys.executable, SCRIPT_PATH, "--help"]
+    rid = getattr(getattr(request, "state", object()), "rid", "-")
+    t0 = time.perf_counter()
+    logger.info("[%s] /help running: %s", rid, " ".join(shlex.quote(c) for c in cmd))
     try:
         proc = subprocess.run(
             cmd,
@@ -205,12 +244,14 @@ def cli_help():
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to execute: {e}")
+    dur = (time.perf_counter() - t0) * 1000.0
     response = {
         "cmd": " ".join(shlex.quote(c) for c in cmd),
         "returncode": proc.returncode,
         "stdout": proc.stdout,
         "stderr": proc.stderr,
     }
+    logger.info("[%s] /help rc=%s in %.1f ms (stdout=%dB, stderr=%dB)", rid, proc.returncode, dur, len(proc.stdout or ""), len(proc.stderr or ""))
     # Attach artifacts (result JSON files)
     try:
         response["artifacts"] = _collect_artifacts(APP_ROOT, proc.stdout or "")
@@ -221,6 +262,7 @@ def cli_help():
 
 @app.post("/run_upload")
 def run_upload(
+    request: Request,
     # Files
     videos: List[UploadFile] = File(..., description="Video files (.mp4, .mov, etc.)"),
     # Core options (form fields)
@@ -243,6 +285,17 @@ def run_upload(
     Accept uploaded video files and run the same pipeline as /run using a
     temporary session directory. Returns stdout/stderr plus artifacts.
     """
+    rid = getattr(getattr(request, "state", object()), "rid", "-")
+    t0 = time.perf_counter()
+    logger.info(
+        "[%s] /run_upload received %d file(s); generated_suffixes=%s categories=%s metrics=%s compute=%s",
+        rid,
+        len(videos or []),
+        generated_suffixes,
+        categories,
+        metrics,
+        bool(compute),
+    )
     if not os.path.exists(SCRIPT_PATH):
         raise HTTPException(status_code=500, detail=f"Script not found at {SCRIPT_PATH}")
 
@@ -259,6 +312,7 @@ def run_upload(
             ext = os.path.splitext(name)[1].lower()
             if ext and ext not in allowed_exts:
                 # Skip unknown extensions; do not fail entire request
+                logger.warning("[%s] Skipping upload with unsupported extension: %s", rid, name)
                 continue
             dest_path = os.path.join(upload_dir, name)
             # Ensure parent exists
@@ -266,15 +320,18 @@ def run_upload(
             with open(dest_path, "wb") as out_f:
                 shutil.copyfileobj(uf.file, out_f)
             saved_files.append(name)
+            logger.info("[%s] Saved upload -> %s", rid, dest_path)
         except Exception as e:
             # Continue saving others; report error later
             saved_files.append(f"ERROR:{getattr(uf, 'filename', 'unknown')}: {e}")
+            logger.exception("[%s] Error saving uploaded file %s: %s", rid, getattr(uf, 'filename', 'unknown'), e)
 
     # Determine stage dataset dir
     if stage_dataset:
         stage_dir = stage_dataset if os.path.isabs(stage_dataset) else os.path.join(APP_ROOT, stage_dataset)
     else:
         stage_dir = os.path.join(upload_dir, "staged")
+    logger.info("[%s] Session=%s upload_dir=%s stage_dir=%s saved=%d", rid, session_id, upload_dir, stage_dir, len(saved_files))
 
     # Build args via existing request model helper
     req = PrepareAnnotationsRequest(
@@ -293,6 +350,7 @@ def run_upload(
     )
     args = _build_cli_args(req)
     cmd = [sys.executable, SCRIPT_PATH] + args
+    logger.info("[%s] Exec: %s", rid, " ".join(shlex.quote(c) for c in cmd))
 
     try:
         proc = subprocess.run(
@@ -305,6 +363,8 @@ def run_upload(
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to execute: {e}")
+    dur = (time.perf_counter() - t0) * 1000.0
+    logger.info("[%s] /run_upload rc=%s in %.1f ms (stdout=%dB, stderr=%dB)", rid, proc.returncode, dur, len(proc.stdout or ""), len(proc.stderr or ""))
 
     response = {
         "cmd": " ".join(shlex.quote(c) for c in cmd),
@@ -314,22 +374,30 @@ def run_upload(
         "session": {"id": session_id, "upload_dir": upload_dir, "stage_dir": stage_dir, "files": saved_files},
     }
     try:
-        response["artifacts"] = _collect_artifacts(APP_ROOT, proc.stdout or "")
+        arts = _collect_artifacts(APP_ROOT, proc.stdout or "")
+        response["artifacts"] = arts
+        if arts:
+            logger.info("[%s] Artifacts: %s", rid, ", ".join(a.get("name", "?") for a in arts))
     except Exception as e:
         response["artifact_error"] = str(e)
+        logger.warning("[%s] Artifact collection error: %s", rid, e)
     return response
 
 
 @app.post("/run")
-def run_prepare(req: PrepareAnnotationsRequest):
+def run_prepare(req: PrepareAnnotationsRequest, request: Request):
     if not req.list_metrics and not req.input_dir:
         raise HTTPException(status_code=422, detail="input_dir is required unless list_metrics is true")
 
     if not os.path.exists(SCRIPT_PATH):
         raise HTTPException(status_code=500, detail=f"Script not found at {SCRIPT_PATH}")
 
+    rid = getattr(getattr(request, "state", object()), "rid", "-")
+    t0 = time.perf_counter()
+    logger.info("[%s] /run input_dir=%s stage_dataset=%s compute=%s categories=%s metrics=%s", rid, req.input_dir, req.stage_dataset, bool(req.compute), req.categories, req.metrics)
     args = _build_cli_args(req)
     cmd = [sys.executable, SCRIPT_PATH] + args
+    logger.info("[%s] Exec: %s", rid, " ".join(shlex.quote(c) for c in cmd))
 
     try:
         proc = subprocess.run(
@@ -342,6 +410,8 @@ def run_prepare(req: PrepareAnnotationsRequest):
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to execute: {e}")
+    dur = (time.perf_counter() - t0) * 1000.0
+    logger.info("[%s] /run rc=%s in %.1f ms (stdout=%dB, stderr=%dB)", rid, proc.returncode, dur, len(proc.stdout or ""), len(proc.stderr or ""))
 
     response = {
         "cmd": " ".join(shlex.quote(c) for c in cmd),
@@ -351,7 +421,11 @@ def run_prepare(req: PrepareAnnotationsRequest):
     }
     # Attach artifacts (result JSON files)
     try:
-        response["artifacts"] = _collect_artifacts(APP_ROOT, proc.stdout or "")
+        arts = _collect_artifacts(APP_ROOT, proc.stdout or "")
+        response["artifacts"] = arts
+        if arts:
+            logger.info("[%s] Artifacts: %s", rid, ", ".join(a.get("name", "?") for a in arts))
     except Exception as e:
         response["artifact_error"] = str(e)
+        logger.warning("[%s] Artifact collection error: %s", rid, e)
     return response
