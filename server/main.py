@@ -297,6 +297,7 @@ def _collect_artifacts(base_dir: str, stdout: str) -> List[dict]:
         "gstvqa_results.json",
         "simplevqa_results.json",
         "lightvqa_plus_results.json",
+        "cdfvd_results.json",  # Add CD-FVD results to artifacts
     ]
     artifacts: List[dict] = []
     for name in candidate_names:
