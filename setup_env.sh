@@ -42,20 +42,28 @@ fi
 HERE_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$HERE_DIR"
 
-# 1) Re-create env from environment.yml (minimal deps; no torch here)
+# 1) Re-create env from environment.yml (includes fastapi, uvicorn, etc)
 # Remove if exists
+echo "Removing existing env: $ENV_NAME (if present)..."
 conda env remove -n "$ENV_NAME" -y || true
 
-# Use the provided environment.yml
-conda env create -n "$ENV_NAME" -f environment.yml
+# Use the provided environment.yml (has fastapi, uvicorn, and other deps)
+echo "Creating fresh env: $ENV_NAME from environment.yml..."
+conda env create -n "$ENV_NAME" -f environment.yml --force
+
+# Ensure pip deps from environment.yml are installed
+echo "Installing pip dependencies from environment.yml..."
+conda run -n "$ENV_NAME" pip install -U pip
+conda run -n "$ENV_NAME" pip install fastapi "uvicorn[standard]" pydantic typing-extensions
 
 # 2) Install PyTorch (GPU build enforced)
 # Remove any pip-installed torch packages the YAML may have pulled
+echo "Cleaning up any pip-installed torch packages..."
 conda run -n "$ENV_NAME" pip uninstall -y torch torchvision torchaudio || true
 
 echo "Installing GPU PyTorch (CUDA 11.8 runtime) into env: $ENV_NAME"
 conda install -n "$ENV_NAME" -y -c pytorch -c nvidia \
-  pytorch=2.1.0 torchvision=0.16.0 torchaudio=2.1.0 pytorch-cuda=11.8
+  pytorch=2.1.0 torchvision=0.16.0 torchaudio=2.1.0 pytorch-cuda=11.8 --force-reinstall
 
 # 2b) Enforce GPU build (do not require a runtime GPU during build)
 conda run -n "$ENV_NAME" python - << 'PY'
@@ -86,6 +94,7 @@ conda run -n "$ENV_NAME" pip install opencv-python-headless
 conda run -n "$ENV_NAME" pip uninstall -y vbench mantis mantis-vl || true
 
 # 5c) Ensure consistent numeric stack (NumPy/SciPy) via conda to avoid ABI mismatches
+echo "Installing NumPy/SciPy via conda-forge..."
 # First remove any pip wheels that may have been installed from environment.yml
 conda run -n "$ENV_NAME" pip uninstall -y numpy scipy || true
 # Then remove conda records to force relinking in case pip deleted files under the hood
@@ -98,16 +107,31 @@ conda install -n "$ENV_NAME" -y -c conda-forge --force-reinstall "numpy==1.26.4"
 # - Skips Mantis git package (not required for FID/IS/FVD)
 REQ_FILE="requirement.txt"
 if [[ -f "$REQ_FILE" ]]; then
+  echo "Installing requirements from requirement.txt (excluding torch/numpy/scipy)..."
   TMP_REQ="$(mktemp)"
   awk 'BEGIN{IGNORECASE=0} \
        /^(pytorch|torch|torchvision|torchaudio|numpy|scipy)[[:space:]=]/ {next} \
-       /Mantis\\.git/ {next} \
+       /Mantis\.git/ {next} \
        {print}' "$REQ_FILE" > "$TMP_REQ"
-  conda run -n "$ENV_NAME" pip install -r "$TMP_REQ" --no-deps
+  # Install with dependencies this time to get all transitive deps
+  conda run -n "$ENV_NAME" pip install -r "$TMP_REQ"
   rm -f "$TMP_REQ"
 else
   echo "No requirement.txt found; skipping pip requirements."
 fi
+
+# 6a) Ensure API server dependencies are installed
+echo "Ensuring API server dependencies..."
+conda run -n "$ENV_NAME" pip install \
+  "fastapi>=0.68.0" \
+  "uvicorn[standard]>=0.15.0" \
+  "pydantic>=1.8.0" \
+  "python-multipart" \
+  "httptools" \
+  "uvloop" \
+  "websockets" \
+  "watchfiles" \
+  "python-dotenv"
 
 # 6b) Optional NLP extras (transformers + compatible tokenizers)
 if [[ "$NLP_EXTRAS" -eq 1 ]]; then
@@ -131,6 +155,7 @@ then
 fi
 
 # 7) Quick sanity checks
+echo "\nPerforming sanity checks..."
 conda run -n "$ENV_NAME" python - << 'PY'
 import sys
 print('Python:', sys.version)
@@ -164,6 +189,11 @@ try:
     print('opencv-python-headless (cv2):', cv2.__version__)
 except Exception as e:
     print('OpenCV import failed:', e)
+try:
+    import fastapi, uvicorn
+    print('fastapi:', fastapi.__version__, 'uvicorn:', uvicorn.__version__)
+except Exception as e:
+    print('FastAPI/Uvicorn import failed:', e)
 try:
     import mmengine
     print('mmengine:', mmengine.__version__)
@@ -230,6 +260,29 @@ if not cuda_build:
 print('Verified: torch/torchvision importable; torch CUDA build:', cuda_build)
 PY
 
-echo "\nSetup complete. Activate the env and run, e.g.:"
+# 7d) Enforce API server deps (fatal if missing)
+echo "\nVerifying API server dependencies..."
+conda run -n "$ENV_NAME" python - << 'PY'
+import sys
+try:
+    import fastapi, uvicorn, pydantic
+    print('Verified: FastAPI/Uvicorn/Pydantic importable')
+    print('  fastapi:', fastapi.__version__)
+    print('  uvicorn:', uvicorn.__version__)
+    print('  pydantic:', pydantic.__version__)
+except Exception as e:
+    print('FATAL: API server dependencies not importable:', e)
+    sys.exit(1)
+PY
+
+echo "\n===== Setup complete! ====="
+echo "All dependencies installed successfully."
+echo ""
+echo "To use the environment:"
 echo "  conda activate $ENV_NAME"
+echo ""
+echo "To run the API server:"
+echo "  python -m uvicorn server.main:app --host 0.0.0.0 --port 2200"
+echo ""
+echo "To run CLI:"
 echo "  python aigve/main_aigve.py aigve/configs/fid.py --work-dir ./output_fid"
