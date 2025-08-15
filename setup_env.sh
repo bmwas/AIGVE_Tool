@@ -62,10 +62,10 @@ echo "Cleaning up any pip-installed torch packages..."
 conda run -n "$ENV_NAME" pip uninstall -y torch torchvision torchaudio || true
 
 echo "Installing GPU PyTorch (CUDA 11.8 runtime) into env: $ENV_NAME"
-# Ensure channels are prioritized correctly and force reinstall
-conda install -n "$ENV_NAME" -y -c pytorch -c nvidia \
-  pytorch=2.1.0 torchvision=0.16.0 torchaudio=2.1.0 pytorch-cuda=11.8 \
-  --force-reinstall --override-channels
+# Use pip for PyTorch installation - more reliable for CUDA builds
+conda run -n "$ENV_NAME" pip install \
+  torch==2.1.0 torchvision==0.16.0 torchaudio==2.1.0 \
+  --index-url https://download.pytorch.org/whl/cu118
 
 # 2b) Enforce GPU build (do not require a runtime GPU during build)
 conda run -n "$ENV_NAME" python - << 'PY'
@@ -95,14 +95,9 @@ conda run -n "$ENV_NAME" pip install opencv-python-headless
 # (These may pull incompatible transformers or heavy deps.)
 conda run -n "$ENV_NAME" pip uninstall -y vbench mantis mantis-vl || true
 
-# 5c) Ensure consistent numeric stack (NumPy/SciPy) via conda to avoid ABI mismatches
-echo "Installing NumPy/SciPy via conda-forge..."
-# First remove any pip wheels that may have been installed from environment.yml
-conda run -n "$ENV_NAME" pip uninstall -y numpy scipy || true
-# Then remove conda records to force relinking in case pip deleted files under the hood
-conda remove -n "$ENV_NAME" -y numpy scipy || true
-# Finally, install conda-forge builds known to work well with PyTorch 2.1 and SciPy stack
-conda install -n "$ENV_NAME" -y -c conda-forge --force-reinstall "numpy==1.26.4" "scipy==1.11.4"
+# 5c) Ensure consistent numeric stack (NumPy/SciPy) via pip for consistency with PyTorch pip install
+echo "Installing NumPy and SciPy via pip for consistency..."
+conda run -n "$ENV_NAME" pip install numpy==1.26.4 scipy==1.11.4
 
 # 6) Install remaining requirements WITHOUT touching torch packages
 # - Filters out top-level torch/torchvision/torchaudio/pytorch pins
