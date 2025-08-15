@@ -137,7 +137,7 @@ conda run -n "$ENV_NAME" pip install \
   scikit-learn \
   scikit-image \
   transformers==4.46.3 \
-  tokenizers>=0.20,<0.21 \
+  "tokenizers>=0.20,<0.21" \
   safetensors \
   accelerate
 
