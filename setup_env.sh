@@ -49,7 +49,7 @@ conda env remove -n "$ENV_NAME" -y || true
 
 # Use the provided environment.yml (has fastapi, uvicorn, and other deps)
 echo "Creating fresh env: $ENV_NAME from environment.yml..."
-conda env create -n "$ENV_NAME" -f environment.yml --force
+conda env create -n "$ENV_NAME" -f environment.yml
 
 # Ensure pip deps from environment.yml are installed
 echo "Installing pip dependencies from environment.yml..."
@@ -122,6 +122,28 @@ else
   echo "No requirement.txt found; skipping pip requirements."
 fi
 
+# 6-extra) Explicitly install critical packages that might be missing
+echo "Installing critical packages explicitly..."
+conda run -n "$ENV_NAME" pip install \
+  opencv-python-headless \
+  pillow \
+  imageio \
+  imageio-ffmpeg \
+  protobuf \
+  onnx \
+  onnxruntime \
+  einops \
+  decord \
+  pandas \
+  matplotlib \
+  seaborn \
+  tqdm \
+  pyyaml \
+  jsonschema \
+  h5py \
+  scikit-learn \
+  scikit-image
+
 # 6a) Ensure API server dependencies are installed
 echo "Ensuring API server dependencies..."
 conda run -n "$ENV_NAME" pip install \
@@ -133,7 +155,9 @@ conda run -n "$ENV_NAME" pip install \
   "uvloop" \
   "websockets" \
   "watchfiles" \
-  "python-dotenv"
+  "python-dotenv" \
+  "requests" \
+  "charset-normalizer"
 
 # 6b) Optional NLP extras (transformers + compatible tokenizers)
 if [[ "$NLP_EXTRAS" -eq 1 ]]; then
