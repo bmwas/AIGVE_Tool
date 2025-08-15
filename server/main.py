@@ -514,26 +514,33 @@ def run_upload(
     }
     
     # Compute CD-FVD if requested
+    cdfvd_error = None
     if use_cdfvd:
         try:
             logger.info("[%s] Computing FVD using cd-fvd package...", rid)
             cdfvd_result = _compute_cdfvd(
-                upload_dir=upload_dir,
-                generated_suffixes=generated_suffixes,
-                model=cdfvd_model,
-                resolution=cdfvd_resolution,
-                sequence_length=cdfvd_sequence_length
+                staged_dir=stage_dir,
+                model=cdfvd_model or "i3d",
+                resolution=cdfvd_resolution or 224,
+                sequence_length=cdfvd_sequence_length or 16,
+                suffix=generated_suffixes
             )
-            response["cdfvd_result"] = cdfvd_result
             
-            # Save CD-FVD result to a JSON file
-            cdfvd_json_path = os.path.join(APP_ROOT, "cdfvd_results.json")
+            # Save CD-FVD results
+            cdfvd_json_path = os.path.join(stage_dir, "cdfvd_results.json")
             with open(cdfvd_json_path, "w") as f:
                 json.dump(cdfvd_result, f, indent=2)
-            logger.info("[%s] CD-FVD results saved to %s", rid, cdfvd_json_path)
+            
+            response["artifacts"] = {"cdfvd_results.json": cdfvd_json_path}
+            
         except Exception as e:
-            response["cdfvd_error"] = str(e)
-            logger.error("[%s] CD-FVD computation error: %s", rid, e)
+            cdfvd_error = str(e)
+            print(f"[CD-FVD Error] {cdfvd_error}")
+            # Fail immediately when CD-FVD is requested but cannot be computed
+            raise HTTPException(
+                status_code=500,
+                detail=f"CD-FVD computation failed: {cdfvd_error}"
+            )
     
     try:
         arts = _collect_artifacts(APP_ROOT, proc.stdout or "")

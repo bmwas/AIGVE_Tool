@@ -180,6 +180,11 @@ RUN python3 -m pip install --no-cache-dir \
     mkdocstrings[python] || true
 
 # ------------------------------
+# Install cd-fvd for CD-FVD metrics
+# ------------------------------
+RUN python3 -m pip install --no-cache-dir cd-fvd
+
+# ------------------------------
 # FINAL: Force downgrade NumPy to 1.26.4 after all installations
 # ------------------------------
 RUN python3 -m pip install --force-reinstall --no-deps numpy==1.26.4
