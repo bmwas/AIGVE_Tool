@@ -9,6 +9,12 @@ from typing import List, Optional
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
+# Optional torch import (server runs inside conda env where torch is present)
+try:
+    import torch  # type: ignore
+except Exception:  # pragma: no cover - tolerate missing/failed import
+    torch = None  # type: ignore
+
 APP_ROOT = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
 SCRIPT_PATH = os.path.join(APP_ROOT, "scripts", "prepare_annotations.py")
 
@@ -112,11 +118,33 @@ def _build_cli_args(req: PrepareAnnotationsRequest) -> List[str]:
 
 @app.get("/healthz")
 def healthz():
+    cuda_available = False
+    cuda_version: Optional[str] = None
+    device_count = 0
+    torch_version: Optional[str] = None
+    torch_error: Optional[str] = None
+
+    try:
+        if torch is not None:
+            torch_version = getattr(torch, "__version__", None)
+            cuda_available = bool(torch.cuda.is_available())
+            cuda_version = getattr(getattr(torch, "version", None), "cuda", None)
+            device_count = torch.cuda.device_count() if cuda_available else 0
+        else:
+            torch_error = "torch not importable"
+    except Exception as e:  # be resilient: health should not fail
+        torch_error = str(e)
+
     return {
         "status": "ok",
         "python": sys.version,
         "cwd": os.getcwd(),
         "script_exists": os.path.exists(SCRIPT_PATH),
+        "torch": torch_version,
+        "cuda_available": cuda_available,
+        "cuda_version": cuda_version,
+        "device_count": device_count,
+        "torch_error": torch_error,
     }
 
 

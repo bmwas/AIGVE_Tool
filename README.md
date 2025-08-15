@@ -269,12 +269,27 @@ This project ships with a Dockerized, conda-based environment that supports both
   ```bash
   docker run --rm -e PORT=9000 -p 9000:9000 ghcr.io/bmwas/aigve:latest
   ```
+- Extra Uvicorn options (workers, log level):
+  ```bash
+  docker run --rm --gpus all -p 2200:2200 ghcr.io/bmwas/aigve:latest api --workers 2 --log-level info
+  ```
+
+- Require GPU at runtime (fail if unavailable):
+  ```bash
+  docker run --rm --gpus all -e REQUIRE_GPU=1 -p 2200:2200 \
+    -v "$PWD/data":/app/data -v "$PWD/out":/app/out \
+    ghcr.io/bmwas/aigve:latest
+  ```
+  Notes:
+  - The container logs print a CUDA check JSON at startup (from `torch`), e.g. `{ "cuda_available": true, ... }`.
+  - If CUDA is not available (e.g., missing `--gpus all` or drivers/toolkit), the container exits with a fatal message.
 
 ### Call the API
 - __Health__
   ```bash
   curl http://localhost:2200/healthz
   ```
+  Returns JSON including CUDA/Torch info: `torch`, `cuda_available`, `cuda_version`, `device_count`, `torch_error`.
 - __Help (CLI flags)__
   ```bash
   curl http://localhost:2200/help
@@ -296,6 +311,67 @@ This project ships with a Dockerized, conda-based environment that supports both
   - Paths must reference mounted container paths (e.g., `/app/data`, `/app/out`).
   - All CLI flags from `scripts/prepare_annotations.py` are exposed as JSON fields. For new/advanced flags, use `extra_args` (array of raw CLI tokens).
   - OpenAPI UI available at `/docs` and `/redoc`.
+
+### Python client (scripts/call_aigve_api.py)
+
+Use the included Python client to call the REST API and run distribution-based metrics (FID/IS/FVD).
+
+- GPU vs CPU behavior:
+  - GPU is the default when available. Do not pass `--cpu` if you want GPU. Ensure the container is started with `--gpus all` and you use the GPU image (`ghcr.io/bmwas/aigve:latest`).
+  - `--cpu` forces CPU execution. This sets `use_cpu=true` in the API request. You can also run the CPU image (`ghcr.io/bmwas/aigve:cpu`) and omit `--gpus`.
+  - If GPU is requested implicitly (no `--cpu`) but CUDA isn’t available in the container, the server falls back to CPU and prints a warning.
+
+- Start the API container (GPU):
+  ```bash
+  docker run -d --name aigve --restart unless-stopped \
+    --gpus all -p 2200:2200 \
+    -v "$PWD/data":/app/data -v "$PWD/out":/app/out \
+    ghcr.io/bmwas/aigve:latest
+  # Docs: http://localhost:2200/docs
+  ```
+
+- Run the client (GPU by default):
+  ```bash
+  python scripts/call_aigve_api.py
+  ```
+
+- Run the client on CPU (force CPU):
+  ```bash
+  python scripts/call_aigve_api.py --cpu
+  ```
+
+- Control duration and base URL:
+  ```bash
+  python scripts/call_aigve_api.py --max-seconds 8 --fps 25 \
+    --base-url http://localhost:2200
+  ```
+
+Client defaults (container paths):
+- `input_dir=/app/data` (mount your host `./data` to this path)
+- `stage_dataset=/app/out/staged` (mount your host `./out` to `/app/out`)
+
+#### Client-only Python environment (no server deps)
+
+Create a lightweight virtualenv for the Python client only (it just needs `requests`).
+
+```bash
+# From repo root
+python -m venv .venv-aigve-client
+source .venv-aigve-client/bin/activate
+pip install -r scripts/requirements-client.txt
+
+# Call the API (GPU on server by default; add --cpu to force CPU)
+python scripts/call_aigve_api.py --base-url http://localhost:2200
+# or
+python scripts/call_aigve_api.py --base-url http://<server-ip>:2200 --cpu
+
+# Deactivate when done
+deactivate
+```
+
+Notes:
+- `scripts/requirements-client.txt` is minimal and avoids installing server-side deps (numpy/torch/mmengine, etc.).
+- If you see `ModuleNotFoundError: numpy` in outputs, that error is coming from the server container during metric computation, not from this client.
 
 ### Run CLI via Docker (no API)
 Pass the script flags directly to the container. If arguments are provided and the first one is not `api`, the image runs the CLI instead of the API.
@@ -330,7 +406,7 @@ This project exposes a FastAPI server that wraps `scripts/prepare_annotations.py
   ```
 
 - __Endpoints__
-  - `GET /healthz` → returns `{status, python, cwd, script_exists}`
+  - `GET /healthz` → returns `{status, python, cwd, script_exists, torch, cuda_available, cuda_version, device_count, torch_error}`
   - `GET /help` → executes `scripts/prepare_annotations.py --help` and returns `{cmd, returncode, stdout, stderr}`
   - `POST /run` → runs the script with provided options. Returns `{cmd, returncode, stdout, stderr}`
 

@@ -27,6 +27,31 @@ fi
 # Resolve working directory
 cd /app
 
+# GPU detection and optional enforcement
+REQUIRE_GPU="${REQUIRE_GPU:-0}"
+TORCH_CUDA=$(conda run -n aigve python - <<'PY'
+import json
+try:
+    import torch
+    info = {
+        "torch": getattr(torch, "__version__", None),
+        "cuda_available": bool(torch.cuda.is_available()),
+        "cuda_version": getattr(torch.version, "cuda", None),
+        "device_count": torch.cuda.device_count() if torch.cuda.is_available() else 0,
+    }
+except Exception as e:
+    info = {"error": str(e), "cuda_available": False}
+print(json.dumps(info))
+PY
+)
+echo "[INFO] CUDA check: ${TORCH_CUDA}"
+if [[ "$REQUIRE_GPU" == "1" || "$REQUIRE_GPU" == "true" || "$REQUIRE_GPU" == "True" ]]; then
+  if ! echo "$TORCH_CUDA" | grep -q '"cuda_available": true'; then
+    echo "[FATAL] REQUIRE_GPU=1 set but torch.cuda.is_available() is false. Ensure '--gpus all' at runtime and correct drivers/toolkit." >&2
+    exit 1
+  fi
+fi
+
 # Serve API by default or when explicitly requested
 PORT="${PORT:-2200}"
 if [[ $# -eq 0 || "$1" == "api" ]]; then
