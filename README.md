@@ -316,6 +316,172 @@ Pass the script flags directly to the container. If arguments are provided and t
   docker run --rm ghcr.io/bmwas/aigve:latest --help
   ```
 
+### REST API Reference (server/main.py)
+
+This project exposes a FastAPI server that wraps `scripts/prepare_annotations.py`.
+
+- __Start locally (no Docker)__
+  ```bash
+  # Activate the env first (see setup_env.sh section above)
+  conda activate aigve
+  # Start API on port 2200
+  uvicorn server.main:app --host 0.0.0.0 --port 2200
+  # Open docs: http://localhost:2200/docs
+  ```
+
+- __Endpoints__
+  - `GET /healthz` → returns `{status, python, cwd, script_exists}`
+  - `GET /help` → executes `scripts/prepare_annotations.py --help` and returns `{cmd, returncode, stdout, stderr}`
+  - `POST /run` → runs the script with provided options. Returns `{cmd, returncode, stdout, stderr}`
+
+- __POST /run request body__ (all fields map 1:1 to the script’s CLI flags):
+  - `input_dir: string | null` — required unless `list_metrics=true`
+  - `out_json: string | null`
+  - `generated_suffixes: string` (default: `"synthetic,generated"`)
+  - `stage_dataset: string | null`
+  - `link: boolean` (default: `false`)
+  - `compute: boolean` (default: `false`)
+  - `metrics: string` (default: `"all"`; maps to `fid,is,fvd`)
+  - `categories: string` (CSV; `distribution_based`, `nn_based_video`)
+  - `list_metrics: boolean` (default: `false`)
+  - `max_len: integer` (default: `64`)
+  - `max_seconds: number | null` (overrides `max_len` when set)
+  - `fps: number` (default: `25.0`; used with `max_seconds`)
+  - `pad: boolean` (default: `false`)
+  - `use_cpu: boolean` (default: `false`)
+  - `fvd_model, gstvqa_model, simplevqa_model, lightvqa_plus_model, lightvqa_plus_swin: string | null`
+  - `extra_args: string[] | null` — raw CLI tokens forwarded as-is
+
+  Notes:
+  - When running in Docker, use container paths (e.g., `/app/data`, `/app/out`).
+  - `metrics="all"` is kept for backward compatibility and expands to `fid,is,fvd` (i.e., `distribution_based`).
+
+- __Examples (curl)__
+  - __List available categories/metrics only__ (no input_dir required)
+    ```bash
+    curl -X POST http://localhost:2200/run \
+      -H 'Content-Type: application/json' \
+      -d '{"list_metrics": true}'
+    ```
+
+  - __Write annotations only__
+    ```bash
+    curl -X POST http://localhost:2200/run \
+      -H 'Content-Type: application/json' \
+      -d '{
+        "input_dir": "/path/to/mixed_videos",
+        "out_json":  "/path/to/mixed_videos/annotations.json"
+      }'
+    ```
+
+  - __Stage dataset layout (evaluate/ + annotations/evaluate.json)__
+    ```bash
+    curl -X POST http://localhost:2200/run \
+      -H 'Content-Type: application/json' \
+      -d '{
+        "input_dir": "/app/data",
+        "stage_dataset": "/app/out/my_dataset",
+        "link": true
+      }'
+    ```
+
+  - __Compute distribution metrics (FID/IS/FVD)__
+    ```bash
+    curl -X POST http://localhost:2200/run \
+      -H 'Content-Type: application/json' \
+      -d '{
+        "input_dir": "/app/data",
+        "stage_dataset": "/app/out/staged",
+        "compute": true,
+        "categories": "distribution_based",
+        "max_seconds": 8,
+        "fps": 25
+      }'
+    ```
+
+  - __Compute video-only NN metrics (provide model paths)__
+    ```bash
+    curl -X POST http://localhost:2200/run \
+      -H 'Content-Type: application/json' \
+      -d '{
+        "input_dir": "/app/data",
+        "stage_dataset": "/app/out/staged",
+        "compute": true,
+        "categories": "nn_based_video",
+        "gstvqa_model": "/app/ckpts/GSTVQA.ckpt",
+        "simplevqa_model": "/app/ckpts/UGC_BVQA_model.pth",
+        "lightvqa_plus_model": "/app/ckpts/lightvqa_plus.pth",
+        "lightvqa_plus_swin":  "/app/ckpts/swin_small_patch4_window7_224.pth"
+      }'
+    ```
+
+  - __Mix categories__
+    ```bash
+    curl -X POST http://localhost:2200/run \
+      -H 'Content-Type: application/json' \
+      -d '{
+        "input_dir": "/app/data",
+        "stage_dataset": "/app/out/staged",
+        "compute": true,
+        "categories": "distribution_based,nn_based_video"
+      }'
+    ```
+
+  - __CPU mode + custom FVD model__
+    ```bash
+    curl -X POST http://localhost:2200/run \
+      -H 'Content-Type: application/json' \
+      -d '{
+        "input_dir": "/app/data",
+        "stage_dataset": "/app/out/staged",
+        "compute": true,
+        "categories": "distribution_based",
+        "use_cpu": true,
+        "fvd_model": "/app/ckpts/model_rgb.pth"
+      }'
+    ```
+
+  - __Control duration via seconds (overrides frames) + pad__
+    ```bash
+    curl -X POST http://localhost:2200/run \
+      -H 'Content-Type: application/json' \
+      -d '{
+        "input_dir": "/app/data",
+        "stage_dataset": "/app/out/staged",
+        "compute": true,
+        "categories": "distribution_based",
+        "max_seconds": 8,
+        "fps": 25,
+        "pad": true
+      }'
+    ```
+
+  - __Select specific metric names__ (JSON accepts `+` directly)
+    ```bash
+    curl -X POST http://localhost:2200/run \
+      -H 'Content-Type: application/json' \
+      -d '{
+        "input_dir": "/app/data",
+        "stage_dataset": "/app/out/staged",
+        "compute": true,
+        "metrics": "fid,lightvqa+",
+        "lightvqa_plus_model": "/app/ckpts/lightvqa_plus.pth",
+        "lightvqa_plus_swin":  "/app/ckpts/swin_small_patch4_window7_224.pth"
+      }'
+    ```
+
+  - __Pass through extra CLI tokens__
+    ```bash
+    curl -X POST http://localhost:2200/run \
+      -H 'Content-Type: application/json' \
+      -d '{
+        "input_dir": "/app/data",
+        "compute": true,
+        "categories": "distribution_based",
+        "extra_args": ["--some-new-flag", "value"]
+      }'
+    ```
+
 ## Prepare annotations and compute metrics (scripts/prepare_annotations.py)
 
 Use this helper to scan a mixed folder of ground-truth and generated videos, write an AIGVE-style annotations JSON, optionally stage a dataset layout, and compute metrics by category.
