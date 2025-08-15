@@ -66,7 +66,10 @@ RUN apt-get update && \
 # ------------------------------
 ENV CUDA_HOME=/usr/local/cuda
 ENV PATH=$CUDA_HOME/bin:$PATH
-ENV LD_LIBRARY_PATH=$CUDA_HOME/lib64:$LD_LIBRARY_PATH
+ENV LD_LIBRARY_PATH=$CUDA_HOME/lib64:$CUDA_HOME/compat:/usr/local/nvidia/lib:/usr/local/nvidia/lib64:$LD_LIBRARY_PATH
+ENV CUDA_MODULE_LOADING=LAZY
+ENV NVIDIA_DRIVER_CAPABILITIES=compute,utility
+ENV NVIDIA_REQUIRE_CUDA="cuda>=11.8"
 
 # Optional runtime tunings
 ENV TRANSFORMERS_ATTENTION_IMPLEMENTATION=eager
@@ -98,7 +101,10 @@ RUN chmod +x /app/setup_env.sh
 # Create project conda env exactly like setup_env.sh (GPU build enforced)
 # ------------------------------
 RUN echo "[Build] Creating GPU env via setup_env.sh" && \
-    bash /app/setup_env.sh --env-name aigve
+    bash /app/setup_env.sh --env-name aigve && \
+    echo "[Build] Verifying PyTorch CUDA installation..." && \
+    conda run -n aigve python -c "import torch; assert torch.cuda.is_available() or torch.version.cuda, f'PyTorch CUDA not available. Version: {torch.__version__}, CUDA: {torch.version.cuda}'" || \
+    echo "[Build] WARNING: CUDA check failed during build (expected in build environment without GPU)"
 
 # Copy the rest of the repository
 COPY . /app/

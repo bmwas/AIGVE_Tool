@@ -35,12 +35,28 @@ if [[ "${CUDA_VISIBLE_DEVICES+x}" == "x" && -z "${CUDA_VISIBLE_DEVICES}" ]]; the
   echo "[WARN] CUDA_VISIBLE_DEVICES is empty; unsetting to allow GPU visibility."
   unset CUDA_VISIBLE_DEVICES
 fi
+
+# First check if the conda environment and torch are accessible
+echo "[INFO] Checking conda environment..."
+if ! conda run -n aigve python -c "print('Conda env OK')" 2>&1; then
+  echo "[ERROR] Failed to run Python in conda env aigve"
+  exit 1
+fi
+
 # Run probe and capture both stdout and stderr without aborting on failure
 set +e
+echo "[INFO] Running CUDA probe..."
 TORCH_CUDA_OUTPUT=$(conda run -n aigve python - <<'PY' 2>&1
-import json, os, traceback
+import sys, json, os, traceback
+
+# First check if torch can be imported
 try:
     import torch
+except Exception as e:
+    print(json.dumps({"error": f"Failed to import torch: {e}", "cuda_available": False}))
+    sys.exit(1)
+
+try:
     info = {
         "torch": getattr(torch, "__version__", None),
         "is_built": bool(getattr(getattr(torch, 'backends', None), 'cuda', None) and torch.backends.cuda.is_built()),
@@ -79,7 +95,15 @@ PY
 )
 PROBE_RC=$?
 set -e
-echo "[INFO] CUDA check (rc=${PROBE_RC}): ${TORCH_CUDA_OUTPUT}"
+
+# If probe produced no output, show error
+if [[ -z "${TORCH_CUDA_OUTPUT}" ]]; then
+  echo "[ERROR] CUDA probe produced no output (rc=${PROBE_RC})"
+  echo "[ERROR] Attempting direct torch import test..."
+  conda run -n aigve python -c "import torch; print(f'Torch: {torch.__version__}, CUDA: {torch.cuda.is_available()}')" || true
+else
+  echo "[INFO] CUDA check (rc=${PROBE_RC}): ${TORCH_CUDA_OUTPUT}"
+fi
 if [[ "$REQUIRE_GPU" == "1" || "$REQUIRE_GPU" == "true" || "$REQUIRE_GPU" == "True" ]]; then
   if [[ ${PROBE_RC} -ne 0 ]] || ! echo "$TORCH_CUDA_OUTPUT" | grep -q '"cuda_available": true'; then
     echo "[FATAL] GPU required but CUDA not available or probe failed." >&2

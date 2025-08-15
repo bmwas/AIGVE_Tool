@@ -63,7 +63,8 @@ conda run -n "$ENV_NAME" pip uninstall -y torch torchvision torchaudio || true
 
 echo "Installing GPU PyTorch (CUDA 11.8 runtime) into env: $ENV_NAME"
 # Use pip for PyTorch installation - more reliable for CUDA builds
-conda run -n "$ENV_NAME" pip install \
+# Force reinstall to ensure we get the right build
+conda run -n "$ENV_NAME" pip install --force-reinstall --no-cache-dir \
   torch==2.1.0 torchvision==0.16.0 torchaudio==2.1.0 \
   --index-url https://download.pytorch.org/whl/cu118
 
