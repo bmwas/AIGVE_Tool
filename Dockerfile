@@ -110,9 +110,9 @@ COPY . /app/
 # Ensure entrypoint is executable
 RUN chmod +x /app/entrypoint.sh || true
 
-# Default entrypoint: activates conda env and runs scripts/prepare_annotations.py
-# Users can append arguments, e.g.:
+# Default entrypoint serves API (see entrypoint.sh). Users can run CLI by passing flags.
+#   docker run --gpus all --rm -p 2200:2200 -v "$PWD/data":/app/data aigve:latest
 #   docker run --gpus all --rm -v "$PWD/data":/app/data aigve:latest --input-dir /app/data --compute --categories distribution_based --max-seconds 8
+EXPOSE 2200
 ENTRYPOINT ["/app/entrypoint.sh"]
-# Show script help by default
-CMD ["--help"]
+CMD ["api"]

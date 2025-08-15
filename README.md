@@ -233,6 +233,89 @@ For VideoPhy:
 python main_aigve.py AIGVE_Tool/aigve/configs/clipsim.py --work-dir ./output
 ``
 
+## Docker
+
+This project ships with a Dockerized, conda-based environment that supports both CLI and REST API usage.
+
+### Prerequisites
+- Docker installed
+- For GPU support: NVIDIA driver + NVIDIA Container Toolkit (host) and `--gpus all` at runtime
+
+### Build the image
+- GPU (default):
+  ```bash
+  docker build -t aigve:latest .
+  ```
+- CPU-only:
+  ```bash
+  docker build --build-arg CPU_ONLY=1 -t aigve:cpu .
+  ```
+
+### Run the API server (default, port 2200)
+- GPU:
+  ```bash
+  docker run --rm --gpus all -p 2200:2200 \
+    -v "$PWD/data":/app/data -v "$PWD/out":/app/out \
+    aigve:latest
+  # Open docs: http://localhost:2200/docs
+  ```
+- CPU:
+  ```bash
+  docker run --rm -p 2200:2200 \
+    -v "$PWD/data":/app/data -v "$PWD/out":/app/out \
+    aigve:cpu
+  ```
+- Custom port:
+  ```bash
+  docker run --rm -e PORT=9000 -p 9000:9000 aigve:latest
+  ```
+
+### Call the API
+- __Health__
+  ```bash
+  curl http://localhost:2200/healthz
+  ```
+- __Help (CLI flags)__
+  ```bash
+  curl http://localhost:2200/help
+  ```
+- __Run prepare + metrics__
+  ```bash
+  curl -X POST http://localhost:2200/run \
+    -H 'Content-Type: application/json' \
+    -d '{
+      "input_dir": "/app/data",
+      "stage_dataset": "/app/out/staged",
+      "compute": true,
+      "categories": "distribution_based",
+      "max_seconds": 8,
+      "fps": 25
+    }'
+  ```
+  Notes:
+  - Paths must reference mounted container paths (e.g., `/app/data`, `/app/out`).
+  - All CLI flags from `scripts/prepare_annotations.py` are exposed as JSON fields. For new/advanced flags, use `extra_args` (array of raw CLI tokens).
+  - OpenAPI UI available at `/docs` and `/redoc`.
+
+### Run CLI via Docker (no API)
+Pass the script flags directly to the container. If arguments are provided and the first one is not `api`, the image runs the CLI instead of the API.
+
+- Example (GPU):
+  ```bash
+  docker run --rm --gpus all \
+    -v "$PWD/data":/app/data -v "$PWD/out":/app/out \
+    aigve:latest \
+      --input-dir /app/data \
+      --stage-dataset /app/out/staged \
+      --compute --categories distribution_based \
+      --max-seconds 8 --fps 25
+  ```
+
+- Show help:
+  ```bash
+  docker run --rm aigve:latest --help
+  ```
+
 ## Prepare annotations and compute metrics (scripts/prepare_annotations.py)
 
 Use this helper to scan a mixed folder of ground-truth and generated videos, write an AIGVE-style annotations JSON, optionally stage a dataset layout, and compute metrics by category.

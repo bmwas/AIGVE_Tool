@@ -27,11 +27,21 @@ fi
 # Resolve working directory
 cd /app
 
-# Help passthrough
-if [[ $# -eq 0 || "$1" == "-h" || "$1" == "--help" ]]; then
+# Serve API by default or when explicitly requested
+PORT="${PORT:-2200}"
+if [[ $# -eq 0 || "$1" == "api" ]]; then
+  # Allow passing extra uvicorn args after 'api'
+  if [[ $# -gt 0 ]]; then shift; fi
+  echo "[INFO] Starting API server on 0.0.0.0:${PORT}"
+  exec conda run -n aigve uvicorn server.main:app --host 0.0.0.0 --port "${PORT}" "$@"
+fi
+
+# Help passthrough for CLI usage
+if [[ "$1" == "-h" || "$1" == "--help" ]]; then
   echo "[INFO] Showing help for scripts/prepare_annotations.py"
   exec conda run -n aigve python scripts/prepare_annotations.py --help
 fi
 
-# Run the preparation / evaluation script with provided arguments
+# Otherwise, treat args as CLI for prepare_annotations.py
+echo "[INFO] Running CLI: scripts/prepare_annotations.py $*"
 exec conda run -n aigve python scripts/prepare_annotations.py "$@"
