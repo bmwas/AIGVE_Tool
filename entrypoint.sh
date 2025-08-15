@@ -29,6 +29,12 @@ cd /app
 
 # GPU detection and enforcement (default: require GPU)
 REQUIRE_GPU="${REQUIRE_GPU:-1}"
+# If CUDA_VISIBLE_DEVICES is set to an empty string, it masks all GPUs.
+# Unset it to allow default (all devices) visibility.
+if [[ "${CUDA_VISIBLE_DEVICES+x}" == "x" && -z "${CUDA_VISIBLE_DEVICES}" ]]; then
+  echo "[WARN] CUDA_VISIBLE_DEVICES is empty; unsetting to allow GPU visibility."
+  unset CUDA_VISIBLE_DEVICES
+fi
 # Run probe and capture both stdout and stderr without aborting on failure
 set +e
 TORCH_CUDA_OUTPUT=$(conda run -n aigve python - <<'PY' 2>&1
@@ -37,12 +43,27 @@ try:
     import torch
     info = {
         "torch": getattr(torch, "__version__", None),
+        "is_built": bool(getattr(getattr(torch, 'backends', None), 'cuda', None) and torch.backends.cuda.is_built()),
         "cuda_available": bool(torch.cuda.is_available()),
         "cuda_version": getattr(torch.version, "cuda", None),
         "device_count": torch.cuda.device_count() if torch.cuda.is_available() else 0,
         "cuda_visible_devices": os.environ.get("CUDA_VISIBLE_DEVICES"),
         "nvidia_visible_devices": os.environ.get("NVIDIA_VISIBLE_DEVICES"),
     }
+    # Attempt to load libcuda explicitly
+    try:
+        import ctypes
+        ctypes.CDLL("libcuda.so.1")
+        info["libcuda_loaded"] = True
+    except Exception as e:
+        info["libcuda_loaded"] = False
+        info["libcuda_error"] = str(e)
+    # Attempt to initialize CUDA to surface error messages
+    try:
+        torch.cuda.init()
+        info["cuda_init_error"] = None
+    except Exception as e:
+        info["cuda_init_error"] = str(e)
     if info["cuda_available"]:
         info["devices"] = [{"index": i, "name": torch.cuda.get_device_name(i)} for i in range(info["device_count"])]
     else:
