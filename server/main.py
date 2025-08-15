@@ -4,6 +4,8 @@ import os
 import sys
 import shlex
 import subprocess
+import json
+import re
 from typing import List, Optional
 
 from fastapi import FastAPI, HTTPException
@@ -116,6 +118,43 @@ def _build_cli_args(req: PrepareAnnotationsRequest) -> List[str]:
     return args
 
 
+def _collect_artifacts(base_dir: str, stdout: str) -> List[dict]:
+    """
+    Collect known result JSON files produced by the metrics scripts and include their contents.
+    """
+    candidate_names = [
+        "fid_results.json",
+        "is_results.json",
+        "fvd_results.json",
+        "gstvqa_results.json",
+        "simplevqa_results.json",
+        "lightvqa_plus_results.json",
+    ]
+    artifacts: List[dict] = []
+    for name in candidate_names:
+        path = os.path.join(base_dir, name)
+        if os.path.exists(path):
+            item: dict = {"name": name, "path": path}
+            try:
+                with open(path, "r", encoding="utf-8") as f:
+                    text = f.read()
+                try:
+                    item["json"] = json.loads(text)
+                except Exception:
+                    item["text"] = text
+            except Exception as e:
+                item["error"] = str(e)
+            artifacts.append(item)
+    # Best-effort: detect staged dataset path from stdout
+    try:
+        m = re.search(r"Staged dataset at:\s*(.+)", stdout)
+        if m:
+            artifacts.append({"name": "stage_info.txt", "path": None, "text": f"staged_dataset: {m.group(1).strip()}"})
+    except Exception:
+        pass
+    return artifacts
+
+
 @app.get("/healthz")
 def healthz():
     cuda_available = False
@@ -164,12 +203,18 @@ def cli_help():
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to execute: {e}")
-    return {
+    response = {
         "cmd": " ".join(shlex.quote(c) for c in cmd),
         "returncode": proc.returncode,
         "stdout": proc.stdout,
         "stderr": proc.stderr,
     }
+    # Attach artifacts (result JSON files)
+    try:
+        response["artifacts"] = _collect_artifacts(APP_ROOT, proc.stdout or "")
+    except Exception as e:
+        response["artifact_error"] = str(e)
+    return response
 
 
 @app.post("/run")
@@ -195,9 +240,15 @@ def run_prepare(req: PrepareAnnotationsRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to execute: {e}")
 
-    return {
+    response = {
         "cmd": " ".join(shlex.quote(c) for c in cmd),
         "returncode": proc.returncode,
         "stdout": proc.stdout,
         "stderr": proc.stderr,
     }
+    # Attach artifacts (result JSON files)
+    try:
+        response["artifacts"] = _collect_artifacts(APP_ROOT, proc.stdout or "")
+    except Exception as e:
+        response["artifact_error"] = str(e)
+    return response

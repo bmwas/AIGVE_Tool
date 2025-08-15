@@ -95,10 +95,7 @@ conda run -n "$ENV_NAME" pip install opencv-python-headless
 # (These may pull incompatible transformers or heavy deps.)
 conda run -n "$ENV_NAME" pip uninstall -y vbench mantis mantis-vl || true
 
-# 5c) Ensure consistent numeric stack (NumPy/SciPy) via pip for consistency with PyTorch pip install
-echo "Installing NumPy and SciPy via pip for consistency..."
-# Force reinstall to ensure correct version even if already present
-conda run -n "$ENV_NAME" pip install --force-reinstall numpy==1.26.4 scipy==1.11.4
+# 5c) Note: NumPy/SciPy will be pinned at the very end to prevent upgrades
 
 # 6) Install remaining requirements WITHOUT touching torch packages
 # - Filters out top-level torch/torchvision/torchaudio/pytorch pins
@@ -154,6 +151,11 @@ conda run -n "$ENV_NAME" pip install \
   "python-dotenv" \
   "requests" \
   "charset-normalizer"
+
+# CRITICAL: Pin NumPy/SciPy AFTER all other installations to prevent upgrades
+echo "Pinning NumPy 1.26.4 and SciPy 1.11.4 (required for PyTorch 2.1.0)..."
+conda run -n "$ENV_NAME" pip install --force-reinstall --no-deps numpy==1.26.4
+conda run -n "$ENV_NAME" pip install --force-reinstall --no-deps scipy==1.11.4
 
 # 6b) Optional NLP extras (transformers + compatible tokenizers)
 if [[ "$NLP_EXTRAS" -eq 1 ]]; then

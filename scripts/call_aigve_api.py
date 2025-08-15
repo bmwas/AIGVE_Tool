@@ -87,6 +87,38 @@ def run_distribution_metrics(
     return r.json()
 
 
+def save_artifacts_locally(result: Dict[str, Any], save_dir: str) -> list[str]:
+    artifacts = result.get("artifacts") or []
+    if not artifacts:
+        print("[artifacts] No artifacts returned by server.", flush=True)
+        return []
+    os.makedirs(save_dir, exist_ok=True)
+    saved: list[str] = []
+    for art in artifacts:
+        name = art.get("name") or "artifact.json"
+        base = os.path.basename(name)
+        target = os.path.join(save_dir, base)
+        content: str | None = None
+        if isinstance(art.get("json"), (dict, list)):
+            content = json.dumps(art["json"], indent=2)
+        elif isinstance(art.get("text"), str):
+            content = art["text"]
+        # Skip if no readable content
+        if content is None:
+            continue
+        try:
+            with open(target, "w", encoding="utf-8") as f:
+                f.write(content)
+            saved.append(target)
+        except Exception as e:
+            print(f"[artifacts] Failed to write {target}: {e}", flush=True)
+    if saved:
+        print("[artifacts] Saved locally:")
+        for p in saved:
+            print(" -", p)
+    return saved
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description="Call AIGVE API to run distribution-based metrics.")
     ap.add_argument("--base-url", default=os.getenv("AIGVE_API_URL", "http://localhost:2200"),
@@ -101,6 +133,7 @@ def main(argv: list[str] | None = None) -> int:
                     help="FPS used with --max-seconds. Default: 25.0")
     ap.add_argument("--cpu", action="store_true", help="Force CPU")
     ap.add_argument("--no-help", action="store_true", help="Skip calling /help before /run")
+    ap.add_argument("--save-dir", default="./results", help="Directory to save returned result files locally")
     ap.add_argument("--local", action="store_true", help="Use local host defaults (./data, ./out/staged)")
 
     args = ap.parse_args(argv)
@@ -169,6 +202,12 @@ def main(argv: list[str] | None = None) -> int:
         print("\nstdout (last 40 lines):\n" + tail(stdout, 40))
     if stderr:
         print("\nstderr (last 40 lines):\n" + tail(stderr, 40))
+
+    # Save any returned artifacts locally
+    try:
+        save_artifacts_locally(result, args.save_dir)
+    except Exception as e:
+        print(f"[artifacts] Error while saving artifacts: {e}", flush=True)
 
     rc = int(result.get("returncode", 0) or 0)
     return rc
