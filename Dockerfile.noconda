@@ -128,26 +128,28 @@ RUN python3 -m pip install --no-cache-dir \
     chardet
 
 # ------------------------------
-# Install mmcv, mmdet, mmengine
+# Install mmcv, mmdet, mmengine (with numpy constraint)
 # ------------------------------
 RUN python3 -m pip install --no-cache-dir \
+    "numpy==1.26.4" \
     mmcv==2.2.0 \
     mmdet==3.3.0 \
     mmengine==0.10.6
 
 # ------------------------------
-# Install transformers and tokenizers
+# Install transformers and tokenizers (with numpy constraint)
 # ------------------------------
 RUN python3 -m pip install --no-cache-dir \
+    "numpy==1.26.4" \
     transformers==4.46.3 \
     "tokenizers>=0.20,<0.21" \
     safetensors \
     accelerate
 
 # ------------------------------
-# Install CLIP from GitHub
+# Install CLIP from GitHub (with numpy constraint)
 # ------------------------------
-RUN python3 -m pip install --no-cache-dir git+https://github.com/openai/CLIP.git
+RUN python3 -m pip install --no-cache-dir "numpy==1.26.4" git+https://github.com/openai/CLIP.git
 
 # ------------------------------
 # Install API server dependencies
@@ -176,6 +178,14 @@ RUN python3 -m pip install --no-cache-dir \
     mkdocs-rss-plugin \
     mkdocs-exclude \
     mkdocstrings[python] || true
+
+# ------------------------------
+# FINAL: Force downgrade NumPy to 1.26.4 after all installations
+# ------------------------------
+RUN python3 -m pip install --force-reinstall --no-deps numpy==1.26.4
+
+# Verify NumPy version
+RUN python3 -c "import numpy; assert numpy.__version__.startswith('1.26'), f'NumPy {numpy.__version__} != 1.26.x'; print(f'NumPy version: {numpy.__version__}')"
 
 # Copy the repository
 COPY . /app/
