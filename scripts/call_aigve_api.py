@@ -91,16 +91,17 @@ def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description="Call AIGVE API to run distribution-based metrics.")
     ap.add_argument("--base-url", default=os.getenv("AIGVE_API_URL", "http://localhost:2200"),
                     help="Base URL for the AIGVE API (default: http://localhost:2200 or env AIGVE_API_URL)")
-    ap.add_argument("--input-dir", default="/app/data",
-                    help="Container path to mixed videos (mounted). Default: /app/data")
-    ap.add_argument("--stage-dataset", default="/app/out/staged",
-                    help="Container path where dataset will be staged. Default: /app/out/staged")
+    ap.add_argument("--input-dir", default=os.getenv("AIGVE_INPUT_DIR", "/app/data"),
+                    help="Path to mixed videos. Docker default: /app/data. Local example: ./data")
+    ap.add_argument("--stage-dataset", default=os.getenv("AIGVE_STAGE_DATASET", "/app/out/staged"),
+                    help="Destination dataset path. Docker default: /app/out/staged. Local example: ./out/staged")
     ap.add_argument("--max-seconds", type=float, default=8.0,
                     help="Clip duration in seconds (overrides max_len). Default: 8.0")
     ap.add_argument("--fps", type=float, default=25.0,
                     help="FPS used with --max-seconds. Default: 25.0")
     ap.add_argument("--cpu", action="store_true", help="Force CPU")
     ap.add_argument("--no-help", action="store_true", help="Skip calling /help before /run")
+    ap.add_argument("--local", action="store_true", help="Use local host defaults (./data, ./out/staged)")
 
     args = ap.parse_args(argv)
 
@@ -110,6 +111,23 @@ def main(argv: list[str] | None = None) -> int:
     print(f"[1/3] Checking health at {base_url}/healthz ...", flush=True)
     health = check_health(base_url)
     print(json.dumps(health, indent=2))
+
+    # If server cwd is not an /app path, it is likely running locally (no Docker)
+    cwd = str(health.get("cwd", ""))
+    is_container = cwd.startswith("/app")
+    if not is_container and (str(args.input_dir).startswith("/app/") or str(args.stage_dataset).startswith("/app/")):
+        print("[WARN] Server is running locally (cwd: {}), but input paths are '/app/...'.".format(cwd), flush=True)
+        print("       For local runs, use host paths (e.g., ./data, ./out/staged) or pass --local.", flush=True)
+
+    # Convenience: --local switches defaults to repo-relative paths when not explicitly overridden
+    if args.local:
+        default_in = os.getenv("AIGVE_INPUT_DIR", "/app/data")
+        default_out = os.getenv("AIGVE_STAGE_DATASET", "/app/out/staged")
+        if args.input_dir == default_in:
+            args.input_dir = "./data"
+        if args.stage_dataset == default_out:
+            args.stage_dataset = "./out/staged"
+        print(f"[local] Using input_dir={args.input_dir} stage_dataset={args.stage_dataset}", flush=True)
 
     # 2) Help (optional)
     if not args.no_help:

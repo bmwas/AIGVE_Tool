@@ -62,8 +62,10 @@ echo "Cleaning up any pip-installed torch packages..."
 conda run -n "$ENV_NAME" pip uninstall -y torch torchvision torchaudio || true
 
 echo "Installing GPU PyTorch (CUDA 11.8 runtime) into env: $ENV_NAME"
+# Ensure channels are prioritized correctly and force reinstall
 conda install -n "$ENV_NAME" -y -c pytorch -c nvidia \
-  pytorch=2.1.0 torchvision=0.16.0 torchaudio=2.1.0 pytorch-cuda=11.8 --force-reinstall
+  pytorch=2.1.0 torchvision=0.16.0 torchaudio=2.1.0 pytorch-cuda=11.8 \
+  --force-reinstall --override-channels
 
 # 2b) Enforce GPU build (do not require a runtime GPU during build)
 conda run -n "$ENV_NAME" python - << 'PY'
