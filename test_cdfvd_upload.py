@@ -8,7 +8,6 @@ import os
 import sys
 import json
 import requests
-import numpy as np
 import tempfile
 from pathlib import Path
 
@@ -34,6 +33,7 @@ def create_test_videos(output_dir):
         return real_path, fake_path
     
     # Create actual test videos if cv2 is available
+    import numpy as np
     fourcc = cv2.VideoWriter_fourcc(*'mp4v')
     fps = 25
     frame_count = 32
@@ -183,27 +183,58 @@ def main():
     print(f"Server: {base_url}")
     print("-" * 50)
     
-    # Create test videos in a temporary directory
-    with tempfile.TemporaryDirectory() as tmpdir:
-        print(f"\n📹 Creating test videos in {tmpdir}...")
-        real_video, fake_video = create_test_videos(tmpdir)
-        print(f"  ✓ Created: {os.path.basename(real_video)}")
-        print(f"  ✓ Created: {os.path.basename(fake_video)}")
-        
-        # Test the upload with CD-FVD
-        success = test_upload_with_cdfvd(base_url, real_video, fake_video)
-        
-        if success:
-            print("\n✅ Test completed successfully!")
+    # Use real videos from aigve/data if available
+    real_videos_dir = "aigve/data/AIGVE_Bench_toy/videos"
+    if os.path.exists(real_videos_dir):
+        videos = [f for f in os.listdir(real_videos_dir) if f.endswith('.mp4')]
+        if len(videos) >= 2:
+            print(f"\n📹 Using real videos from {real_videos_dir}")
+            # Use first video as "real", rename second as synthetic for testing
+            real_video = os.path.join(real_videos_dir, videos[0])
+            
+            # Copy second video with _synthetic suffix to temp dir
+            with tempfile.TemporaryDirectory() as tmpdir:
+                fake_name = videos[1].replace('.mp4', '_synthetic.mp4')
+                fake_video = os.path.join(tmpdir, fake_name)
+                import shutil
+                shutil.copy(os.path.join(real_videos_dir, videos[1]), fake_video)
+                
+                # Also copy the real video to maintain naming convention
+                real_copy = os.path.join(tmpdir, videos[0])
+                shutil.copy(real_video, real_copy)
+                
+                print(f"  ✓ Using real: {os.path.basename(real_copy)}")
+                print(f"  ✓ Using fake: {os.path.basename(fake_video)}")
+                
+                # Test the upload with CD-FVD
+                success = test_upload_with_cdfvd(base_url, real_copy, fake_video)
         else:
-            print("\n❌ Test failed!")
-            print("\n🔧 Troubleshooting steps:")
-            print("1. Ensure the server is running: docker ps")
-            print("2. Install cd-fvd in container: docker exec <container_id> pip install cd-fvd")
-            print("3. Check server logs: docker logs <container_id>")
-            print("4. Verify GPU access: docker exec <container_id> python -c 'import torch; print(torch.cuda.is_available())'")
-        
-        return 0 if success else 1
+            print(f"\n⚠️ Not enough videos in {real_videos_dir}, creating dummy files...")
+            with tempfile.TemporaryDirectory() as tmpdir:
+                real_video, fake_video = create_test_videos(tmpdir)
+                success = test_upload_with_cdfvd(base_url, real_video, fake_video)
+    else:
+        # Fallback to creating test videos
+        with tempfile.TemporaryDirectory() as tmpdir:
+            print(f"\n📹 Creating test videos in {tmpdir}...")
+            real_video, fake_video = create_test_videos(tmpdir)
+            print(f"  ✓ Created: {os.path.basename(real_video)}")
+            print(f"  ✓ Created: {os.path.basename(fake_video)}")
+            
+            # Test the upload with CD-FVD
+            success = test_upload_with_cdfvd(base_url, real_video, fake_video)
+    
+    if success:
+        print("\n✅ Test completed successfully!")
+    else:
+        print("\n❌ Test failed!")
+        print("\n🔧 Troubleshooting steps:")
+        print("1. Ensure the server is running: docker ps")
+        print("2. Install cd-fvd in container: docker exec <container_id> pip install cd-fvd")
+        print("3. Check server logs: docker logs <container_id>")
+        print("4. Verify GPU access: docker exec <container_id> python -c 'import torch; print(torch.cuda.is_available())'")
+    
+    return 0 if success else 1
 
 if __name__ == "__main__":
     sys.exit(main())
