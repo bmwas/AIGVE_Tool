@@ -111,8 +111,8 @@ COPY . /app/
 RUN chmod +x /app/entrypoint.sh || true
 
 # Default entrypoint serves API (see entrypoint.sh). Users can run CLI by passing flags.
-#   docker run --gpus all --rm -p 2200:2200 -v "$PWD/data":/app/data aigve:latest
-#   docker run --gpus all --rm -v "$PWD/data":/app/data aigve:latest --input-dir /app/data --compute --categories distribution_based --max-seconds 8
+#   docker run --gpus all --rm -p 2200:2200 -v "$PWD/data":/app/data ghcr.io/bmwas/aigve:latest
+#   docker run --gpus all --rm -v "$PWD/data":/app/data ghcr.io/bmwas/aigve:latest --input-dir /app/data --compute --categories distribution_based --max-seconds 8
 EXPOSE 2200
 ENTRYPOINT ["/app/entrypoint.sh"]
 CMD ["api"]

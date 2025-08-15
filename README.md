@@ -244,11 +244,11 @@ This project ships with a Dockerized, conda-based environment that supports both
 ### Build the image
 - GPU (default):
   ```bash
-  docker build -t aigve:latest .
+  docker build -t ghcr.io/bmwas/aigve:latest .
   ```
 - CPU-only:
   ```bash
-  docker build --build-arg CPU_ONLY=1 -t aigve:cpu .
+  docker build --build-arg CPU_ONLY=1 -t ghcr.io/bmwas/aigve:cpu .
   ```
 
 ### Run the API server (default, port 2200)
@@ -256,18 +256,18 @@ This project ships with a Dockerized, conda-based environment that supports both
   ```bash
   docker run --rm --gpus all -p 2200:2200 \
     -v "$PWD/data":/app/data -v "$PWD/out":/app/out \
-    aigve:latest
+    ghcr.io/bmwas/aigve:latest
   # Open docs: http://localhost:2200/docs
   ```
 - CPU:
   ```bash
   docker run --rm -p 2200:2200 \
     -v "$PWD/data":/app/data -v "$PWD/out":/app/out \
-    aigve:cpu
+    ghcr.io/bmwas/aigve:cpu
   ```
 - Custom port:
   ```bash
-  docker run --rm -e PORT=9000 -p 9000:9000 aigve:latest
+  docker run --rm -e PORT=9000 -p 9000:9000 ghcr.io/bmwas/aigve:latest
   ```
 
 ### Call the API
@@ -304,7 +304,7 @@ Pass the script flags directly to the container. If arguments are provided and t
   ```bash
   docker run --rm --gpus all \
     -v "$PWD/data":/app/data -v "$PWD/out":/app/out \
-    aigve:latest \
+    ghcr.io/bmwas/aigve:latest \
       --input-dir /app/data \
       --stage-dataset /app/out/staged \
       --compute --categories distribution_based \
@@ -313,7 +313,7 @@ Pass the script flags directly to the container. If arguments are provided and t
 
 - Show help:
   ```bash
-  docker run --rm aigve:latest --help
+  docker run --rm ghcr.io/bmwas/aigve:latest --help
   ```
 
 ## Prepare annotations and compute metrics (scripts/prepare_annotations.py)

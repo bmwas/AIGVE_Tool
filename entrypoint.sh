@@ -7,7 +7,7 @@ set -euo pipefail
 # - Forwards all CLI arguments to the script
 #
 # Examples:
-#   docker run --rm --gpus all -v "$PWD/data":/app/data aigve:latest \
+#   docker run --rm --gpus all -v "$PWD/data":/app/data ghcr.io/bmwas/aigve:latest \
 #     --input-dir /app/data --compute --categories distribution_based --max-seconds 8 --fps 25
 #
 
