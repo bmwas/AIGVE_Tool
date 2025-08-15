@@ -295,6 +295,20 @@ Open the docs: http://localhost:2200/docs
     }'
   ```
 
+- Upload files directly (no server-side paths):
+  ```bash
+  # Sends local files to the server which runs metrics on the uploaded copies only
+  curl -X POST http://localhost:2200/run_upload \
+    -F "videos=@./data/40596_2019_1140_MOESM1_ESM.mov" \
+    -F "videos=@./data/40596_2019_1140_MOESM1_ESM_synthetic.mp4" \
+    -F "categories=distribution_based" \
+    -F "max_seconds=8" -F "fps=25"
+  ```
+  Notes:
+  - Use `-F videos=@<path>` once per file. Supported extensions: `.mp4,.mov,.webm,.mkv,.avi,.m4v`.
+  - The server stores uploads under `uploads/<session-id>/` and stages a dataset there by default.
+  - GPU is still required on the server container.
+
 ### Troubleshooting (local)
 - CUDA visible via `nvidia-smi` but `cuda_available=false`:
   - Confirm conda Torch is a CUDA build: `conda list | grep -E "pytorch|pytorch-cuda"` (should show `pytorch-cuda 11.8`).
@@ -397,13 +411,30 @@ Use the included Python client to call the REST API and run distribution-based m
 
 - Control duration and base URL:
   ```bash
+  # Artifacts are saved to ./results by default; use --save-dir to change
   python scripts/call_aigve_api.py --max-seconds 8 --fps 25 \
-    --base-url http://localhost:2200
+    --base-url http://localhost:2200 --save-dir ./results
   ```
 
 Client defaults (container paths):
 - `input_dir=/app/data` (mount your host `./data` to this path)
 - `stage_dataset=/app/out/staged` (mount your host `./out` to `/app/out`)
+
+Upload mode (send files instead of referencing server paths):
+- From a local folder:
+  ```bash
+  python scripts/call_aigve_api.py --base-url http://localhost:2200 \
+    --upload-dir ./data --max-seconds 8 --fps 25 --save-dir ./results
+  ```
+- With explicit files:
+  ```bash
+  python scripts/call_aigve_api.py --base-url http://localhost:2200 \
+    --upload-files ./data/real.mov ./data/real_synthetic.mp4 \
+    --categories distribution_based --max-seconds 8 --fps 25
+  ```
+Behavior:
+- `--upload-*` calls `POST /run_upload` and the server computes strictly on the uploaded files.
+- Without `--upload-*`, the client calls `POST /run` and paths must exist on the server side.
 
 #### Client-only Python environment (no server deps)
 
@@ -415,10 +446,10 @@ python -m venv .venv-aigve-client
 source .venv-aigve-client/bin/activate
 pip install -r scripts/requirements-client.txt
 
-# Call the API (GPU on server by default; add --cpu to force CPU)
-python scripts/call_aigve_api.py --base-url http://localhost:2200
-# or
-python scripts/call_aigve_api.py --base-url http://<server-ip>:2200 --cpu
+# Call the API (GPU on server by default). Artifacts are saved under ./results by default.
+python scripts/call_aigve_api.py --base-url http://localhost:2200 --save-dir ./results
+# or (remote server)
+python scripts/call_aigve_api.py --base-url http://<server-ip>:2200 --save-dir ./results
 
 # Deactivate when done
 deactivate
@@ -462,8 +493,11 @@ This project exposes a FastAPI server that wraps `scripts/prepare_annotations.py
 
 - __Endpoints__
   - `GET /healthz` → returns `{status, python, cwd, script_exists, torch, cuda_available, cuda_version, device_count, torch_error}`
-  - `GET /help` → executes `scripts/prepare_annotations.py --help` and returns `{cmd, returncode, stdout, stderr}`
-  - `POST /run` → runs the script with provided options. Returns `{cmd, returncode, stdout, stderr}`
+  - `GET /help` → executes `scripts/prepare_annotations.py --help` and returns `{cmd, returncode, stdout, stderr, artifacts?}`
+  - `POST /run` → runs the script with provided options. Returns `{cmd, returncode, stdout, stderr, artifacts}`
+  - `POST /run_upload` → accepts multipart file uploads (`videos`) and runs the same pipeline on a per-request
+    session directory. Returns `{cmd, returncode, stdout, stderr, session, artifacts}` where `session` includes
+    `{id, upload_dir, stage_dir, files}`.
 
 - __POST /run request body__ (all fields map 1:1 to the script’s CLI flags):
   - `input_dir: string | null` — required unless `list_metrics=true`
@@ -486,6 +520,10 @@ This project exposes a FastAPI server that wraps `scripts/prepare_annotations.py
   Notes:
   - When running in Docker, use container paths (e.g., `/app/data`, `/app/out`).
   - `metrics="all"` is kept for backward compatibility and expands to `fid,is,fvd` (i.e., `distribution_based`).
+  - Responses may include `artifacts`: an array of result files with contents. Expected names include
+    `fid_results.json`, `is_results.json`, `fvd_results.json` (and others when enabled). Each artifact
+    contains `{name, path (server-side), json|text}`. The server also writes these files to its working
+    directory; use the Python client to save local copies.
 
 - __Examples (curl)__
   - __List available categories/metrics only__ (no input_dir required)
@@ -529,6 +567,17 @@ This project exposes a FastAPI server that wraps `scripts/prepare_annotations.py
         "fps": 25
       }'
     ```
+
+  - __Upload files and compute (no server paths required)__
+    ```bash
+    curl -X POST http://localhost:2200/run_upload \
+      -F "videos=@./data/real.mov" \
+      -F "videos=@./data/real_synthetic.mp4" \
+      -F "categories=distribution_based" -F "max_seconds=8" -F "fps=25"
+    ```
+    Notes:
+    - Pairing is done by basename using suffixes (default: `synthetic,generated`) and supports different extensions.
+    - The server stages to an internal session directory unless you pass `stage_dataset`.
 
   - __Compute video-only NN metrics (provide model paths)__
     ```bash

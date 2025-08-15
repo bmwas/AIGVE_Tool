@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import os
+import uuid
+import shutil
 import sys
 import shlex
 import subprocess
@@ -8,7 +10,7 @@ import json
 import re
 from typing import List, Optional
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, UploadFile, File, Form
 from pydantic import BaseModel, Field
 
 # Optional torch import (server runs inside conda env where torch is present)
@@ -210,6 +212,107 @@ def cli_help():
         "stderr": proc.stderr,
     }
     # Attach artifacts (result JSON files)
+    try:
+        response["artifacts"] = _collect_artifacts(APP_ROOT, proc.stdout or "")
+    except Exception as e:
+        response["artifact_error"] = str(e)
+    return response
+
+
+@app.post("/run_upload")
+def run_upload(
+    # Files
+    videos: List[UploadFile] = File(..., description="Video files (.mp4, .mov, etc.)"),
+    # Core options (form fields)
+    generated_suffixes: str = Form("synthetic,generated"),
+    stage_dataset: Optional[str] = Form(None),
+    link: bool = Form(False),
+    # Metric execution
+    compute: bool = Form(True),
+    metrics: str = Form(""),
+    categories: str = Form("distribution_based"),
+    # Length control
+    max_len: int = Form(64),
+    max_seconds: Optional[float] = Form(None),
+    fps: float = Form(25.0),
+    pad: bool = Form(False),
+    # Device
+    use_cpu: bool = Form(False),
+):
+    """
+    Accept uploaded video files and run the same pipeline as /run using a
+    temporary session directory. Returns stdout/stderr plus artifacts.
+    """
+    if not os.path.exists(SCRIPT_PATH):
+        raise HTTPException(status_code=500, detail=f"Script not found at {SCRIPT_PATH}")
+
+    # Create a unique session directory under the app root
+    session_id = str(uuid.uuid4())
+    upload_dir = os.path.join(APP_ROOT, "uploads", session_id)
+    os.makedirs(upload_dir, exist_ok=True)
+
+    allowed_exts = {".mp4", ".mov", ".mkv", ".avi", ".webm", ".m4v"}
+    saved_files: List[str] = []
+    for uf in videos:
+        try:
+            name = os.path.basename(uf.filename or "video")
+            ext = os.path.splitext(name)[1].lower()
+            if ext and ext not in allowed_exts:
+                # Skip unknown extensions; do not fail entire request
+                continue
+            dest_path = os.path.join(upload_dir, name)
+            # Ensure parent exists
+            os.makedirs(os.path.dirname(dest_path), exist_ok=True)
+            with open(dest_path, "wb") as out_f:
+                shutil.copyfileobj(uf.file, out_f)
+            saved_files.append(name)
+        except Exception as e:
+            # Continue saving others; report error later
+            saved_files.append(f"ERROR:{getattr(uf, 'filename', 'unknown')}: {e}")
+
+    # Determine stage dataset dir
+    if stage_dataset:
+        stage_dir = stage_dataset if os.path.isabs(stage_dataset) else os.path.join(APP_ROOT, stage_dataset)
+    else:
+        stage_dir = os.path.join(upload_dir, "staged")
+
+    # Build args via existing request model helper
+    req = PrepareAnnotationsRequest(
+        input_dir=upload_dir,
+        generated_suffixes=generated_suffixes,
+        stage_dataset=stage_dir,
+        link=link,
+        compute=compute,
+        metrics=(metrics or None),
+        categories=(categories or None),
+        max_len=max_len,
+        max_seconds=max_seconds,
+        fps=fps,
+        pad=pad,
+        use_cpu=use_cpu,
+    )
+    args = _build_cli_args(req)
+    cmd = [sys.executable, SCRIPT_PATH] + args
+
+    try:
+        proc = subprocess.run(
+            cmd,
+            cwd=APP_ROOT,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            check=False,
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to execute: {e}")
+
+    response = {
+        "cmd": " ".join(shlex.quote(c) for c in cmd),
+        "returncode": proc.returncode,
+        "stdout": proc.stdout,
+        "stderr": proc.stderr,
+        "session": {"id": session_id, "upload_dir": upload_dir, "stage_dir": stage_dir, "files": saved_files},
+    }
     try:
         response["artifacts"] = _collect_artifacts(APP_ROOT, proc.stdout or "")
     except Exception as e:

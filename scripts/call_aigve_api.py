@@ -34,7 +34,7 @@ import argparse
 import json
 import os
 import sys
-from typing import Any, Dict
+from typing import Any, Dict, Iterable, List, Optional
 
 import requests
 
@@ -87,6 +87,97 @@ def run_distribution_metrics(
     return r.json()
 
 
+ALLOWED_EXTS = (".mp4", ".mov", ".mkv", ".avi", ".webm", ".m4v")
+
+
+def _iter_video_files_from_dir(path: str) -> List[str]:
+    out: List[str] = []
+    for name in sorted(os.listdir(path)):
+        p = os.path.join(path, name)
+        if os.path.isdir(p):
+            continue
+        if os.path.splitext(name)[1].lower() in ALLOWED_EXTS:
+            out.append(p)
+    return out
+
+
+def run_distribution_metrics_upload(
+    base_url: str,
+    upload_files: Optional[Iterable[str]] = None,
+    upload_dir: Optional[str] = None,
+    stage_dataset: Optional[str] = None,
+    max_seconds: float | None = 8.0,
+    fps: float = 25.0,
+    use_cpu: bool = False,
+    generated_suffixes: str = "synthetic,generated",
+    categories: str = "distribution_based",
+    metrics: str = "",
+) -> Dict[str, Any]:
+    """
+    Uploads local video files to the server and calls POST /run_upload.
+    When using this mode, server-side paths are not required; the server
+    computes on the uploaded files only.
+    """
+    files_to_send: List[str] = []
+    if upload_files:
+        files_to_send.extend(list(upload_files))
+    if upload_dir:
+        files_to_send.extend(_iter_video_files_from_dir(upload_dir))
+    # De-dup and keep order
+    seen = set()
+    files_to_send = [f for f in files_to_send if not (f in seen or seen.add(f))]
+    if not files_to_send:
+        raise ValueError("No video files to upload. Provide --upload-files or --upload-dir with supported extensions.")
+
+    form_data: Dict[str, Any] = {
+        "compute": True,
+        "categories": categories,
+        "generated_suffixes": generated_suffixes,
+        "fps": float(fps),
+        "pad": False,
+    }
+    if stage_dataset:
+        form_data["stage_dataset"] = stage_dataset
+    if max_seconds is not None:
+        form_data["max_seconds"] = float(max_seconds)
+    else:
+        form_data["max_len"] = 64
+    if use_cpu:
+        form_data["use_cpu"] = True
+    if metrics:
+        form_data["metrics"] = metrics
+
+    url = f"{base_url.rstrip('/')}/run_upload"
+    opened: List[Any] = []
+    try:
+        files_param = []
+        for p in files_to_send:
+            fname = os.path.basename(p)
+            ext = os.path.splitext(fname)[1].lower()
+            if ext not in ALLOWED_EXTS:
+                continue
+            fobj = open(p, "rb")
+            opened.append(fobj)
+            files_param.append(("videos", (fname, fobj, "application/octet-stream")))
+
+        if not files_param:
+            raise ValueError("No acceptable files to upload after filtering by extension.")
+
+        print(f"[upload] Sending {len(files_param)} files:")
+        for _, (fname, _, _) in files_param:
+            print(" -", fname)
+
+        r = requests.post(url, data=form_data, files=files_param, timeout=7200)
+        r.raise_for_status()
+        return r.json()
+    finally:
+        for f in opened:
+            try:
+                f.close()
+            except Exception:
+                pass
+
+
 def save_artifacts_locally(result: Dict[str, Any], save_dir: str) -> list[str]:
     artifacts = result.get("artifacts") or []
     if not artifacts:
@@ -135,6 +226,17 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--no-help", action="store_true", help="Skip calling /help before /run")
     ap.add_argument("--save-dir", default="./results", help="Directory to save returned result files locally")
     ap.add_argument("--local", action="store_true", help="Use local host defaults (./data, ./out/staged)")
+    # Upload mode options
+    ap.add_argument("--upload-dir", default=None,
+                    help="Upload mode: directory of local videos to send to the server via /run_upload")
+    ap.add_argument("--upload-files", nargs="+", default=None,
+                    help="Upload mode: explicit list of local video files to send via /run_upload")
+    ap.add_argument("--generated-suffixes", default="synthetic,generated",
+                    help="Suffix tokens for pairing (used by server script). Default: synthetic,generated")
+    ap.add_argument("--categories", default="distribution_based",
+                    help="Metric categories CSV (e.g., distribution_based,nn_based_video). Default: distribution_based")
+    ap.add_argument("--metrics", default="",
+                    help="Specific metric names CSV (optional). Example: fid,is,fvd or lightvqa+")
 
     args = ap.parse_args(argv)
 
@@ -173,16 +275,31 @@ def main(argv: list[str] | None = None) -> int:
         preview = "\n".join(lines[:20]) + ("\n..." if len(lines) > 20 else "")
         print("stdout (truncated):\n" + preview)
 
-    # 3) Run distribution metrics
-    print(f"\n[3/3] Running distribution metrics via {base_url}/run ...", flush=True)
-    result = run_distribution_metrics(
-        base_url=base_url,
-        input_dir=args.input_dir,
-        stage_dataset=args.stage_dataset,
-        max_seconds=args.max_seconds,
-        fps=args.fps,
-        use_cpu=args.cpu,
-    )
+    # 3) Run distribution metrics (upload mode or server-path mode)
+    if args.upload_dir or args.upload_files:
+        print(f"\n[3/3] Running distribution metrics via {base_url}/run_upload ...", flush=True)
+        result = run_distribution_metrics_upload(
+            base_url=base_url,
+            upload_files=args.upload_files,
+            upload_dir=args.upload_dir,
+            stage_dataset=(None if args.stage_dataset in (None, "", "/app/out/staged") else args.stage_dataset),
+            max_seconds=args.max_seconds,
+            fps=args.fps,
+            use_cpu=args.cpu,
+            generated_suffixes=args.generated_suffixes,
+            categories=args.categories,
+            metrics=args.metrics,
+        )
+    else:
+        print(f"\n[3/3] Running distribution metrics via {base_url}/run ...", flush=True)
+        result = run_distribution_metrics(
+            base_url=base_url,
+            input_dir=args.input_dir,
+            stage_dataset=args.stage_dataset,
+            max_seconds=args.max_seconds,
+            fps=args.fps,
+            use_cpu=args.cpu,
+        )
 
     print("\n--- /run result ---")
     print("cmd:", result.get("cmd"))

@@ -115,9 +115,16 @@ def discover_pairs(input_dir: Path, generated_suffixes: str) -> Tuple[List[Tuple
 
     # Index by basename for quick lookup
     by_name: Dict[str, Path] = {p.name: p for p in files}
+    # Also index by stem (case-insensitive) to allow GT/GEN with different extensions
+    by_stem: Dict[str, List[Path]] = {}
+    for p in files:
+        by_stem.setdefault(p.stem.lower(), []).append(p)
 
     # Track seen GT basenames to detect multiple generated versions
     seen_gen_for_gt: Dict[str, List[str]] = {}
+
+    # Preferred extension order when GT and GEN differ
+    EXT_PRIORITY = [".mp4", ".mov", ".webm", ".mkv", ".avi", ".m4v"]
 
     for p in files:
         stem = p.stem  # without extension
@@ -125,14 +132,34 @@ def discover_pairs(input_dir: Path, generated_suffixes: str) -> Tuple[List[Tuple
         if not match:
             continue  # looks like a ground-truth (no gen suffix)
         tok, base_stem = match
-        gt_name = f"{base_stem}{p.suffix}"
-        if gt_name not in gt_set:
+
+        # Find a GT file whose stem matches base_stem, regardless of extension.
+        candidates = by_stem.get(base_stem.lower(), [])
+        if not candidates:
             issues["no_gt"].append(p.name)
             continue
+
+        # Prefer GT with the same extension as generated, else fall back by priority.
+        chosen_gt: Optional[Path] = None
+        for q in candidates:
+            if q.suffix.lower() == p.suffix.lower():
+                chosen_gt = q
+                break
+        if chosen_gt is None:
+            for ext in EXT_PRIORITY:
+                for q in candidates:
+                    if q.suffix.lower() == ext:
+                        chosen_gt = q
+                        break
+                if chosen_gt is not None:
+                    break
+        if chosen_gt is None:
+            chosen_gt = candidates[0]
+
         gen_path = p
-        gt_path = by_name[gt_name]
+        gt_path = chosen_gt
         pairs.append((gen_path, gt_path))
-        seen_gen_for_gt.setdefault(gt_name, []).append(gen_path.name)
+        seen_gen_for_gt.setdefault(gt_path.name, []).append(gen_path.name)
 
     # Any GT without generated counterpart?
     for gt_name in gt_set:
