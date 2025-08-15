@@ -124,17 +124,13 @@ conda install -n aigve -y -c pytorch -c nvidia "pytorch=2.1.0" "torchvision=0.16
 
 ### Environment setup via `setup_env.sh` (recommended)
 
-The helper script automates environment creation, installs a compatible PyTorch build (GPU CUDA 11.8 or CPU-only), adds ONNX/protobuf, and filters/installs the rest of requirements without breaking the conda Torch install. It also fixes common issues (requests charset and tokenizers/transformers compatibility).
+The helper script automates environment creation and installs a GPU-only PyTorch build (CUDA 11.8). It also adds ONNX/protobuf and filters/installs the rest of requirements without breaking the conda Torch install. CPU-only installation is disabled.
 
 Basic usages:
 
-- **GPU (default)**
+- **GPU (enforced)**
   ```bash
   bash setup_env.sh
-  ```
-- **CPU-only**
-  ```bash
-  bash setup_env.sh --cpu
   ```
 - **Explicit env name (default is 'aigve')**
   ```bash
@@ -144,15 +140,13 @@ Basic usages:
   ```bash
   bash setup_env.sh --with-nlp
   ```
-- **Combine flags**
-  ```bash
-  bash setup_env.sh --cpu --with-nlp
-  bash setup_env.sh --env-name aigve --with-nlp
-  ```
+
+Notes:
+- `--cpu` is disabled and will exit with an error. This project requires a GPU-enabled PyTorch build.
 
 What the script does:
 - Re-creates the env from `environment.yml`.
-- Uninstalls any pip-installed Torch packages, then installs conda Torch: `pytorch=2.1.0` + `torchvision=0.16.0` + `torchaudio=2.1.0` with `pytorch-cuda=11.8` (or `cpuonly`).
+- Uninstalls any pip-installed Torch packages, then installs conda Torch: `pytorch=2.1.0` + `torchvision=0.16.0` + `torchaudio=2.1.0` with `pytorch-cuda=11.8` (GPU-only enforced).
 - Installs `onnx==1.14.1` and `protobuf>=4.23.4,<4.24`.
 - Installs `charset-normalizer` and `opencv-python-headless`.
 - Installs remaining requirements with `--no-deps` while filtering out torch pins.
@@ -242,28 +236,18 @@ This project ships with a Dockerized, conda-based environment that supports both
 - For GPU support: NVIDIA driver + NVIDIA Container Toolkit (host) and `--gpus all` at runtime
 
 ### Build the image
-- GPU (default):
+- GPU (default and required):
   ```bash
-  docker build -t ghcr.io/bmwas/aigve:latest .
-  ```
-- CPU-only:
-  ```bash
-  docker build --build-arg CPU_ONLY=1 -t ghcr.io/bmwas/aigve:cpu .
+  docker build --no-cache -t ghcr.io/bmwas/aigve:latest .
   ```
 
 ### Run the API server (default, port 2200)
-- GPU:
+- GPU (required):
   ```bash
   docker run --rm --gpus all -p 2200:2200 \
     -v "$PWD/data":/app/data -v "$PWD/out":/app/out \
     ghcr.io/bmwas/aigve:latest
   # Open docs: http://localhost:2200/docs
-  ```
-- CPU:
-  ```bash
-  docker run --rm -p 2200:2200 \
-    -v "$PWD/data":/app/data -v "$PWD/out":/app/out \
-    ghcr.io/bmwas/aigve:cpu
   ```
 - Custom port:
   ```bash
@@ -274,15 +258,12 @@ This project ships with a Dockerized, conda-based environment that supports both
   docker run --rm --gpus all -p 2200:2200 ghcr.io/bmwas/aigve:latest api --workers 2 --log-level info
   ```
 
-- Require GPU at runtime (fail if unavailable):
-  ```bash
-  docker run --rm --gpus all -e REQUIRE_GPU=1 -p 2200:2200 \
-    -v "$PWD/data":/app/data -v "$PWD/out":/app/out \
-    ghcr.io/bmwas/aigve:latest
-  ```
+- GPU requirement behavior:
+  - By default, the container enforces GPU availability and exits if CUDA is not available.
+  - To bypass for debugging (not recommended): set `-e REQUIRE_GPU=0` when running the container.
   Notes:
   - The container logs print a CUDA check JSON at startup (from `torch`), e.g. `{ "cuda_available": true, ... }`.
-  - If CUDA is not available (e.g., missing `--gpus all` or drivers/toolkit), the container exits with a fatal message.
+  - If CUDA is not available (e.g., missing `--gpus all` or drivers/toolkit), the container exits with a fatal message unless you explicitly set `REQUIRE_GPU=0`.
 
 ### Call the API
 - __Health__
@@ -316,10 +297,9 @@ This project ships with a Dockerized, conda-based environment that supports both
 
 Use the included Python client to call the REST API and run distribution-based metrics (FID/IS/FVD).
 
-- GPU vs CPU behavior:
-  - GPU is the default when available. Do not pass `--cpu` if you want GPU. Ensure the container is started with `--gpus all` and you use the GPU image (`ghcr.io/bmwas/aigve:latest`).
-  - `--cpu` forces CPU execution. This sets `use_cpu=true` in the API request. You can also run the CPU image (`ghcr.io/bmwas/aigve:cpu`) and omit `--gpus`.
-  - If GPU is requested implicitly (no `--cpu`) but CUDA isn’t available in the container, the server falls back to CPU and prints a warning.
+- GPU requirement:
+  - The server container requires a GPU and will exit if CUDA is unavailable (unless you set `REQUIRE_GPU=0` for debugging).
+  - The `--cpu` flag in the client is for legacy/local runs and is ignored/ineffective with the default GPU-enforcing container.
 
 - Start the API container (GPU):
   ```bash
@@ -335,10 +315,7 @@ Use the included Python client to call the REST API and run distribution-based m
   python scripts/call_aigve_api.py
   ```
 
-- Run the client on CPU (force CPU):
-  ```bash
-  python scripts/call_aigve_api.py --cpu
-  ```
+<!-- CPU-only client mode is not supported by the default server container. -->
 
 - Control duration and base URL:
   ```bash
@@ -569,8 +546,7 @@ Use this helper to scan a mixed folder of ground-truth and generated videos, wri
   conda activate aigve
   # Recommended helper (GPU default):
   bash setup_env.sh
-  # CPU-only or NLP extras:
-  #   bash setup_env.sh --cpu
+  # NLP extras:
   #   bash setup_env.sh --with-nlp
   #   bash setup_env.sh --env-name aigve --with-nlp
   ```

@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.6
-# Base: NVIDIA CUDA 12.9 on Ubuntu 22.04 (devel image provides build tools)
-ARG BASE_IMAGE=nvcr.io/nvidia/cuda:12.9.1-devel-ubuntu22.04
+# Base: NVIDIA CUDA 11.8 on Ubuntu 22.04 (devel image provides build tools)
+ARG BASE_IMAGE=nvidia/cuda:11.8.0-devel-ubuntu22.04
 FROM ${BASE_IMAGE}
 
 # Use bash for RUN steps (needed for conda activation in later layers)
@@ -95,17 +95,10 @@ COPY requirement.txt /app/requirement.txt
 RUN chmod +x /app/setup_env.sh
 
 # ------------------------------
-# Create project conda env exactly like setup_env.sh (GPU build by default)
-# You can switch to CPU build by passing: --build-arg CPU_ONLY=1
+# Create project conda env exactly like setup_env.sh (GPU build enforced)
 # ------------------------------
-ARG CPU_ONLY=0
-RUN if [[ ${CPU_ONLY} -eq 1 ]]; then \
-      echo "[Build] Creating CPU-only env via setup_env.sh"; \
-      bash /app/setup_env.sh --env-name aigve --cpu; \
-    else \
-      echo "[Build] Creating GPU env via setup_env.sh"; \
-      bash /app/setup_env.sh --env-name aigve; \
-    fi
+RUN echo "[Build] Creating GPU env via setup_env.sh" && \
+    bash /app/setup_env.sh --env-name aigve
 
 # Copy the rest of the repository
 COPY . /app/

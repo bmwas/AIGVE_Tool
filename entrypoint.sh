@@ -27,10 +27,12 @@ fi
 # Resolve working directory
 cd /app
 
-# GPU detection and optional enforcement
-REQUIRE_GPU="${REQUIRE_GPU:-0}"
-TORCH_CUDA=$(conda run -n aigve python - <<'PY'
-import json
+# GPU detection and enforcement (default: require GPU)
+REQUIRE_GPU="${REQUIRE_GPU:-1}"
+# Run probe and capture both stdout and stderr without aborting on failure
+set +e
+TORCH_CUDA_OUTPUT=$(conda run -n aigve python - <<'PY' 2>&1
+import json, os, traceback
 try:
     import torch
     info = {
@@ -38,16 +40,42 @@ try:
         "cuda_available": bool(torch.cuda.is_available()),
         "cuda_version": getattr(torch.version, "cuda", None),
         "device_count": torch.cuda.device_count() if torch.cuda.is_available() else 0,
+        "cuda_visible_devices": os.environ.get("CUDA_VISIBLE_DEVICES"),
+        "nvidia_visible_devices": os.environ.get("NVIDIA_VISIBLE_DEVICES"),
     }
+    if info["cuda_available"]:
+        info["devices"] = [{"index": i, "name": torch.cuda.get_device_name(i)} for i in range(info["device_count"])]
+    else:
+        info["devices"] = []
 except Exception as e:
-    info = {"error": str(e), "cuda_available": False}
+    info = {
+        "error": str(e),
+        "traceback": traceback.format_exc(),
+        "cuda_available": False,
+    }
 print(json.dumps(info))
 PY
 )
-echo "[INFO] CUDA check: ${TORCH_CUDA}"
+PROBE_RC=$?
+set -e
+echo "[INFO] CUDA check (rc=${PROBE_RC}): ${TORCH_CUDA_OUTPUT}"
 if [[ "$REQUIRE_GPU" == "1" || "$REQUIRE_GPU" == "true" || "$REQUIRE_GPU" == "True" ]]; then
-  if ! echo "$TORCH_CUDA" | grep -q '"cuda_available": true'; then
-    echo "[FATAL] REQUIRE_GPU=1 set but torch.cuda.is_available() is false. Ensure '--gpus all' at runtime and correct drivers/toolkit." >&2
+  if [[ ${PROBE_RC} -ne 0 ]] || ! echo "$TORCH_CUDA_OUTPUT" | grep -q '"cuda_available": true'; then
+    echo "[FATAL] GPU required but CUDA not available or probe failed." >&2
+    echo "        Hints:" >&2
+    echo "        - Ensure you run with: docker run --gpus all ..." >&2
+    echo "        - Host must have NVIDIA driver + NVIDIA Container Toolkit installed." >&2
+    echo "        Diagnostics:" >&2
+    command -v nvidia-smi >/dev/null 2>&1 && { echo '--- nvidia-smi -L ---' >&2; nvidia-smi -L >&2; } || echo "[diag] nvidia-smi not found in container PATH" >&2
+    command -v nvcc >/dev/null 2>&1 && { echo '--- nvcc --version ---' >&2; nvcc --version >&2; } || echo "[diag] nvcc not found (ok for runtime images)" >&2
+    echo '--- /dev/nvidia* ---' >&2
+    ls -l /dev/nvidia* 2>&1 || echo "[diag] /dev/nvidia* not present" >&2
+    echo '--- Env ---' >&2
+    echo "CUDA_HOME=${CUDA_HOME:-}" >&2
+    echo "LD_LIBRARY_PATH=${LD_LIBRARY_PATH:-}" >&2
+    echo "PATH=${PATH}" >&2
+    echo "CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-}" >&2
+    echo "NVIDIA_VISIBLE_DEVICES=${NVIDIA_VISIBLE_DEVICES:-}" >&2
     exit 1
   fi
 fi

@@ -2,16 +2,16 @@
 set -euo pipefail
 
 # AIGVE environment setup script
-# This script creates a conda env, installs PyTorch (GPU or CPU),
-# installs ONNX/protobuf, and installs project requirements without
+# This script creates a conda env, installs PyTorch (GPU-only),
+# enforces a CUDA-enabled build (fails if CPU-only), installs ONNX/protobuf,
+# and installs project requirements without
 # touching the conda-installed torch packages.
 #
 # Usage:
-#   bash setup_env.sh [--env-name aigve] [--cpu] [--with-nlp]
+#   bash setup_env.sh [--env-name aigve] [--with-nlp]
 # Examples:
 #   bash setup_env.sh                      # GPU install (CUDA 11.8 runtime via conda)
 #   bash setup_env.sh --env-name myenv     # GPU install into custom env name
-#   bash setup_env.sh --cpu                # CPU-only install
 #   bash setup_env.sh --with-nlp           # Also install transformers + compatible tokenizers
 
 ENV_NAME="aigve"
@@ -23,7 +23,9 @@ while [[ $# -gt 0 ]]; do
     --env-name)
       ENV_NAME="$2"; shift; shift ;;
     --cpu)
-      CPU_ONLY=1; shift ;;
+      echo "[FATAL] CPU-only install is disabled. This project enforces a GPU-enabled PyTorch build." >&2
+      echo "        Please provision an NVIDIA GPU environment and do not pass --cpu." >&2
+      exit 1 ;;
     --with-nlp)
       NLP_EXTRAS=1; shift ;;
     *)
@@ -47,19 +49,28 @@ conda env remove -n "$ENV_NAME" -y || true
 # Use the provided environment.yml
 conda env create -n "$ENV_NAME" -f environment.yml
 
-# 2) Install PyTorch
+# 2) Install PyTorch (GPU build enforced)
 # Remove any pip-installed torch packages the YAML may have pulled
 conda run -n "$ENV_NAME" pip uninstall -y torch torchvision torchaudio || true
 
-if [[ "$CPU_ONLY" -eq 1 ]]; then
-  echo "Installing CPU-only PyTorch into env: $ENV_NAME"
-  conda install -n "$ENV_NAME" -y -c pytorch \
-    pytorch=2.1.0 torchvision=0.16.0 torchaudio=2.1.0 cpuonly
-else
-  echo "Installing GPU PyTorch (CUDA 11.8 runtime) into env: $ENV_NAME"
-  conda install -n "$ENV_NAME" -y -c pytorch -c nvidia \
-    pytorch=2.1.0 torchvision=0.16.0 torchaudio=2.1.0 pytorch-cuda=11.8
-fi
+echo "Installing GPU PyTorch (CUDA 11.8 runtime) into env: $ENV_NAME"
+conda install -n "$ENV_NAME" -y -c pytorch -c nvidia \
+  pytorch=2.1.0 torchvision=0.16.0 torchaudio=2.1.0 pytorch-cuda=11.8
+
+# 2b) Enforce GPU build (do not require a runtime GPU during build)
+conda run -n "$ENV_NAME" python - << 'PY'
+import sys
+try:
+    import torch
+except Exception as e:
+    print('FATAL: torch not importable after installation:', e, file=sys.stderr)
+    sys.exit(1)
+cuda_build = getattr(getattr(torch, 'version', None), 'cuda', None)
+if not cuda_build:
+    print('FATAL: CPU-only PyTorch was installed. A GPU-enabled build is required.', file=sys.stderr)
+    sys.exit(1)
+print('Verified GPU-enabled PyTorch build:', 'torch', torch.__version__, 'CUDA', cuda_build)
+PY
 
 # 3) Install ONNX/protobuf combo compatible with Torch 2.1
 conda run -n "$ENV_NAME" pip install "onnx==1.14.1" "protobuf>=4.23.4,<4.24"
@@ -204,15 +215,19 @@ except Exception as e:
     sys.exit(1)
 PY
 
-# 7c) Enforce torch + torchvision presence (fatal if missing)
+# 7c) Enforce torch + torchvision presence and GPU build (fatal if missing/CPU-only)
 conda run -n "$ENV_NAME" python - << 'PY'
 import sys
 try:
     import torch, torchvision
-    print('Verified: torch/torchvision importable')
 except Exception as e:
     print('FATAL: torch/torchvision not importable in this environment:', e)
     sys.exit(1)
+cuda_build = getattr(getattr(torch, 'version', None), 'cuda', None)
+if not cuda_build:
+    print('FATAL: torch is a CPU-only build. GPU-enabled PyTorch is required.', file=sys.stderr)
+    sys.exit(1)
+print('Verified: torch/torchvision importable; torch CUDA build:', cuda_build)
 PY
 
 echo "\nSetup complete. Activate the env and run, e.g.:"
