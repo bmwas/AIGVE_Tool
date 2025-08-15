@@ -97,7 +97,8 @@ conda run -n "$ENV_NAME" pip uninstall -y vbench mantis mantis-vl || true
 
 # 5c) Ensure consistent numeric stack (NumPy/SciPy) via pip for consistency with PyTorch pip install
 echo "Installing NumPy and SciPy via pip for consistency..."
-conda run -n "$ENV_NAME" pip install numpy==1.26.4 scipy==1.11.4
+# Force reinstall to ensure correct version even if already present
+conda run -n "$ENV_NAME" pip install --force-reinstall numpy==1.26.4 scipy==1.11.4
 
 # 6) Install remaining requirements WITHOUT touching torch packages
 # - Filters out top-level torch/torchvision/torchaudio/pytorch pins
