@@ -443,6 +443,71 @@ Behavior:
 - `--upload-*` calls `POST /run_upload` and the server computes strictly on the uploaded files.
 - Without `--upload-*`, the client calls `POST /run` and paths must exist on the server side.
 
+#### CD-FVD (Fréchet Video Distance with cd-fvd)
+
+The API supports computing FVD using the external **cd-fvd** package as an alternative to the default FVD implementation. This provides an independent FVD computation using pre-trained video models.
+
+**Key Features:**
+- **Independent computation**: Runs separately from the default metrics pipeline
+- **Two model options**: VideoMAE (recommended) or I3D
+- **GPU-accelerated**: Automatically uses CUDA if available
+- **Flexible parameters**: Configurable resolution and sequence length
+
+**Available Options:**
+- `--use-cdfvd`: Enable CD-FVD computation (flag)
+- `--cdfvd-model`: Choose model - `videomae` (default, recommended) or `i3d`
+  - **VideoMAE**: State-of-the-art video masked autoencoder, better for modern video generation
+  - **I3D**: Inflated 3D ConvNet, classic choice for action recognition
+- `--cdfvd-resolution`: Video resolution for processing (default: 128)
+  - Common values: 64, 128, 224, 256
+- `--cdfvd-sequence-length`: Number of frames to process (default: 16)
+  - Common values: 8, 16, 32
+
+**Usage Examples:**
+
+1. Basic CD-FVD with VideoMAE (recommended):
+   ```bash
+   python scripts/call_aigve_api.py --base-url http://localhost:2200 \
+     --upload-dir ./my_videos --use-cdfvd
+   ```
+
+2. Using I3D model with custom resolution:
+   ```bash
+   python scripts/call_aigve_api.py --base-url http://localhost:2200 \
+     --upload-dir ./my_videos --use-cdfvd \
+     --cdfvd-model i3d --cdfvd-resolution 224
+   ```
+
+3. High-resolution with longer sequences:
+   ```bash
+   python scripts/call_aigve_api.py --base-url http://localhost:2200 \
+     --upload-dir ./my_videos --use-cdfvd \
+     --cdfvd-model videomae --cdfvd-resolution 256 --cdfvd-sequence-length 32
+   ```
+
+4. Combined with other metrics:
+   ```bash
+   python scripts/call_aigve_api.py --base-url http://localhost:2200 \
+     --upload-dir ./my_videos \
+     --categories distribution_based --metrics fid,is \
+     --use-cdfvd --cdfvd-model videomae
+   ```
+
+**Output:**
+- CD-FVD results are included in the API response as `cdfvd_result`
+- Results are saved to `cdfvd_results.json` in the save directory
+- Console output displays FVD score, model used, and video counts
+
+**Video Organization:**
+- Real videos: Files without special suffixes (e.g., `video1.mp4`)
+- Fake/synthetic videos: Files with suffixes like `_synthetic`, `_generated` (e.g., `video1_synthetic.mp4`)
+- The suffixes can be configured with `--generated-suffixes`
+
+**Requirements:**
+- The `cd-fvd` package is automatically installed via requirements
+- GPU recommended for faster computation (falls back to CPU if unavailable)
+- Videos are automatically resized and preprocessed to match model requirements
+
 #### Client-only Python environment (no server deps)
 
 Create a lightweight virtualenv for the Python client only (it just needs `requests`).
