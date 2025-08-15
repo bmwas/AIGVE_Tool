@@ -9,7 +9,9 @@ import subprocess
 import json
 import time
 import re
-from typing import List, Optional
+import tempfile
+from typing import List, Optional, Dict, Tuple
+from pathlib import Path
 
 import logging
 from fastapi import FastAPI, HTTPException, UploadFile, File, Form, Request
@@ -20,6 +22,12 @@ try:
     import torch  # type: ignore
 except Exception:  # pragma: no cover - tolerate missing/failed import
     torch = None  # type: ignore
+
+# Optional cd-fvd import
+try:
+    from cdfvd import fvd as cdfvd  # type: ignore
+except Exception:  # pragma: no cover - tolerate missing/failed import
+    cdfvd = None  # type: ignore
 
 APP_ROOT = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
 SCRIPT_PATH = os.path.join(APP_ROOT, "scripts", "prepare_annotations.py")
@@ -97,6 +105,12 @@ class PrepareAnnotationsRequest(BaseModel):
 
     # Forward-compatibility: extra CLI args (list of tokens)
     extra_args: Optional[List[str]] = Field(None, description="Additional raw CLI tokens to pass through")
+    
+    # CD-FVD specific option
+    use_cdfvd: Optional[bool] = Field(False, description="Use cd-fvd package for FVD computation instead of default")
+    cdfvd_model: Optional[str] = Field("videomae", description="CD-FVD model to use: 'videomae' or 'i3d'")
+    cdfvd_resolution: Optional[int] = Field(128, description="Resolution for CD-FVD video processing")
+    cdfvd_sequence_length: Optional[int] = Field(16, description="Sequence length for CD-FVD video processing")
 
 
 def _build_cli_args(req: PrepareAnnotationsRequest) -> List[str]:
@@ -151,6 +165,125 @@ def _build_cli_args(req: PrepareAnnotationsRequest) -> List[str]:
         args += list(req.extra_args)
 
     return args
+
+
+def _compute_cdfvd(upload_dir: str, generated_suffixes: str, model: str = "videomae", 
+                   resolution: int = 128, sequence_length: int = 16) -> Dict[str, float]:
+    """
+    Compute FVD using cd-fvd package.
+    
+    Args:
+        upload_dir: Directory containing videos
+        generated_suffixes: Comma-separated suffixes for synthetic videos
+        model: CD-FVD model type ('videomae' or 'i3d')
+        resolution: Video resolution for processing
+        sequence_length: Number of frames to process
+    
+    Returns:
+        Dictionary with FVD score
+    """
+    if cdfvd is None:
+        raise RuntimeError("cd-fvd package is not installed. Run: pip install cd-fvd")
+    
+    # Parse suffixes
+    suffixes = [s.strip() for s in generated_suffixes.split(',') if s.strip()]
+    
+    # Organize videos into real and fake
+    real_videos = []
+    fake_videos = []
+    
+    for video_file in Path(upload_dir).glob("*.mp4"):
+        video_name = video_file.stem
+        is_synthetic = any(video_name.endswith(f"_{suffix}") for suffix in suffixes)
+        
+        if is_synthetic:
+            fake_videos.append(str(video_file))
+        else:
+            # Check if this is a real video (has a corresponding synthetic version)
+            has_synthetic = False
+            for suffix in suffixes:
+                synthetic_path = video_file.parent / f"{video_name}_{suffix}.mp4"
+                if synthetic_path.exists():
+                    has_synthetic = True
+                    break
+            if has_synthetic:
+                real_videos.append(str(video_file))
+    
+    # Also check other video formats
+    for ext in [".mov", ".avi", ".mkv", ".webm", ".m4v"]:
+        for video_file in Path(upload_dir).glob(f"*{ext}"):
+            video_name = video_file.stem
+            is_synthetic = any(video_name.endswith(f"_{suffix}") for suffix in suffixes)
+            
+            if is_synthetic:
+                fake_videos.append(str(video_file))
+            else:
+                has_synthetic = False
+                for suffix in suffixes:
+                    synthetic_path = video_file.parent / f"{video_name}_{suffix}{ext}"
+                    if synthetic_path.exists():
+                        has_synthetic = True
+                        break
+                if has_synthetic:
+                    real_videos.append(str(video_file))
+    
+    if not real_videos or not fake_videos:
+        raise ValueError(f"Insufficient videos for FVD computation. Found {len(real_videos)} real and {len(fake_videos)} fake videos")
+    
+    logger.info("[CD-FVD] Found %d real videos and %d fake videos", len(real_videos), len(fake_videos))
+    
+    # Create temporary directories for organized videos
+    with tempfile.TemporaryDirectory() as temp_dir:
+        real_dir = Path(temp_dir) / "real"
+        fake_dir = Path(temp_dir) / "fake"
+        real_dir.mkdir(exist_ok=True)
+        fake_dir.mkdir(exist_ok=True)
+        
+        # Copy/link videos to temporary directories
+        for i, video_path in enumerate(real_videos):
+            dest = real_dir / f"video_{i:04d}{Path(video_path).suffix}"
+            shutil.copy2(video_path, dest)
+        
+        for i, video_path in enumerate(fake_videos):
+            dest = fake_dir / f"video_{i:04d}{Path(video_path).suffix}"
+            shutil.copy2(video_path, dest)
+        
+        # Initialize CD-FVD evaluator
+        device = 'cuda' if torch and torch.cuda.is_available() else 'cpu'
+        logger.info("[CD-FVD] Using model='%s' on device='%s'", model, device)
+        evaluator = cdfvd.cdfvd(model=model, n_real='full', n_fake='full', device=device)
+        
+        # Load videos
+        logger.info("[CD-FVD] Loading real videos from %s", real_dir)
+        real_loader = evaluator.load_videos(str(real_dir), data_type='video_folder',
+                                           resolution=resolution, sequence_length=sequence_length)
+        
+        logger.info("[CD-FVD] Loading fake videos from %s", fake_dir)
+        fake_loader = evaluator.load_videos(str(fake_dir), data_type='video_folder',
+                                           resolution=resolution, sequence_length=sequence_length)
+        
+        # Compute FVD
+        logger.info("[CD-FVD] Computing real video statistics...")
+        evaluator.compute_real_stats(real_loader)
+        
+        logger.info("[CD-FVD] Computing fake video statistics...")
+        evaluator.compute_fake_stats(fake_loader)
+        
+        logger.info("[CD-FVD] Computing FVD score...")
+        score = evaluator.compute_fvd_from_stats()
+        
+        result = {
+            "fvd_score": float(score),
+            "num_real_videos": len(real_videos),
+            "num_fake_videos": len(fake_videos),
+            "model": model,
+            "resolution": resolution,
+            "sequence_length": sequence_length,
+            "device": device
+        }
+        
+        logger.info("[CD-FVD] FVD Score: %.4f", score)
+        return result
 
 
 def _collect_artifacts(base_dir: str, stdout: str) -> List[dict]:
@@ -280,6 +413,11 @@ def run_upload(
     pad: bool = Form(False),
     # Device
     use_cpu: bool = Form(False),
+    # CD-FVD options
+    use_cdfvd: bool = Form(False),
+    cdfvd_model: str = Form("videomae"),
+    cdfvd_resolution: int = Form(128),
+    cdfvd_sequence_length: int = Form(16),
 ):
     """
     Accept uploaded video files and run the same pipeline as /run using a
@@ -373,6 +511,29 @@ def run_upload(
         "stderr": proc.stderr,
         "session": {"id": session_id, "upload_dir": upload_dir, "stage_dir": stage_dir, "files": saved_files},
     }
+    
+    # Compute CD-FVD if requested
+    if use_cdfvd:
+        try:
+            logger.info("[%s] Computing FVD using cd-fvd package...", rid)
+            cdfvd_result = _compute_cdfvd(
+                upload_dir=upload_dir,
+                generated_suffixes=generated_suffixes,
+                model=cdfvd_model,
+                resolution=cdfvd_resolution,
+                sequence_length=cdfvd_sequence_length
+            )
+            response["cdfvd_result"] = cdfvd_result
+            
+            # Save CD-FVD result to a JSON file
+            cdfvd_json_path = os.path.join(APP_ROOT, "cdfvd_results.json")
+            with open(cdfvd_json_path, "w") as f:
+                json.dump(cdfvd_result, f, indent=2)
+            logger.info("[%s] CD-FVD results saved to %s", rid, cdfvd_json_path)
+        except Exception as e:
+            response["cdfvd_error"] = str(e)
+            logger.error("[%s] CD-FVD computation error: %s", rid, e)
+    
     try:
         arts = _collect_artifacts(APP_ROOT, proc.stdout or "")
         response["artifacts"] = arts
@@ -419,6 +580,29 @@ def run_prepare(req: PrepareAnnotationsRequest, request: Request):
         "stdout": proc.stdout,
         "stderr": proc.stderr,
     }
+    
+    # Compute CD-FVD if requested
+    if req.use_cdfvd and req.input_dir:
+        try:
+            logger.info("[%s] Computing FVD using cd-fvd package...", rid)
+            cdfvd_result = _compute_cdfvd(
+                upload_dir=req.input_dir,
+                generated_suffixes=req.generated_suffixes or "synthetic,generated",
+                model=req.cdfvd_model or "videomae",
+                resolution=req.cdfvd_resolution or 128,
+                sequence_length=req.cdfvd_sequence_length or 16
+            )
+            response["cdfvd_result"] = cdfvd_result
+            
+            # Save CD-FVD result to a JSON file
+            cdfvd_json_path = os.path.join(APP_ROOT, "cdfvd_results.json")
+            with open(cdfvd_json_path, "w") as f:
+                json.dump(cdfvd_result, f, indent=2)
+            logger.info("[%s] CD-FVD results saved to %s", rid, cdfvd_json_path)
+        except Exception as e:
+            response["cdfvd_error"] = str(e)
+            logger.error("[%s] CD-FVD computation error: %s", rid, e)
+    
     # Attach artifacts (result JSON files)
     try:
         arts = _collect_artifacts(APP_ROOT, proc.stdout or "")

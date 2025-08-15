@@ -20,6 +20,7 @@ gdown==5.2.0
 git+https://github.com/TIGER-AI-Lab/Mantis.git
 scipy==1.11.4
 decord==0.6.0
+cd-fvd
 
 neoteroi-mkdocs
 mkdocs-macros-plugin

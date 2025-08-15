@@ -429,8 +429,15 @@ Upload mode (send files instead of referencing server paths):
 - With explicit files:
   ```bash
   python scripts/call_aigve_api.py --base-url http://localhost:2200 \
-    --upload-files ./data/real.mov ./data/real_synthetic.mp4 \
+    --upload-files ./data/40596_2019_1140_MOESM1_ESM.mov ./data/40596_2019_1140_MOESM1_ESM_synthetic.mp4 \
     --categories distribution_based --max-seconds 8 --fps 25
+  ```
+- With cd-fvd computation:
+  ```bash
+  # Use cd-fvd for FVD computation
+  python scripts/call_aigve_api.py --base-url http://localhost:2200 \
+    --upload-dir ./my_videos --use-cdfvd \
+    --cdfvd-model videomae --cdfvd-resolution 128
   ```
 Behavior:
 - `--upload-*` calls `POST /run_upload` and the server computes strictly on the uploaded files.
@@ -515,6 +522,10 @@ This project exposes a FastAPI server that wraps `scripts/prepare_annotations.py
   - `pad: boolean` (default: `false`)
   - `use_cpu: boolean` (default: `false`)
   - `fvd_model, gstvqa_model, simplevqa_model, lightvqa_plus_model, lightvqa_plus_swin: string | null`
+  - `use_cdfvd: boolean` (default: `false`) — Use cd-fvd package for FVD computation
+  - `cdfvd_model: string` (default: `"videomae"`) — Model for cd-fvd: "videomae" or "i3d"
+  - `cdfvd_resolution: integer` (default: `128`) — Resolution for cd-fvd video processing
+  - `cdfvd_sequence_length: integer` (default: `16`) — Sequence length for cd-fvd
   - `extra_args: string[] | null` — raw CLI tokens forwarded as-is
 
   Notes:
@@ -524,6 +535,8 @@ This project exposes a FastAPI server that wraps `scripts/prepare_annotations.py
     `fid_results.json`, `is_results.json`, `fvd_results.json` (and others when enabled). Each artifact
     contains `{name, path (server-side), json|text}`. The server also writes these files to its working
     directory; use the Python client to save local copies.
+  - When `use_cdfvd=true`, FVD is computed independently using the cd-fvd package and results are included
+    in the response as `cdfvd_result` and saved to `cdfvd_results.json`.
 
 - __Examples (curl)__
   - __List available categories/metrics only__ (no input_dir required)
@@ -562,23 +575,51 @@ This project exposes a FastAPI server that wraps `scripts/prepare_annotations.py
         "input_dir": "/app/data",
         "stage_dataset": "/app/out/staged",
         "compute": true,
-        "categories": "distribution_based",
         "max_seconds": 8,
-        "fps": 25
+        "fps": 25,
+        "generated_suffixes": "synthetic,generated"
+      }'
+    ```
+  - __Compute FVD using cd-fvd package__
+    ```bash
+    curl -X POST http://localhost:2200/run \
+      -H 'Content-Type: application/json' \
+      -d '{
+        "input_dir": "/app/data",
+        "stage_dataset": "/app/out/staged",
+        "compute": true,
+        "use_cdfvd": true,
+        "cdfvd_model": "videomae",
+        "cdfvd_resolution": 128,
+        "cdfvd_sequence_length": 16,
+        "max_seconds": 8,
+        "generated_suffixes": "synthetic,generated"
       }'
     ```
 
-  - __Upload files and compute (no server paths required)__
-    ```bash
-    curl -X POST http://localhost:2200/run_upload \
-      -F "videos=@./data/real.mov" \
-      -F "videos=@./data/real_synthetic.mp4" \
-      -F "categories=distribution_based" -F "max_seconds=8" -F "fps=25"
-    ```
-    Notes:
-    - Pairing is done by basename using suffixes (default: `synthetic,generated`) and supports different extensions.
-    - The server stages to an internal session directory unless you pass `stage_dataset`.
-
+  - __Upload local videos and run metrics__: Use `POST /run_upload`
+  ```bash
+  # Upload with curl
+  curl -X POST http://localhost:2200/run_upload \
+    -F "videos=@real_video1.mp4" \
+    -F "videos=@real_video2.mp4" \
+    -F "videos=@fake_video1_synthetic.mp4" \
+    -F "videos=@fake_video2_synthetic.mp4" \
+    -F "compute=true" \
+    -F "max_seconds=8" \
+    -F "fps=25" \
+    -F "generated_suffixes=synthetic,generated" \
+    -F "categories=distribution_based"
+  
+  # Upload with cd-fvd computation
+  curl -X POST http://localhost:2200/run_upload \
+    -F "videos=@real_video1.mp4" \
+    -F "videos=@fake_video1_synthetic.mp4" \
+    -F "use_cdfvd=true" \
+    -F "cdfvd_model=videomae" \
+    -F "cdfvd_resolution=128" \
+    -F "compute=true"
+  ```
   - __Compute video-only NN metrics (provide model paths)__
     ```bash
     curl -X POST http://localhost:2200/run \
