@@ -135,7 +135,11 @@ conda run -n "$ENV_NAME" pip install \
   jsonschema \
   h5py \
   scikit-learn \
-  scikit-image
+  scikit-image \
+  transformers==4.46.3 \
+  tokenizers>=0.20,<0.21 \
+  safetensors \
+  accelerate
 
 # 6a) Ensure API server dependencies are installed
 echo "Ensuring API server dependencies..."

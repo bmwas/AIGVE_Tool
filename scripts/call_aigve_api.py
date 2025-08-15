@@ -60,6 +60,7 @@ def run_distribution_metrics(
     max_seconds: float | None = 8.0,
     fps: float = 25.0,
     use_cpu: bool = False,
+    generated_suffixes: str = "synthetic,generated",
 ) -> Dict[str, Any]:
     """
     Calls POST /run with the minimal JSON body to stage and compute
@@ -71,6 +72,7 @@ def run_distribution_metrics(
         "stage_dataset": stage_dataset,
         "compute": True,
         "categories": "distribution_based",
+        "generated_suffixes": generated_suffixes,
     }
     if max_seconds is not None:
         payload.update({"max_seconds": float(max_seconds), "fps": float(fps)})
@@ -299,6 +301,7 @@ def main(argv: list[str] | None = None) -> int:
             max_seconds=args.max_seconds,
             fps=args.fps,
             use_cpu=args.cpu,
+            generated_suffixes=args.generated_suffixes,
         )
 
     print("\n--- /run result ---")

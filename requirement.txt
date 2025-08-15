@@ -2,7 +2,7 @@ mmcv==2.2.0
 mmdet==3.3.0
 mmengine==0.10.6
 transformers==4.46.3
-numpy==1.23.5
+numpy==1.26.4
 pandas==2.2.3
 sympy==1.13.3
 einops==0.8.1
@@ -12,13 +12,13 @@ fvcore
 openai
 git+https://github.com/openai/CLIP.git
 tqdm
-pytorch==2.1.0 
+torch==2.1.0 
 torchvision==0.16.0 
 torchaudio==2.1.0
 pytorchvideo
 gdown==5.2.0
 git+https://github.com/TIGER-AI-Lab/Mantis.git
-scipy==1.14.1
+scipy==1.11.4
 decord==0.6.0
 
 neoteroi-mkdocs
