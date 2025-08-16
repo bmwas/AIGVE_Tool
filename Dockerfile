@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.6
-# Base: NVIDIA CUDA 11.8 on Ubuntu 22.04 (using NVIDIA registry for better compatibility)
-ARG BASE_IMAGE=nvcr.io/nvidia/cuda:11.8.0-devel-ubuntu22.04
+# Base: NVIDIA CUDA 11.8 on Ubuntu 22.04 (using Docker Hub)
+ARG BASE_IMAGE=nvidia/cuda:11.8.0-devel-ubuntu22.04
 FROM ${BASE_IMAGE}
 
 # Working directory
