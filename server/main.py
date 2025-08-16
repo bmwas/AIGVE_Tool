@@ -168,7 +168,8 @@ def _build_cli_args(req: PrepareAnnotationsRequest) -> List[str]:
 
 
 def _compute_cdfvd(upload_dir: str, generated_suffixes: str, model: str = "videomae", 
-                   resolution: int = 128, sequence_length: int = 16) -> Dict[str, float]:
+                   resolution: int = 128, sequence_length: int = 16,
+                   max_seconds: Optional[float] = None, fps: Optional[float] = 25.0) -> Dict[str, float]:
     """
     Compute FVD using cd-fvd package.
     
@@ -185,8 +186,17 @@ def _compute_cdfvd(upload_dir: str, generated_suffixes: str, model: str = "video
     if cdfvd is None:
         raise RuntimeError("cd-fvd package is not installed. Run: pip install cd-fvd")
     
-    # Parse suffixes
+    # Parse suffixes and build a robust checker for synthetic naming
     suffixes = [s.strip() for s in generated_suffixes.split(',') if s.strip()]
+    def _is_synthetic_name(name: str) -> bool:
+        base = name.lower()
+        for s in suffixes:
+            tok = s.strip().lower()
+            if not tok:
+                continue
+            if base.endswith("_" + tok) or base.endswith("-" + tok) or base.endswith(tok):
+                return True
+        return False
     
     print(f"[CD-FVD Debug] Looking for videos in: {upload_dir}")
     print(f"[CD-FVD Debug] Suffixes to identify synthetic videos: {suffixes}")
@@ -216,10 +226,10 @@ def _compute_cdfvd(upload_dir: str, generated_suffixes: str, model: str = "video
     
     for video_file in all_videos:
         video_name = video_file.stem
-        is_synthetic = any(video_name.endswith(f"_{suffix}") for suffix in suffixes)
-        
+        is_synthetic = _is_synthetic_name(video_name)
+
         print(f"[CD-FVD Debug] Processing: {video_file.name}, stem={video_name}, is_synthetic={is_synthetic}")
-        
+
         if is_synthetic:
             fake_videos.append(str(video_file))
             print(f"[CD-FVD Debug] Added to fake_videos: {video_file.name}")
@@ -241,14 +251,51 @@ def _compute_cdfvd(upload_dir: str, generated_suffixes: str, model: str = "video
         real_dir.mkdir(exist_ok=True)
         fake_dir.mkdir(exist_ok=True)
         
-        # Copy/link videos to temporary directories
+        # Helper: trim or copy videos according to max_seconds
+        def _trim_or_copy(src: str, dst: Path) -> None:
+            try:
+                if max_seconds is not None and max_seconds > 0:
+                    # Prefer stream copy for speed; fall back to re-encode on failure
+                    cmd = [
+                        "ffmpeg", "-y",
+                        "-i", src,
+                        "-t", str(float(max_seconds)),
+                        "-c", "copy",
+                        str(dst),
+                    ]
+                    print(f"[CD-FVD Trim] {' '.join(cmd)}")
+                    proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+                    if proc.returncode != 0 or (not dst.exists() or os.path.getsize(dst) == 0):
+                        # Fallback: fast re-encode of the clipped segment
+                        cmd = [
+                            "ffmpeg", "-y",
+                            "-i", src,
+                            "-t", str(float(max_seconds)),
+                            "-an",
+                            "-c:v", "libx264",
+                            "-preset", "veryfast",
+                            "-crf", "23",
+                            str(dst),
+                        ]
+                        print(f"[CD-FVD Trim Fallback] {' '.join(cmd)}")
+                        subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=False)
+                else:
+                    shutil.copy2(src, dst)
+            except Exception as e:
+                print(f"[CD-FVD Trim Error] {e}; copying original instead.")
+                try:
+                    shutil.copy2(src, dst)
+                except Exception as e2:
+                    print(f"[CD-FVD Copy Error] {e2}")
+
+        # Copy/trim videos to temporary directories
         for i, video_path in enumerate(real_videos):
             dest = real_dir / f"video_{i:04d}{Path(video_path).suffix}"
-            shutil.copy2(video_path, dest)
-        
+            _trim_or_copy(video_path, dest)
+
         for i, video_path in enumerate(fake_videos):
             dest = fake_dir / f"video_{i:04d}{Path(video_path).suffix}"
-            shutil.copy2(video_path, dest)
+            _trim_or_copy(video_path, dest)
         
         # Initialize CD-FVD evaluator
         device = 'cuda' if torch and torch.cuda.is_available() else 'cpu'
@@ -283,6 +330,17 @@ def _compute_cdfvd(upload_dir: str, generated_suffixes: str, model: str = "video
             "sequence_length": sequence_length,
             "device": device
         }
+        # Attach length info if requested
+        try:
+            if max_seconds is not None:
+                ms = float(max_seconds)
+                result["max_seconds"] = ms
+                fv = float(fps) if fps is not None else None
+                if fv is not None and fv > 0:
+                    result["fps"] = fv
+                    result["max_len"] = int(round(ms * fv))
+        except Exception:
+            pass
         
         logger.info("[CD-FVD] FVD Score: %.4f", score)
         return result
@@ -544,24 +602,10 @@ def run_upload(
                 generated_suffixes=generated_suffixes,
                 model=cdfvd_model or "i3d",
                 resolution=cdfvd_resolution or 224,
-                sequence_length=cdfvd_sequence_length or 16
+                sequence_length=cdfvd_sequence_length or 16,
+                max_seconds=max_seconds,
+                fps=fps,
             )
-            
-            # Attach length info similar to legacy metrics (max_seconds/fps -> max_len)
-            try:
-                if max_seconds is not None:
-                    ms = float(max_seconds)
-                    cdfvd_result["max_seconds"] = ms
-                    try:
-                        fv = float(fps) if fps is not None else None
-                    except Exception:
-                        fv = None
-                    if fv is not None:
-                        cdfvd_result["fps"] = fv
-                        cdfvd_result["max_len"] = int(round(ms * fv))
-            except Exception:
-                # Non-fatal: keep CD-FVD results even if length annotation fails
-                pass
             
             # Save CD-FVD results
             cdfvd_json_path = os.path.join(stage_dir, "cdfvd_results.json")
@@ -644,23 +688,10 @@ def run_prepare(req: PrepareAnnotationsRequest, request: Request):
                 generated_suffixes=req.generated_suffixes or "synthetic,generated",
                 model=req.cdfvd_model or "videomae",
                 resolution=req.cdfvd_resolution or 128,
-                sequence_length=req.cdfvd_sequence_length or 16
+                sequence_length=req.cdfvd_sequence_length or 16,
+                max_seconds=req.max_seconds,
+                fps=req.fps,
             )
-            # Attach length info similar to legacy metrics (max_seconds/fps -> max_len)
-            try:
-                if req.max_seconds is not None:
-                    ms = float(req.max_seconds)
-                    cdfvd_result["max_seconds"] = ms
-                    try:
-                        fv = float(req.fps) if req.fps is not None else None
-                    except Exception:
-                        fv = None
-                    if fv is not None:
-                        cdfvd_result["fps"] = fv
-                        cdfvd_result["max_len"] = int(round(ms * fv))
-            except Exception:
-                # Non-fatal: keep CD-FVD results even if length annotation fails
-                pass
             response["cdfvd_result"] = cdfvd_result
             
             # Save CD-FVD result to a JSON file
