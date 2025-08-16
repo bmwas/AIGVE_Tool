@@ -475,12 +475,13 @@ def run_upload(
     logger.info("[%s] Session=%s upload_dir=%s stage_dir=%s saved=%d", rid, session_id, upload_dir, stage_dir, len(saved_files))
 
     # Build args via existing request model helper
+    # If use_cdfvd is True, only stage the dataset, don't compute legacy metrics
     req = PrepareAnnotationsRequest(
         input_dir=upload_dir,
         generated_suffixes=generated_suffixes,
         stage_dataset=stage_dir,
         link=link,
-        compute=compute,
+        compute=compute if not use_cdfvd else False,  # Skip legacy metrics when using CD-FVD
         metrics=(metrics or None),
         categories=(categories or None),
         max_len=max_len,
@@ -551,7 +552,15 @@ def run_upload(
             with open(cdfvd_json_path, "w") as f:
                 json.dump(cdfvd_result, f, indent=2)
             
-            response["artifacts"] = {"cdfvd_results.json": cdfvd_json_path}
+            # When using CD-FVD, only return CD-FVD artifacts
+            response["artifacts"] = [
+                {
+                    "name": "cdfvd_results.json",
+                    "path": cdfvd_json_path,
+                    "content": json.dumps(cdfvd_result, indent=2)
+                }
+            ]
+            logger.info("[%s] CD-FVD artifacts: cdfvd_results.json", rid)
             
         except Exception as e:
             cdfvd_error = str(e)
@@ -561,15 +570,16 @@ def run_upload(
                 status_code=500,
                 detail=f"CD-FVD computation failed: {cdfvd_error}"
             )
-    
-    try:
-        arts = _collect_artifacts(APP_ROOT, proc.stdout or "")
-        response["artifacts"] = arts
-        if arts:
-            logger.info("[%s] Artifacts: %s", rid, ", ".join(a.get("name", "?") for a in arts))
-    except Exception as e:
-        response["artifact_error"] = str(e)
-        logger.warning("[%s] Artifact collection error: %s", rid, e)
+    else:
+        # Only collect legacy artifacts if NOT using CD-FVD
+        try:
+            arts = _collect_artifacts(APP_ROOT, proc.stdout or "")
+            response["artifacts"] = arts
+            if arts:
+                logger.info("[%s] Artifacts: %s", rid, ", ".join(a.get("name", "?") for a in arts))
+        except Exception as e:
+            response["artifact_error"] = str(e)
+            logger.warning("[%s] Artifact collection error: %s", rid, e)
     return response
 
 
