@@ -437,15 +437,87 @@ Upload mode (send files instead of referencing server paths):
   # Use cd-fvd for FVD computation
   python scripts/call_aigve_api.py --base-url http://localhost:2200 \
     --upload-dir ./my_videos --use-cdfvd \
-    --cdfvd-model videomae --cdfvd-resolution 128
+    --cdfvd-model videomae --cdfvd-resolution 128 --cdfvd-sequence-length 16 \
+    --max-seconds 8 --fps 25
   ```
 Behavior:
 - `--upload-*` calls `POST /run_upload` and the server computes strictly on the uploaded files.
 - Without `--upload-*`, the client calls `POST /run` and paths must exist on the server side.
 
+Client parameter quick reference (scripts/call_aigve_api.py):
+- `--base-url` Base API URL (default: http://localhost:2200)
+- `--upload-dir`, `--upload-files` Upload mode to `POST /run_upload`; no server paths needed
+- `--input-dir`, `--stage-dataset` Server-path mode and where to build a staged dataset
+- `--max-seconds`, `--fps` Control evaluation duration; see cropping notes below for CD-FVD vs default pipeline
+- `--use-cdfvd` Toggle cd-fvd computation; with `--cdfvd-model`, `--cdfvd-resolution`, `--cdfvd-sequence-length`
+- `--categories`, `--metrics` Choose metric sets (e.g., `distribution_based` or specific names like `fid,is`)
+- `--save-dir` Where to save returned artifacts locally (default: `./results`)
+- `--cpu` Force CPU (server container enforces GPU by default; see note above)
+
+CD-FVD cropping behavior (max_seconds):
+- When `max_seconds > 0`, each real/fake video is trimmed before CD-FVD computation using ffmpeg.
+  - The server first attempts a fast stream copy:
+    ```bash
+    ffmpeg -y -i INPUT -t <max_seconds> -c copy OUTPUT
+    ```
+  - If stream copy fails or produces an empty file, it falls back to a fast re-encode (video-only):
+    ```bash
+    ffmpeg -y -i INPUT -t <max_seconds> -an -c:v libx264 -preset veryfast -crf 23 OUTPUT
+    ```
+  - Logs print the exact commands per file: `[CD-FVD Trim] ...` and `[CD-FVD Trim Fallback] ...`. On unexpected errors, the server copies the original instead and logs `[CD-FVD Trim Error]`.
+- If `max_seconds` is not set (or <= 0), videos are copied verbatim (no temporal trim) before loading into cd-fvd.
+- FPS semantics:
+  - For CD-FVD cropping, trimming is by wall-clock time via `-t <seconds>` and does not depend on `--fps`.
+  - The result JSON includes `max_seconds`, `fps`, and `max_len ≈ max_seconds*fps` for traceability.
+  - For the default pipeline (non-CD-FVD), see "Control evaluation duration by seconds instead of frames" above: `--max-seconds` overrides `--max-len` using `--fps` to convert seconds→frames.
+
+Quick examples (remote server, explicit files):
+
+- Non-CD-FVD (distribution metrics with default pipeline):
+  ```bash
+  python scripts/call_aigve_api.py \
+    --base-url http://<server-ip>:2200 \
+    --upload-files ./data/*.mp4 ./data/*.mov \
+    --categories distribution_based \
+    --max-seconds 8 --fps 25 \
+    --save-dir ./results/noncdfvd_ms8
+  ```
+
+- CD-FVD using I3D model (matches popular settings in logs):
+  ```bash
+  python scripts/call_aigve_api.py \
+    --base-url http://<server-ip>:2200 \
+    --upload-files ./data/*.mp4 ./data/*.mov \
+    --use-cdfvd --cdfvd-model i3d \
+    --cdfvd-resolution 128 --cdfvd-sequence-length 16 \
+    --max-seconds 8 --fps 25 \
+    --save-dir ./results/cdfvd_i3d_ms8
+  ```
+
+Notes:
+- Artifacts (including `cdfvd_results.json` when `--use-cdfvd` is set) are saved under `--save-dir` (default `./results`).
+- The CD-FVD result includes `max_seconds`, `fps`, and `max_len` metadata for traceability.
+
 #### CD-FVD (Fréchet Video Distance with cd-fvd)
 
 The API supports computing FVD using the external **cd-fvd** package as an alternative to the default FVD implementation. This provides an independent FVD computation using pre-trained video models.
+
+Important: FVD implementations differ
+- __Default FVD in AIGVE__: Implemented in `aigve/metrics/video_quality_assessment/distribution_based/fvd/fvd_metric.py` as `FVDScore`. Internally it uses `torchvision.models.video.r3d_18` (ResNet3D‑18) as an I3D alternative and replaces the classification head with `nn.Identity()` to extract features. This is not the same as Kinetics‑400 I3D logits features.
+- __CD-FVD (this section)__: Uses the external `cd-fvd` package with selectable backbones via `--cdfvd-model` (`videomae` [default] or `i3d`). Use this when you need a standardized FVD independent of the default implementation.
+- __MultiTalk paper context__: The paper reports FVD using I3D logits features on Kinetics‑400. To align more closely with that setup, prefer the CD-FVD path with `--cdfvd-model i3d`. Pick `--cdfvd-resolution` and `--cdfvd-sequence-length` to match the target setup (common values: 128/224 resolution; 16/32 frames). For exact pretrained weights used by CD-FVD’s I3D, consult the CD‑FVD documentation.
+
+Reporting guidance
+- __Do not compare scores across implementations__: Numbers produced by the default FVD (ResNet3D‑18 features) and CD-FVD (I3D/VideoMAE) are not directly comparable. Choose one implementation per experiment or report both clearly labeled.
+- __Reproducing MultiTalk-style FVD__: Prefer CD-FVD with I3D, e.g.:
+  ```bash
+  python scripts/call_aigve_api.py --base-url http://<server-ip>:2200 \
+    --upload-dir ./my_videos \
+    --use-cdfvd --cdfvd-model i3d \
+    --cdfvd-resolution 128 --cdfvd-sequence-length 16 \
+    --max-seconds 8 --fps 25 --save-dir ./results/cdfvd_i3d_mtalk
+  ```
+  Adjust resolution/sequence length to match your target paper’s protocol.
 
 **Key Features:**
 - **Independent computation**: Runs separately from the default metrics pipeline
@@ -466,10 +538,10 @@ The API supports computing FVD using the external **cd-fvd** package as an alter
 **Usage Examples:**
 
 1. Basic CD-FVD with VideoMAE (recommended):
-   ```bash
-   python scripts/call_aigve_api.py --base-url http://localhost:2200 \
-     --upload-dir ./my_videos --use-cdfvd
-   ```
+  ```bash
+  python scripts/call_aigve_api.py --base-url http://localhost:2200 \
+    --upload-dir ./my_videos --use-cdfvd
+  ```
 
 2. Using I3D model with custom resolution:
    ```bash
@@ -479,24 +551,42 @@ The API supports computing FVD using the external **cd-fvd** package as an alter
    ```
 
 3. High-resolution with longer sequences:
-   ```bash
-   python scripts/call_aigve_api.py --base-url http://localhost:2200 \
-     --upload-dir ./my_videos --use-cdfvd \
-     --cdfvd-model videomae --cdfvd-resolution 256 --cdfvd-sequence-length 32
-   ```
+  ```bash
+  python scripts/call_aigve_api.py --base-url http://localhost:2200 \
+    --upload-dir ./my_videos --use-cdfvd \
+    --cdfvd-model videomae --cdfvd-resolution 256 --cdfvd-sequence-length 32
+  ```
 
 4. Combined with other metrics:
-   ```bash
-   python scripts/call_aigve_api.py --base-url http://localhost:2200 \
-     --upload-dir ./my_videos \
-     --categories distribution_based --metrics fid,is \
-     --use-cdfvd --cdfvd-model videomae
-   ```
+  ```bash
+  python scripts/call_aigve_api.py --base-url http://localhost:2200 \
+    --upload-dir ./my_videos \
+    --categories distribution_based --metrics fid,is \
+    --use-cdfvd --cdfvd-model videomae
+  ```
 
 **Output:**
 - CD-FVD results are included in the API response as `cdfvd_result`
 - Results are saved to `cdfvd_results.json` in the save directory
 - Console output displays FVD score, model used, and video counts
+
+Verifying clip duration effect (recommended):
+- Run twice with different durations and compare FVD:
+  ```bash
+  # 8s clip
+  python scripts/call_aigve_api.py --base-url http://<server-ip>:2200 \
+    --upload-files ./data/*.mp4 ./data/*.mov \
+    --use-cdfvd --cdfvd-model i3d --cdfvd-resolution 128 --cdfvd-sequence-length 16 \
+    --max-seconds 8 --fps 25 --save-dir ./results/cdfvd_i3d_ms8
+
+  # 30s clip
+  python scripts/call_aigve_api.py --base-url http://<server-ip>:2200 \
+    --upload-files ./data/*.mp4 ./data/*.mov \
+    --use-cdfvd --cdfvd-model i3d --cdfvd-resolution 128 --cdfvd-sequence-length 16 \
+    --max-seconds 30 --fps 25 --save-dir ./results/cdfvd_i3d_ms30
+  ```
+  - The server logs will show `[CD-FVD Trim] ... -t <duration> ...` for each file.
+  - `cdfvd_results.json` includes `max_seconds`/`fps` metadata to confirm the run config.
 
 **Video Organization:**
 - Real videos: Files without special suffixes (e.g., `video1.mp4`)
