@@ -518,12 +518,14 @@ def run_upload(
     if use_cdfvd:
         try:
             logger.info("[%s] Computing FVD using cd-fvd package...", rid)
+            # Videos are staged in the evaluate subdirectory
+            video_dir = os.path.join(stage_dir, "evaluate")
             cdfvd_result = _compute_cdfvd(
-                staged_dir=stage_dir,
+                upload_dir=video_dir,
+                generated_suffixes=generated_suffixes,
                 model=cdfvd_model or "i3d",
                 resolution=cdfvd_resolution or 224,
-                sequence_length=cdfvd_sequence_length or 16,
-                suffix=generated_suffixes
+                sequence_length=cdfvd_sequence_length or 16
             )
             
             # Save CD-FVD results
