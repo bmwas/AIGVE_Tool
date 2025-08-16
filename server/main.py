@@ -188,44 +188,46 @@ def _compute_cdfvd(upload_dir: str, generated_suffixes: str, model: str = "video
     # Parse suffixes
     suffixes = [s.strip() for s in generated_suffixes.split(',') if s.strip()]
     
+    print(f"[CD-FVD Debug] Looking for videos in: {upload_dir}")
+    print(f"[CD-FVD Debug] Suffixes to identify synthetic videos: {suffixes}")
+    
+    # Check if directory exists and list contents
+    upload_path = Path(upload_dir)
+    if not upload_path.exists():
+        raise RuntimeError(f"Upload directory does not exist: {upload_dir}")
+    
+    all_files = list(upload_path.glob("*"))
+    print(f"[CD-FVD Debug] Files in directory: {[f.name for f in all_files]}")
+    
     # Organize videos into real and fake
     real_videos = []
     fake_videos = []
     
-    for video_file in Path(upload_dir).glob("*.mp4"):
+    # Check all video formats
+    video_extensions = ["*.mp4", "*.mov", "*.avi", "*.mkv", "*.webm", "*.m4v"]
+    all_videos = []
+    for ext in video_extensions:
+        videos = list(Path(upload_dir).glob(ext))
+        all_videos.extend(videos)
+        if videos:
+            print(f"[CD-FVD Debug] Found {len(videos)} {ext} files")
+    
+    print(f"[CD-FVD Debug] Total videos found: {len(all_videos)}")
+    
+    for video_file in all_videos:
         video_name = video_file.stem
         is_synthetic = any(video_name.endswith(f"_{suffix}") for suffix in suffixes)
         
+        print(f"[CD-FVD Debug] Processing: {video_file.name}, stem={video_name}, is_synthetic={is_synthetic}")
+        
         if is_synthetic:
             fake_videos.append(str(video_file))
+            print(f"[CD-FVD Debug] Added to fake_videos: {video_file.name}")
         else:
-            # Check if this is a real video (has a corresponding synthetic version)
-            has_synthetic = False
-            for suffix in suffixes:
-                synthetic_path = video_file.parent / f"{video_name}_{suffix}.mp4"
-                if synthetic_path.exists():
-                    has_synthetic = True
-                    break
-            if has_synthetic:
-                real_videos.append(str(video_file))
-    
-    # Also check other video formats
-    for ext in [".mov", ".avi", ".mkv", ".webm", ".m4v"]:
-        for video_file in Path(upload_dir).glob(f"*{ext}"):
-            video_name = video_file.stem
-            is_synthetic = any(video_name.endswith(f"_{suffix}") for suffix in suffixes)
-            
-            if is_synthetic:
-                fake_videos.append(str(video_file))
-            else:
-                has_synthetic = False
-                for suffix in suffixes:
-                    synthetic_path = video_file.parent / f"{video_name}_{suffix}{ext}"
-                    if synthetic_path.exists():
-                        has_synthetic = True
-                        break
-                if has_synthetic:
-                    real_videos.append(str(video_file))
+            # For real videos, we add them regardless of whether they have synthetic counterpart
+            # The pairing will be handled by CD-FVD itself
+            real_videos.append(str(video_file))
+            print(f"[CD-FVD Debug] Added to real_videos: {video_file.name}")
     
     if not real_videos or not fake_videos:
         raise ValueError(f"Insufficient videos for FVD computation. Found {len(real_videos)} real and {len(fake_videos)} fake videos")
@@ -518,8 +520,24 @@ def run_upload(
     if use_cdfvd:
         try:
             logger.info("[%s] Computing FVD using cd-fvd package...", rid)
-            # Videos are staged in the evaluate subdirectory
+            # Check both possible locations for staged videos
             video_dir = os.path.join(stage_dir, "evaluate")
+            if not os.path.exists(video_dir):
+                print(f"[CD-FVD] evaluate dir not found, checking stage_dir directly: {stage_dir}")
+                video_dir = stage_dir
+            
+            # List contents to debug
+            print(f"[CD-FVD] Looking for videos in: {video_dir}")
+            if os.path.exists(video_dir):
+                files = os.listdir(video_dir)
+                print(f"[CD-FVD] Files found: {files}")
+                # Check subdirectories
+                for item in files:
+                    item_path = os.path.join(video_dir, item)
+                    if os.path.isdir(item_path):
+                        subfiles = os.listdir(item_path)
+                        print(f"[CD-FVD] Subdirectory {item}: {subfiles}")
+            
             cdfvd_result = _compute_cdfvd(
                 upload_dir=video_dir,
                 generated_suffixes=generated_suffixes,
