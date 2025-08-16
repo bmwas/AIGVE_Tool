@@ -557,7 +557,7 @@ def run_upload(
                 {
                     "name": "cdfvd_results.json",
                     "path": cdfvd_json_path,
-                    "content": json.dumps(cdfvd_result, indent=2)
+                    "json": cdfvd_result  # Use "json" field for dict/list data
                 }
             ]
             logger.info("[%s] CD-FVD artifacts: cdfvd_results.json", rid)
