@@ -547,6 +547,22 @@ def run_upload(
                 sequence_length=cdfvd_sequence_length or 16
             )
             
+            # Attach length info similar to legacy metrics (max_seconds/fps -> max_len)
+            try:
+                if max_seconds is not None:
+                    ms = float(max_seconds)
+                    cdfvd_result["max_seconds"] = ms
+                    try:
+                        fv = float(fps) if fps is not None else None
+                    except Exception:
+                        fv = None
+                    if fv is not None:
+                        cdfvd_result["fps"] = fv
+                        cdfvd_result["max_len"] = int(round(ms * fv))
+            except Exception:
+                # Non-fatal: keep CD-FVD results even if length annotation fails
+                pass
+            
             # Save CD-FVD results
             cdfvd_json_path = os.path.join(stage_dir, "cdfvd_results.json")
             with open(cdfvd_json_path, "w") as f:
@@ -630,6 +646,21 @@ def run_prepare(req: PrepareAnnotationsRequest, request: Request):
                 resolution=req.cdfvd_resolution or 128,
                 sequence_length=req.cdfvd_sequence_length or 16
             )
+            # Attach length info similar to legacy metrics (max_seconds/fps -> max_len)
+            try:
+                if req.max_seconds is not None:
+                    ms = float(req.max_seconds)
+                    cdfvd_result["max_seconds"] = ms
+                    try:
+                        fv = float(req.fps) if req.fps is not None else None
+                    except Exception:
+                        fv = None
+                    if fv is not None:
+                        cdfvd_result["fps"] = fv
+                        cdfvd_result["max_len"] = int(round(ms * fv))
+            except Exception:
+                # Non-fatal: keep CD-FVD results even if length annotation fails
+                pass
             response["cdfvd_result"] = cdfvd_result
             
             # Save CD-FVD result to a JSON file

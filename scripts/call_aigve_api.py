@@ -211,12 +211,23 @@ def save_artifacts_locally(result: Dict[str, Any], save_dir: str) -> list[str]:
         base = os.path.basename(name)
         target = os.path.join(save_dir, base)
         content: str | None = None
+        
+        # Debug: print artifact structure
+        print(f"[artifacts] Processing {name}, keys: {art.keys()}", flush=True)
+        
         if isinstance(art.get("json"), (dict, list)):
             content = json.dumps(art["json"], indent=2)
+            print(f"[artifacts] Found json field for {name}, content preview: {content[:200] if content else 'EMPTY'}", flush=True)
         elif isinstance(art.get("text"), str):
             content = art["text"]
+            print(f"[artifacts] Found text field for {name}", flush=True)
+        elif isinstance(art.get("content"), str):
+            # Handle content field (for CD-FVD results)
+            content = art["content"]
+            print(f"[artifacts] Found content field for {name}, length={len(content)}", flush=True)
         # Skip if no readable content
         if content is None:
+            print(f"[artifacts] Skipping {name} - no readable content found", flush=True)
             continue
         try:
             with open(target, "w", encoding="utf-8") as f:
@@ -371,6 +382,15 @@ def main(argv: list[str] | None = None) -> int:
         print(f"Model: {cdfvd_res.get('model', 'N/A')}")
         print(f"Real Videos: {cdfvd_res.get('num_real_videos', 'N/A')}")
         print(f"Fake Videos: {cdfvd_res.get('num_fake_videos', 'N/A')}")
+        # If server returned length metadata, show it
+        if "max_seconds" in cdfvd_res:
+            ms = cdfvd_res.get("max_seconds")
+            fps_v = cdfvd_res.get("fps")
+            max_len = cdfvd_res.get("max_len")
+            if fps_v is not None and max_len is not None:
+                print(f"Clip: {ms} s at {fps_v} fps (~{max_len} frames)")
+            else:
+                print(f"Clip: {ms} s")
     elif "cdfvd_error" in result:
         print(f"\n[CD-FVD Error] {result['cdfvd_error']}")
     
