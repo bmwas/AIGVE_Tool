@@ -238,7 +238,7 @@ ENV PATH="/app/.local/bin:$PATH"
 ENV PYTHONPATH="/app/.local/lib/python3.10/site-packages:$PYTHONPATH"
 
 # Install all Python packages as user 1000
-RUN pip3 install --user --no-cache-dir -r /app/requirement.txt
+RUN pip3 install --user -r /app/requirement.txt
 
 # Install cd-fvd via git clone as user 1000 (editable install to keep source)
 RUN git clone https://github.com/songweige/content-debiased-fvd.git && \

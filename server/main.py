@@ -401,18 +401,26 @@ def _compute_cdfvd(upload_dir: str, generated_suffixes: str, model: str = "video
                         
                         try:
                             # Initialize evaluator for this configuration
-                            evaluator = fvd.cdfvd(model_name, ckpt_path=None)
+                            evaluator = fvd.cdfvd(model_name, ckpt_path=None, device='cuda')
                             
-                            # Get lists of video files in each directory
-                            real_video_files = [str(real_dir / f) for f in real_dir.iterdir() if f.is_file() and f.suffix.lower() in ['.mp4', '.mov', '.avi']]
-                            fake_video_files = [str(fake_dir / f) for f in fake_dir.iterdir() if f.is_file() and f.suffix.lower() in ['.mp4', '.mov', '.avi']]
-                            
-                            # Load and compute real video statistics
-                            real_videos = evaluator.load_videos(real_video_files, resolution=res, sequence_length=seq_len)
+                            # Load and compute real video statistics using directory path
+                            real_videos = evaluator.load_videos(
+                                str(real_dir), 
+                                data_type='video_folder',
+                                resolution=res, 
+                                sequence_length=seq_len,
+                                sample_every_n_frames=1
+                            )
                             evaluator.compute_real_stats(real_videos)
                             
-                            # Load and compute fake video statistics  
-                            fake_videos = evaluator.load_videos(fake_video_files, resolution=res, sequence_length=seq_len)
+                            # Load and compute fake video statistics using directory path
+                            fake_videos = evaluator.load_videos(
+                                str(fake_dir), 
+                                data_type='video_folder',
+                                resolution=res, 
+                                sequence_length=seq_len,
+                                sample_every_n_frames=1
+                            )
                             evaluator.compute_fake_stats(fake_videos)
                             
                             # Compute FVD score from statistics
@@ -446,20 +454,28 @@ def _compute_cdfvd(upload_dir: str, generated_suffixes: str, model: str = "video
         else:
             # Single flavor computation (legacy behavior)
             logger.info("[CD-FVD] Computing single flavor with model='%s'", model)
-            evaluator = fvd.cdfvd(model, ckpt_path=None)
+            evaluator = fvd.cdfvd(model, ckpt_path=None, device='cuda')
             
-            # Get lists of video files in each directory
-            real_video_files = [str(real_dir / f) for f in real_dir.iterdir() if f.is_file() and f.suffix.lower() in ['.mp4', '.mov', '.avi']]
-            fake_video_files = [str(fake_dir / f) for f in fake_dir.iterdir() if f.is_file() and f.suffix.lower() in ['.mp4', '.mov', '.avi']]
-            
-            # Load and compute real video statistics
-            logger.info("[CD-FVD] Loading and computing real video statistics from %d files", len(real_video_files))
-            real_videos = evaluator.load_videos(real_video_files, resolution=resolution, sequence_length=sequence_length)
+            # Load and compute real video statistics using directory path
+            logger.info("[CD-FVD] Loading real video statistics from directory: %s", real_dir)
+            real_videos = evaluator.load_videos(
+                str(real_dir), 
+                data_type='video_folder',
+                resolution=resolution, 
+                sequence_length=sequence_length,
+                sample_every_n_frames=1
+            )
             evaluator.compute_real_stats(real_videos)
             
-            # Load and compute fake video statistics  
-            logger.info("[CD-FVD] Loading and computing fake video statistics from %d files", len(fake_video_files))
-            fake_videos = evaluator.load_videos(fake_video_files, resolution=resolution, sequence_length=sequence_length)
+            # Load and compute fake video statistics using directory path
+            logger.info("[CD-FVD] Loading fake video statistics from directory: %s", fake_dir)
+            fake_videos = evaluator.load_videos(
+                str(fake_dir), 
+                data_type='video_folder',
+                resolution=resolution, 
+                sequence_length=sequence_length,
+                sample_every_n_frames=1
+            )
             evaluator.compute_fake_stats(fake_videos)
             
             # Compute FVD score from statistics
