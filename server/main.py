@@ -574,72 +574,87 @@ def run_upload(
         "session": {"id": session_id, "upload_dir": upload_dir, "stage_dir": stage_dir, "files": saved_files},
     }
     
-    # Compute CD-FVD if requested
-    cdfvd_error = None
-    if use_cdfvd:
+    # Compute CD-FVD by default with all available models
+    try:
+        logger.info("[%s] Computing FVD using cd-fvd package with all models...", rid)
+        # Check both possible locations for staged videos
+        video_dir = os.path.join(stage_dir, "evaluate")
+        if not os.path.exists(video_dir):
+            print(f"[CD-FVD] evaluate dir not found, checking stage_dir directly: {stage_dir}")
+            video_dir = stage_dir
+        
+        # List contents to debug
+        print(f"[CD-FVD] Looking for videos in: {video_dir}")
+        if os.path.exists(video_dir):
+            files = os.listdir(video_dir)
+            print(f"[CD-FVD] Files found: {files}")
+            # Check subdirectories
+            for item in files:
+                item_path = os.path.join(video_dir, item)
+                if os.path.isdir(item_path):
+                    subfiles = os.listdir(item_path)
+                    print(f"[CD-FVD] Subdirectory {item}: {subfiles}")
+        
+        # Compute CD-FVD with all available models
+        cdfvd_results = {}
+        models = ["videomae", "i3d"]
+        
+        for model in models:
+            try:
+                logger.info("[%s] Computing CD-FVD with model: %s", rid, model)
+                cdfvd_result = _compute_cdfvd(
+                    upload_dir=video_dir,
+                    generated_suffixes=generated_suffixes,
+                    model=model,
+                    resolution=cdfvd_resolution or 128,
+                    sequence_length=cdfvd_sequence_length or 16,
+                    max_seconds=max_seconds,
+                    fps=fps,
+                )
+                cdfvd_results[model] = cdfvd_result
+                logger.info("[%s] CD-FVD %s score: %.4f", rid, model, cdfvd_result.get("fvd_score", 0))
+            except Exception as e:
+                logger.error("[%s] CD-FVD %s computation error: %s", rid, model, e)
+                cdfvd_results[model] = {"error": str(e)}
+        
+        response["cdfvd_results"] = cdfvd_results
+        
+        # Save CD-FVD results
+        cdfvd_json_path = os.path.join(stage_dir, "cdfvd_results.json")
+        with open(cdfvd_json_path, "w") as f:
+            json.dump(cdfvd_results, f, indent=2)
+        
+        # Return CD-FVD artifacts along with any legacy artifacts
+        cdfvd_artifacts = [
+            {
+                "name": "cdfvd_results.json",
+                "path": cdfvd_json_path,
+                "json": cdfvd_results
+            }
+        ]
+        
+        # Also collect legacy artifacts
         try:
-            logger.info("[%s] Computing FVD using cd-fvd package...", rid)
-            # Check both possible locations for staged videos
-            video_dir = os.path.join(stage_dir, "evaluate")
-            if not os.path.exists(video_dir):
-                print(f"[CD-FVD] evaluate dir not found, checking stage_dir directly: {stage_dir}")
-                video_dir = stage_dir
-            
-            # List contents to debug
-            print(f"[CD-FVD] Looking for videos in: {video_dir}")
-            if os.path.exists(video_dir):
-                files = os.listdir(video_dir)
-                print(f"[CD-FVD] Files found: {files}")
-                # Check subdirectories
-                for item in files:
-                    item_path = os.path.join(video_dir, item)
-                    if os.path.isdir(item_path):
-                        subfiles = os.listdir(item_path)
-                        print(f"[CD-FVD] Subdirectory {item}: {subfiles}")
-            
-            cdfvd_result = _compute_cdfvd(
-                upload_dir=video_dir,
-                generated_suffixes=generated_suffixes,
-                model=cdfvd_model or "i3d",
-                resolution=cdfvd_resolution or 224,
-                sequence_length=cdfvd_sequence_length or 16,
-                max_seconds=max_seconds,
-                fps=fps,
-            )
-            
-            # Save CD-FVD results
-            cdfvd_json_path = os.path.join(stage_dir, "cdfvd_results.json")
-            with open(cdfvd_json_path, "w") as f:
-                json.dump(cdfvd_result, f, indent=2)
-            
-            # When using CD-FVD, only return CD-FVD artifacts
-            response["artifacts"] = [
-                {
-                    "name": "cdfvd_results.json",
-                    "path": cdfvd_json_path,
-                    "json": cdfvd_result  # Use "json" field for dict/list data
-                }
-            ]
-            logger.info("[%s] CD-FVD artifacts: cdfvd_results.json", rid)
-            
+            legacy_arts = _collect_artifacts(APP_ROOT, proc.stdout or "")
+            response["artifacts"] = cdfvd_artifacts + legacy_arts
+            logger.info("[%s] CD-FVD + legacy artifacts: %d total", rid, len(response["artifacts"]))
         except Exception as e:
-            cdfvd_error = str(e)
-            print(f"[CD-FVD Error] {cdfvd_error}")
-            # Fail immediately when CD-FVD is requested but cannot be computed
-            raise HTTPException(
-                status_code=500,
-                detail=f"CD-FVD computation failed: {cdfvd_error}"
-            )
-    else:
-        # Only collect legacy artifacts if NOT using CD-FVD
+            response["artifacts"] = cdfvd_artifacts
+            response["artifact_error"] = str(e)
+            logger.warning("[%s] Legacy artifact collection error: %s", rid, e)
+        
+    except Exception as e:
+        response["cdfvd_error"] = str(e)
+        logger.error("[%s] CD-FVD computation error: %s", rid, e)
+        # Still collect legacy artifacts on CD-FVD failure
         try:
             arts = _collect_artifacts(APP_ROOT, proc.stdout or "")
             response["artifacts"] = arts
             if arts:
-                logger.info("[%s] Artifacts: %s", rid, ", ".join(a.get("name", "?") for a in arts))
-        except Exception as e:
-            response["artifact_error"] = str(e)
-            logger.warning("[%s] Artifact collection error: %s", rid, e)
+                logger.info("[%s] Legacy artifacts: %s", rid, ", ".join(a.get("name", "?") for a in arts))
+        except Exception as e2:
+            response["artifact_error"] = str(e2)
+            logger.warning("[%s] Legacy artifact collection error: %s", rid, e2)
     return response
 
 
@@ -679,25 +694,61 @@ def run_prepare(req: PrepareAnnotationsRequest, request: Request):
         "stderr": proc.stderr,
     }
     
-    # Compute CD-FVD if requested
-    if req.use_cdfvd and req.input_dir:
+    # Compute CD-FVD by default with all available models
+    if req.input_dir:
         try:
-            logger.info("[%s] Computing FVD using cd-fvd package...", rid)
-            cdfvd_result = _compute_cdfvd(
-                upload_dir=req.input_dir,
-                generated_suffixes=req.generated_suffixes or "synthetic,generated",
-                model=req.cdfvd_model or "videomae",
-                resolution=req.cdfvd_resolution or 128,
-                sequence_length=req.cdfvd_sequence_length or 16,
-                max_seconds=req.max_seconds,
-                fps=req.fps,
-            )
-            response["cdfvd_result"] = cdfvd_result
+            logger.info("[%s] Computing FVD using cd-fvd package with all models...", rid)
+            # Check for staged dataset directory (similar to /run_upload logic)
+            video_dir = req.input_dir
+            if req.stage_dataset:
+                staged_evaluate_dir = os.path.join(req.stage_dataset, "evaluate")
+                if os.path.exists(staged_evaluate_dir):
+                    video_dir = staged_evaluate_dir
+                    print(f"[CD-FVD] Using staged evaluate directory: {video_dir}")
+                elif os.path.exists(req.stage_dataset):
+                    video_dir = req.stage_dataset
+                    print(f"[CD-FVD] Using staged dataset directory: {video_dir}")
             
-            # Save CD-FVD result to a JSON file
+            # List contents to debug
+            print(f"[CD-FVD] Looking for videos in: {video_dir}")
+            if os.path.exists(video_dir):
+                files = os.listdir(video_dir)
+                print(f"[CD-FVD] Files found: {files}")
+                # Check subdirectories
+                for item in files:
+                    item_path = os.path.join(video_dir, item)
+                    if os.path.isdir(item_path):
+                        subfiles = os.listdir(item_path)
+                        print(f"[CD-FVD] Subdirectory {item}: {subfiles}")
+            
+            # Compute CD-FVD with all available models
+            cdfvd_results = {}
+            models = ["videomae", "i3d"]
+            
+            for model in models:
+                try:
+                    logger.info("[%s] Computing CD-FVD with model: %s", rid, model)
+                    cdfvd_result = _compute_cdfvd(
+                        upload_dir=video_dir,
+                        generated_suffixes=req.generated_suffixes or "synthetic,generated",
+                        model=model,
+                        resolution=req.cdfvd_resolution or 128,
+                        sequence_length=req.cdfvd_sequence_length or 16,
+                        max_seconds=req.max_seconds,
+                        fps=req.fps,
+                    )
+                    cdfvd_results[model] = cdfvd_result
+                    logger.info("[%s] CD-FVD %s score: %.4f", rid, model, cdfvd_result.get("fvd_score", 0))
+                except Exception as e:
+                    logger.error("[%s] CD-FVD %s computation error: %s", rid, model, e)
+                    cdfvd_results[model] = {"error": str(e)}
+            
+            response["cdfvd_results"] = cdfvd_results
+            
+            # Save CD-FVD results to a JSON file
             cdfvd_json_path = os.path.join(APP_ROOT, "cdfvd_results.json")
             with open(cdfvd_json_path, "w") as f:
-                json.dump(cdfvd_result, f, indent=2)
+                json.dump(cdfvd_results, f, indent=2)
             logger.info("[%s] CD-FVD results saved to %s", rid, cdfvd_json_path)
         except Exception as e:
             response["cdfvd_error"] = str(e)
