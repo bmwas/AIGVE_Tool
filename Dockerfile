@@ -235,7 +235,19 @@ RUN chmod +x /app/entrypoint.sh
 # Switch to user 1000 and install cd-fvd for this user
 USER 1000
 RUN python3 -m pip install --user --no-cache-dir cd-fvd && \
-    python3 -c "import cdfvd; print('cd-fvd installed and accessible to user 1000')"
+    # Verify cd-fvd import works
+    python3 -c "import cdfvd; print('cd-fvd installed and accessible to user 1000')" && \
+    # Verify access to all critical directories
+    echo "Testing directory access as user 1000:" && \
+    ls -la /app/models/cdfvd/third_party/ && \
+    ls -la /app/.cache/ && \
+    ls -la /app/uploads/ && \
+    # Test write access to cache and uploads
+    touch /app/.cache/test_write && rm /app/.cache/test_write && \
+    touch /app/uploads/test_write && rm /app/uploads/test_write && \
+    # Verify Python can find user-installed packages
+    python3 -c "import sys; print('Python user site:', __import__('site').USER_SITE); print('User site in path:', __import__('site').USER_SITE in sys.path)" && \
+    echo "All access tests passed for user 1000"
 
 # Default entrypoint
 EXPOSE 2200
