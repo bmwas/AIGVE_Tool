@@ -384,9 +384,10 @@ def _compute_cdfvd(upload_dir: str, generated_suffixes: str, model: str = "video
             _trim_or_copy(video_path, dest)
         
         if compute_all_flavors:
-            # Single model computation - videomae only (i3d has persistent kernel size issues)
+            # Both models with error handling - try i3d first, then videomae
             fast_configs = [
-                ('videomae', 112, 8),    # Only reliable model, optimized settings
+                ('i3d', 128, 8),         # Try i3d first (may fail due to kernel issues)
+                ('videomae', 112, 8),    # Reliable fallback model
             ]
             
             logger.info("[CD-FVD] Computing %d fast FVD flavors (optimized for speed)", len(fast_configs))
@@ -436,6 +437,7 @@ def _compute_cdfvd(upload_dir: str, generated_suffixes: str, model: str = "video
                     }
                     
                     logger.info("[CD-FVD] %s: %.4f", flavor_key, fvd_score)
+                    print(f"[CD-FVD RESULT] ✅ {model_name.upper()} COMPLETED: FVD Score = {fvd_score:.4f}")
                     logger.info("[CD-FVD] ✅ COMPLETED: %s model finished successfully!", model_name.upper())
                     
                     # Clear stats for next iteration
@@ -444,6 +446,7 @@ def _compute_cdfvd(upload_dir: str, generated_suffixes: str, model: str = "video
                     
                 except Exception as e:
                     logger.error("[CD-FVD] Failed to compute %s: %s", flavor_key, e)
+                    print(f"[CD-FVD RESULT] ❌ {model_name.upper()} FAILED: {str(e)}")
                     flavors[flavor_key] = {"error": str(e)}
             
             result = {
