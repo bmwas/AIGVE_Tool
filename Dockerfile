@@ -236,10 +236,10 @@ RUN mkdir -p /app/uploads && chmod 777 /app/uploads
 USER root
 RUN pip3 install --no-cache-dir -r /app/requirement.txt
 
-# Install cd-fvd via git clone as required (global installation)
+# Install cd-fvd via git clone as required (regular installation, not editable)
 RUN git clone https://github.com/songweige/content-debiased-fvd.git && \
     cd ./content-debiased-fvd && \
-    pip3 install -e . && \
+    pip3 install . && \
     cd / && rm -rf /app/content-debiased-fvd && \
     pip3 show cd-fvd && \
     # Verify installation is accessible as root
