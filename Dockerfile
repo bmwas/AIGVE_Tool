@@ -195,9 +195,8 @@ RUN python3 -c "import numpy; assert numpy.__version__.startswith('1.26'), f'Num
 # Copy the repository
 COPY . /app/
 
-# RADICAL FIX: Create user and dedicated model directory with proper permissions
-RUN # Create user with UID 1000
-    useradd -u 1000 -m -s /bin/bash appuser && \
+# RADICAL FIX: Create user and dedicated model directory with proper permissions  
+RUN useradd -u 1000 -m -s /bin/bash appuser && \
     # Create all required directories
     mkdir -p /app/models/cdfvd/third_party/VideoMAEv2 && \
     mkdir -p /app/models/cdfvd/third_party/i3d && \
