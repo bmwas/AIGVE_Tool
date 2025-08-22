@@ -384,10 +384,9 @@ def _compute_cdfvd(upload_dir: str, generated_suffixes: str, model: str = "video
             _trim_or_copy(video_path, dest)
         
         if compute_all_flavors:
-            # Ultra-fast flavors computation - minimum settings for testing
+            # Ultra-fast single model computation - videomae only for maximum speed
             fast_configs = [
-                ('i3d', 64, 8),          # Ultra-fast: 64px resolution, 8 frames
-                ('videomae', 64, 8),     # Ultra-fast: 64px resolution, 8 frames
+                ('videomae', 112, 8),    # Ultra-fast: videomae only, 112px, 8 frames
             ]
             
             logger.info("[CD-FVD] Computing %d fast FVD flavors (optimized for speed)", len(fast_configs))
