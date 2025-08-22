@@ -749,6 +749,51 @@ Pass the script flags directly to the container. If arguments are provided and t
   docker run --rm ghcr.io/bmwas/aigve:latest --help
   ```
 
+### 🚨 Docker Permission Issues (CRITICAL)
+
+**Problem**: `PermissionError: [Errno 13] Permission denied: '/app/uploads/...'`
+
+This occurs when running AIGVE in docker-compose with `user: "${UID:-1000}:${GID:-1000}"` because the `/app/uploads` directory is created as root during build but the container runs as a non-root user.
+
+#### ⚡ Quick Fixes
+
+**Option 1: Volume Mount (Recommended)**
+Add to your docker-compose.yml aigve service:
+```yaml
+volumes:
+  - ./data:/app/data:rw
+  - ./results:/app/results:rw
+  - ./uploads:/app/uploads:rw  # Add this line
+```
+
+Then create the local directory:
+```bash
+mkdir -p uploads
+sudo chown ${UID:-1000}:${GID:-1000} uploads
+docker-compose up -d --force-recreate aigve
+```
+
+**Option 2: Runtime Fix (Immediate)**
+```bash
+docker-compose exec aigve mkdir -p /app/uploads
+docker-compose exec aigve chown -R 1000:1000 /app/uploads
+```
+
+**Option 3: Rebuild Image**
+The Dockerfile has been updated to handle this. Rebuild:
+```bash
+docker-compose build aigve --no-cache
+docker-compose up -d aigve
+```
+
+#### Root Cause
+The container runs as `user: 1000:1000` but `/app/uploads` was created as root during Docker build. Non-root users cannot create subdirectories in root-owned directories.
+
+#### Prevention
+When using docker-compose with non-root users, always use volume mounts for writable directories:
+- ✅ `./uploads:/app/uploads:rw` - User can write
+- ❌ Container-only paths - Permission denied
+
 ### REST API Reference (server/main.py)
 
 This project exposes a FastAPI server that wraps `scripts/prepare_annotations.py`.

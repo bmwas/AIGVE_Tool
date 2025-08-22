@@ -195,8 +195,16 @@ RUN python3 -c "import numpy; assert numpy.__version__.startswith('1.26'), f'Num
 # Copy the repository
 COPY . /app/
 
-# Create uploads directory with proper permissions for both root and user 1000
-RUN mkdir -p /app/uploads && chmod 777 /app/uploads && chown -R 1000:1000 /app/uploads
+# Create directories with proper permissions for user 1000:1000
+RUN mkdir -p /app/uploads && chmod 777 /app/uploads && chown -R 1000:1000 /app/uploads && \
+    mkdir -p /app/.cache/huggingface && chmod 777 /app/.cache/huggingface && chown -R 1000:1000 /app/.cache/huggingface && \
+    find /usr/local/lib/python3.10/dist-packages/cdfvd -type f -name "*.pth" -exec chmod 666 {} \; && \
+    find /usr/local/lib/python3.10/dist-packages/cdfvd -type d -exec chmod 755 {} \;
+
+# Set environment variables for cache directories
+ENV TRANSFORMERS_CACHE=/app/.cache/huggingface
+ENV HF_HOME=/app/.cache/huggingface
+ENV TORCH_HOME=/app/.cache/torch
 
 # Create a simple entrypoint script
 RUN echo '#!/usr/bin/env bash' > /app/entrypoint_noconda.sh && \
