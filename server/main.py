@@ -384,66 +384,67 @@ def _compute_cdfvd(upload_dir: str, generated_suffixes: str, model: str = "video
             _trim_or_copy(video_path, dest)
         
         if compute_all_flavors:
-            # Compute all FVD flavors as requested
-            models = ['i3d', 'videomae']
-            resolutions = [128, 256] 
-            sequence_lengths = [16, 128]
+            # Fast flavors computation - only the fastest combinations for speed
+            fast_configs = [
+                ('i3d', 128, 16),        # Fastest overall
+                ('videomae', 128, 16),   # Fastest videomae
+            ]
+            
+            logger.info("[CD-FVD] Computing %d fast FVD flavors (optimized for speed)", len(fast_configs))
             
             flavors = {}
-            total_combinations = len(models) * len(resolutions) * len(sequence_lengths)
+            total_combinations = len(fast_configs)
             logger.info("[CD-FVD] Computing all %d FVD flavors", total_combinations)
             
-            for model_name in models:
-                for res in resolutions:
-                    for seq_len in sequence_lengths:
-                        flavor_key = f"{model_name}_res{res}_len{seq_len}"
-                        logger.info("[CD-FVD] Computing flavor: %s", flavor_key)
-                        
-                        try:
-                            # Initialize evaluator for this configuration
-                            evaluator = fvd.cdfvd(model_name, ckpt_path=None, device='cuda')
-                            
-                            # Load and compute real video statistics using directory path
-                            real_videos = evaluator.load_videos(
-                                str(real_dir), 
-                                data_type='video_folder',
-                                resolution=res, 
-                                sequence_length=seq_len,
-                                sample_every_n_frames=1
-                            )
-                            evaluator.compute_real_stats(real_videos)
-                            
-                            # Load and compute fake video statistics using directory path
-                            fake_videos = evaluator.load_videos(
-                                str(fake_dir), 
-                                data_type='video_folder',
-                                resolution=res, 
-                                sequence_length=seq_len,
-                                sample_every_n_frames=1
-                            )
-                            evaluator.compute_fake_stats(fake_videos)
-                            
-                            # Compute FVD score from statistics
-                            fvd_score = evaluator.compute_fvd_from_stats()
-                            
-                            flavors[flavor_key] = {
-                                "fvd_score": float(fvd_score),
-                                "model": model_name,
-                                "resolution": res,
-                                "sequence_length": seq_len,
-                                "num_real_videos": len(real_videos),
-                                "num_fake_videos": len(fake_videos)
-                            }
-                            
-                            logger.info("[CD-FVD] %s: %.4f", flavor_key, fvd_score)
-                            
-                            # Clear stats for next iteration
-                            evaluator.empty_real_stats()
-                            evaluator.empty_fake_stats()
-                            
-                        except Exception as e:
-                            logger.error("[CD-FVD] Failed to compute %s: %s", flavor_key, e)
-                            flavors[flavor_key] = {"error": str(e)}
+            for model_name, res, seq_len in fast_configs:
+                flavor_key = f"{model_name}_res{res}_len{seq_len}"
+                logger.info("[CD-FVD] Computing flavor: %s", flavor_key)
+                
+                try:
+                    # Initialize evaluator for this configuration
+                    evaluator = fvd.cdfvd(model_name, ckpt_path=None, device='cuda')
+                    
+                    # Load and compute real video statistics using directory path
+                    real_videos = evaluator.load_videos(
+                        str(real_dir), 
+                        data_type='video_folder',
+                        resolution=res, 
+                        sequence_length=seq_len,
+                        sample_every_n_frames=1
+                    )
+                    evaluator.compute_real_stats(real_videos)
+                    
+                    # Load and compute fake video statistics using directory path
+                    fake_videos = evaluator.load_videos(
+                        str(fake_dir), 
+                        data_type='video_folder',
+                        resolution=res, 
+                        sequence_length=seq_len,
+                        sample_every_n_frames=1
+                    )
+                    evaluator.compute_fake_stats(fake_videos)
+                    
+                    # Compute FVD score from statistics
+                    fvd_score = evaluator.compute_fvd_from_stats()
+                    
+                    flavors[flavor_key] = {
+                        "fvd_score": float(fvd_score),
+                        "model": model_name,
+                        "resolution": res,
+                        "sequence_length": seq_len,
+                        "num_real_videos": len(real_videos),
+                        "num_fake_videos": len(fake_videos)
+                    }
+                    
+                    logger.info("[CD-FVD] %s: %.4f", flavor_key, fvd_score)
+                    
+                    # Clear stats for next iteration
+                    evaluator.empty_real_stats()
+                    evaluator.empty_fake_stats()
+                    
+                except Exception as e:
+                    logger.error("[CD-FVD] Failed to compute %s: %s", flavor_key, e)
+                    flavors[flavor_key] = {"error": str(e)}
             
             result = {
                 "flavors": flavors,
