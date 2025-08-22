@@ -418,7 +418,7 @@ def _compute_cdfvd(upload_dir: str, generated_suffixes: str, model: str = "video
         except Exception:
             pass
         
-        logger.info("[CD-FVD] FVD Score: %.4f", score)
+        logger.info("[CD-FVD] FVD Score: %.4f", fvd_score)
         return result
 
 

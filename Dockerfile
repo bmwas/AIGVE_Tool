@@ -232,12 +232,19 @@ ENV CDFVD_MODEL_DIR=/app/models/cdfvd/third_party
 # Create uploads directory with proper permissions
 RUN mkdir -p /app/uploads && chmod 777 /app/uploads
 
-# Install requirements including cd-fvd, then fix missing modules with symlinks
+# Install requirements (excluding cd-fvd which will be installed via git clone)
 USER root
-RUN pip3 install --no-cache-dir -r /app/requirement.txt && \
-    # Verify cd-fvd installed but expect import error due to missing third_party
+RUN pip3 install --no-cache-dir -r /app/requirement.txt
+
+# Install cd-fvd via git clone as required
+RUN cd /tmp && \
+    git clone https://github.com/songweige/content-debiased-fvd.git && \
+    cd ./content-debiased-fvd && \
+    pip install -e . && \
+    cd / && rm -rf /tmp/content-debiased-fvd && \
+    # Verify cd-fvd installed
     pip3 show cd-fvd && \
-    echo "cd-fvd installed - symlinks will fix missing modules"
+    echo "cd-fvd installed via git clone - symlinks will fix missing modules"
 
 # Copy and set up entrypoint script  
 RUN chmod +x /app/entrypoint.sh
