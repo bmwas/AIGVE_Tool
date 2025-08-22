@@ -384,9 +384,10 @@ def _compute_cdfvd(upload_dir: str, generated_suffixes: str, model: str = "video
             _trim_or_copy(video_path, dest)
         
         if compute_all_flavors:
-            # Ultra-fast single model computation - videomae only for maximum speed
+            # Sequential computation - i3d first (fast), then videomae (slow)
             fast_configs = [
-                ('videomae', 112, 8),    # Ultra-fast: videomae only, 112px, 8 frames
+                ('i3d', 128, 8),         # Run first: fastest model
+                ('videomae', 112, 8),    # Run second: slower model
             ]
             
             logger.info("[CD-FVD] Computing %d fast FVD flavors (optimized for speed)", len(fast_configs))
@@ -436,6 +437,7 @@ def _compute_cdfvd(upload_dir: str, generated_suffixes: str, model: str = "video
                     }
                     
                     logger.info("[CD-FVD] %s: %.4f", flavor_key, fvd_score)
+                    logger.info("[CD-FVD] ✅ COMPLETED: %s model finished successfully!", model_name.upper())
                     
                     # Clear stats for next iteration
                     evaluator.empty_real_stats()
