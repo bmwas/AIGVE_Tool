@@ -240,6 +240,8 @@ RUN pip3 install --no-cache-dir -r /app/requirement.txt
 RUN git clone https://github.com/songweige/content-debiased-fvd.git && \
     cd ./content-debiased-fvd && \
     pip install -e . && \
+    cd / && rm -rf /app/content-debiased-fvd && \
+    pip3 show cd-fvd
 
 # Copy and set up entrypoint script  
 RUN chmod +x /app/entrypoint.sh
