@@ -384,10 +384,9 @@ def _compute_cdfvd(upload_dir: str, generated_suffixes: str, model: str = "video
             _trim_or_copy(video_path, dest)
         
         if compute_all_flavors:
-            # Both models with error handling - try i3d first, then videomae
+            # Single model - videomae only (i3d has persistent kernel issues)
             fast_configs = [
-                ('i3d', 128, 8),         # Try i3d first (may fail due to kernel issues)
-                ('videomae', 112, 8),    # Reliable fallback model
+                ('videomae', 112, 8),    # Only reliable model
             ]
             
             logger.info("[CD-FVD] Computing %d fast FVD flavors (optimized for speed)", len(fast_configs))
@@ -528,38 +527,41 @@ def _collect_artifacts(base_dir: str, stdout: str) -> List[dict]:
         "gstvqa_results.json",
         "simplevqa_results.json",
         "lightvqa_plus_results.json",
+        "annotations.json",
+        "evaluate.json",
         "cdfvd_results.json",  # Add CD-FVD results to artifacts
     ]
     
     logger.debug("[Artifacts] Searching for %d candidate artifact files: %s", 
                 len(candidate_names), candidate_names)
     
-    artifacts: List[dict] = []
-    files_found = 0
-    total_size = 0
-    
+    artifacts = []
     for name in candidate_names:
-        path = os.path.join(base_dir, name)
-        logger.debug("[Artifacts] Checking for artifact: %s", path)
-        
-        if os.path.exists(path):
+        full_path = os.path.join(base_dir, name)
+        if os.path.exists(full_path):
+            logger.debug("[Artifacts] Found result file: %s", name)
             try:
-                file_size = os.path.getsize(path)
-                total_size += file_size
-                files_found += 1
-                logger.info("[Artifacts] Found artifact: %s (%.1f KB)", name, file_size / 1024)
+                with open(full_path, 'r') as f:
+                    content = json.load(f)
+                artifacts.append({
+                    "name": name,
+                    "path": full_path,
+                    "content": content,
+                    "source": "file_system"
+                })
+                logger.debug("[Artifacts] Successfully loaded: %s", name)
                 
-                item: dict = {"name": name, "path": path, "size_bytes": file_size}
-                
-                try:
-                    with open(path, "r", encoding="utf-8") as f:
-                        text = f.read()
-                        logger.debug("[Artifacts] Read %d characters from %s", len(text), name)
+                # Print results to console for key metrics
+                if name == "fid_results.json" and isinstance(content, dict):
+                    fid_score = content.get('fid_score', content.get('FID', 'N/A'))
+                    print(f"[METRICS RESULT] FID COMPLETED: Score = {fid_score}")
+                elif name == "is_results.json" and isinstance(content, dict):
+                    is_score = content.get('is_score', content.get('IS', 'N/A'))
+                    print(f"[METRICS RESULT] IS COMPLETED: Score = {is_score}")
+                elif name == "fvd_results.json" and isinstance(content, dict):
+                    fvd_score = content.get('fvd_score', content.get('FVD', 'N/A'))
+                    print(f"[METRICS RESULT] FVD COMPLETED: Score = {fvd_score}")
                     
-                    try:
-                        parsed_json = json.loads(text)
-                        item["json"] = parsed_json
-                        logger.debug("[Artifacts] Successfully parsed JSON from %s with %d keys", 
                                    name, len(parsed_json) if isinstance(parsed_json, dict) else 1)
                     except json.JSONDecodeError as je:
                         logger.warning("[Artifacts] JSON parsing failed for %s: %s", name, je)
