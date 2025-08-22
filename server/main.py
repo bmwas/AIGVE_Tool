@@ -668,15 +668,29 @@ def run_prepare(req: PrepareAnnotationsRequest, request: Request):
 
     rid = getattr(getattr(request, "state", object()), "rid", "-")
     
-    # Ensure input_dir exists
+    # Ensure input_dir exists (with permission fallback)
     if req.input_dir and not os.path.exists(req.input_dir):
         logger.info("[%s] Creating missing input_dir: %s", rid, req.input_dir)
-        os.makedirs(req.input_dir, exist_ok=True)
+        try:
+            os.makedirs(req.input_dir, exist_ok=True)
+        except PermissionError as e:
+            # Fall back to writable container location
+            import tempfile
+            fallback_dir = tempfile.mkdtemp(prefix="aigve_input_", dir="/tmp")
+            logger.warning("[%s] Permission denied creating %s (%s), using fallback: %s", rid, req.input_dir, e, fallback_dir)
+            req.input_dir = fallback_dir
     
-    # Ensure stage_dataset exists if specified
+    # Ensure stage_dataset exists if specified (with permission fallback)
     if req.stage_dataset and not os.path.exists(req.stage_dataset):
         logger.info("[%s] Creating missing stage_dataset: %s", rid, req.stage_dataset)
-        os.makedirs(req.stage_dataset, exist_ok=True)
+        try:
+            os.makedirs(req.stage_dataset, exist_ok=True)
+        except PermissionError as e:
+            # Fall back to writable container location
+            import tempfile
+            fallback_dir = tempfile.mkdtemp(prefix="aigve_stage_", dir="/tmp")
+            logger.warning("[%s] Permission denied creating %s (%s), using fallback: %s", rid, req.stage_dataset, e, fallback_dir)
+            req.stage_dataset = fallback_dir
 
     t0 = time.perf_counter()
     logger.info("[%s] /run input_dir=%s stage_dataset=%s compute=%s categories=%s metrics=%s", rid, req.input_dir, req.stage_dataset, bool(req.compute), req.categories, req.metrics)
@@ -742,6 +756,13 @@ def run_prepare(req: PrepareAnnotationsRequest, request: Request):
                         os.makedirs(staged_evaluate_dir, exist_ok=True)
                         video_dir = staged_evaluate_dir
                         print(f"[CD-FVD] Created and using staged evaluate directory: {video_dir}")
+                    except PermissionError as e:
+                        # Fall back to writable temporary directory
+                        import tempfile
+                        fallback_dir = tempfile.mkdtemp(prefix="aigve_cdfvd_staged_", dir="/tmp")
+                        logger.warning("[%s] Permission denied creating staged evaluate directory %s (%s), using fallback: %s", rid, staged_evaluate_dir, e, fallback_dir)
+                        video_dir = fallback_dir
+                        print(f"[CD-FVD] Using permission fallback directory: {video_dir}")
                     except Exception as e:
                         logger.warning("[%s] Could not create staged evaluate directory %s: %s", rid, staged_evaluate_dir, e)
                         # Fall back to stage_dataset root
@@ -762,17 +783,29 @@ def run_prepare(req: PrepareAnnotationsRequest, request: Request):
                         os.makedirs(req.input_dir, exist_ok=True)
                         video_dir = req.input_dir
                         print(f"[CD-FVD] Created and using input directory: {video_dir}")
+                    except PermissionError as e:
+                        # Fall back to writable temporary directory due to Docker permissions
+                        import tempfile
+                        video_dir = tempfile.mkdtemp(prefix="aigve_cdfvd_input_", dir="/tmp")
+                        logger.warning("[%s] Permission denied creating input_dir %s (%s), using fallback: %s", rid, req.input_dir, e, video_dir)
+                        print(f"[CD-FVD] Using permission fallback directory: {video_dir}")
                     except Exception as e:
                         # As last resort, create a temporary directory
                         import tempfile
-                        video_dir = tempfile.mkdtemp(prefix="aigve_cdfvd_")
+                        video_dir = tempfile.mkdtemp(prefix="aigve_cdfvd_", dir="/tmp")
                         logger.warning("[%s] Could not use input_dir %s (%s), using temporary directory: %s", rid, req.input_dir, e, video_dir)
                         print(f"[CD-FVD] Using temporary directory: {video_dir}")
             
-            # Ensure video directory exists (final safety check)
+            # Ensure video directory exists (final safety check with permission handling)
             if not os.path.exists(video_dir):
                 logger.warning("[%s] Video directory %s does not exist, creating it", rid, video_dir)
-                os.makedirs(video_dir, exist_ok=True)
+                try:
+                    os.makedirs(video_dir, exist_ok=True)
+                except PermissionError as e:
+                    # Final fallback to guaranteed writable location
+                    import tempfile
+                    video_dir = tempfile.mkdtemp(prefix="aigve_cdfvd_final_", dir="/tmp")
+                    logger.warning("[%s] Permission denied in final safety check (%s), using final fallback: %s", rid, e, video_dir)
             
             # List contents to debug
             print(f"[CD-FVD] Looking for videos in: {video_dir}")

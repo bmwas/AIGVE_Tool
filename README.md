@@ -1,6 +1,17 @@
 # What is `AIGVE`?
 
-`AIGVE` (**AI Generated Video Evaluation Toolkit**) provides a **comprehensive** and **structured** evaluation framework for assessing AI-generated video quality developed by the [IFM Lab](https://www.ifmlab.org/). It integrates multiple evaluation metrics, covering diverse aspects of video evaluation, including neural-network-based assessment, distribution comparison, vision-language alignment, and multi-faceted analysis.
+`AIGVE` (**AI Generated Video Evaluation Toolkit**) provides a **comprehensive** and **structured** evaluation framework for assessing AI-generated video quality developed by the [IFM Lab](https://www.ifmlab.org/). 
+
+## 🔥 **Dual Implementation Advantage**
+
+This repository **merges two powerful evaluation ecosystems**:
+
+- **🏠 Native AIGVE Metrics**: FID, IS, FVD (ResNet3D-18), and advanced neural metrics
+- **🚀 CD-FVD Package Integration**: Research-standard FVD using authentic I3D and VideoMAE models
+
+**Users get BOTH implementations automatically** - comprehensive coverage from AIGVE's extensive metric library PLUS state-of-the-art CD-FVD for research-grade FVD computation.
+
+The framework integrates multiple evaluation metrics, covering diverse aspects of video evaluation, including neural-network-based assessment, distribution comparison, vision-language alignment, and multi-faceted analysis.
 
 * **Official Website**: [https://www.aigve.org/](https://www.aigve.org/)
 * **Github Repository**: [https://github.com/ShaneXiangH/AIGVE_Tool](https://github.com/ShaneXiangH/AIGVE_Tool)
@@ -30,11 +41,18 @@
 
 <!-- <h2><img src="../../assets/icons/dis_based.png" alt="chart icon" style="height: 1.2em; vertical-align: middle;"> <strong>Distribution Comparison-Based Evaluation Metrics</strong></h2> -->
 
-These metrics assess the quality of generated videos by comparing the distribution of real and generated samples.
+These metrics assess the quality of generated videos by comparing the distribution of real and generated samples. **This repository provides BOTH native AIGVE implementations AND external CD-FVD package integration**:
 
-- ✅ **[FID](aigve/configs/fid.py)**: Frechet Inception Distance (FID) quantifies the similarity between real and generated video feature distributions by measuring the Wasserstein-2 distance.
-- ✅ **[FVD](aigve/configs/fvd.p)**: Frechet Video Distance (FVD) extends the FID approach to video domain by leveraging spatio-temporal features extracted from action recognition networks.
-- ✅ **[IS](aigve/configs/is_score.py)**: Inception Score (IS) evaluates both the quality and diversity of generated content by analyzing conditional label distributions.
+**🏠 Native AIGVE Implementation:**
+- ✅ **[FID](aigve/configs/fid.py)**: Frechet Inception Distance using InceptionV3 features
+- ✅ **[FVD](aigve/configs/fvd.py)**: Frechet Video Distance using **ResNet3D-18** features (torchvision alternative to I3D)
+- ✅ **[IS](aigve/configs/is_score.py)**: Inception Score using InceptionV3 conditional distributions
+
+**🚀 CD-FVD Package (Automatic):**
+- ✅ **CD-FVD (I3D)**: Research-standard FVD using **authentic Kinetics-400 I3D** logits features
+- ✅ **CD-FVD (VideoMAE)**: State-of-the-art FVD using **VideoMAE** masked autoencoder features
+
+> **⚡ Dual FVD Power**: Get both ResNet3D-18 FVD (AIGVE native) AND authentic I3D/VideoMAE FVD (CD-FVD package) automatically!
 
 ---
 
@@ -111,6 +129,44 @@ git clone https://github.com/ShaneXiangH/AIGVE_Tool.git
 ```
 
 Please check the [installation page](https://www.aigve.org/guides/installation/#dependency-packages) for dependency packages.
+
+### 🔄 **Merged Installation: AIGVE + CD-FVD Package**
+
+**This repository automatically provides BOTH evaluation ecosystems:**
+
+**📦 What You Get:**
+- **AIGVE Native**: FID, IS, FVD (ResNet3D-18), GSTVQA, SimpleVQA, LightVQA+, CLIPSim, etc.
+- **CD-FVD Package**: Research-standard I3D and VideoMAE FVD implementations
+- **Automatic Integration**: CD-FVD computed alongside native metrics with zero extra configuration
+
+**Installation Methods:**
+
+1. **Via requirements.txt** (automatic - installs both ecosystems):
+   ```shell
+   pip install -r requirement.txt  # includes cd-fvd + all AIGVE dependencies
+   ```
+
+2. **Manual installation**:
+   ```shell
+   pip install aigve          # Native AIGVE metrics
+   pip install cd-fvd         # CD-FVD package integration
+   ```
+
+3. **Docker** (pre-configured):
+   The Docker image includes both AIGVE and `cd-fvd` package pre-installed.
+
+4. **setup_env.sh** (recommended):
+   Environment setup installs complete merged ecosystem via `requirement.txt`.
+
+**🎯 Key Advantage: Dual FVD Implementation**
+
+| Implementation | Backbone | Features | Use Case |
+|----------------|----------|----------|----------|
+| **AIGVE Native FVD** | ResNet3D-18 | torchvision video features | Fast evaluation, AIGVE ecosystem |
+| **CD-FVD I3D** | Kinetics I3D | Authentic I3D logits | Research papers, standardized comparison |
+| **CD-FVD VideoMAE** | VideoMAE | Masked autoencoder features | Modern video generation, state-of-the-art |
+
+> **⚠️ Important**: FVD scores from different implementations (ResNet3D-18 vs I3D vs VideoMAE) are **not comparable**. Choose one per experiment or report all with clear labels.
 
 ## Environment
 
@@ -306,7 +362,7 @@ Open the docs: http://localhost:2200/docs
     -F "categories=distribution_based" \
     -F "max_seconds=8" -F "fps=25"
   ```
-  **Note**: This automatically computes CD-FVD with both VideMAE and I3D models in addition to legacy FID/IS/FVD metrics.
+  **🔄 Merged Pipeline**: AIGVE native metrics (FID, IS, FVD-ResNet3D) + CD-FVD package (VideoMAE, I3D) automatically.
   Notes:
   - Use `-F videos=@<path>` once per file. Supported extensions: `.mp4,.mov,.webm,.mkv,.avi,.m4v`.
   - The server stores uploads under `uploads/<session-id>/` and stages a dataset there by default.
@@ -370,23 +426,27 @@ This project ships with a Dockerized, conda-based environment that supports both
   ```bash
   curl http://localhost:2200/help
   ```
-- __Run prepare + metrics__
-  ```bash
-  curl -X POST http://localhost:2200/run \
-    -H 'Content-Type: application/json' \
-    -d '{
-      "input_dir": "/app/data",
-      "stage_dataset": "/app/out/staged",
-      "compute": true,
-      "categories": "distribution_based",
-      "max_seconds": 8,
-      "fps": 25
-    }'
-  ```
-  Notes:
-  - Paths must reference mounted container paths (e.g., `/app/data`, `/app/out`).
-  - All CLI flags from `scripts/prepare_annotations.py` are exposed as JSON fields. For new/advanced flags, use `extra_args` (array of raw CLI tokens).
-  - OpenAPI UI available at `/docs` and `/redoc`.
+  - __Run prepare + metrics (AIGVE + CD-FVD merged ecosystem)__
+    ```bash
+    curl -X POST http://localhost:2200/run \
+      -H 'Content-Type: application/json' \
+      -d '{
+        "input_dir": "/app/data",
+        "stage_dataset": "/app/out/staged",
+        "compute": true,
+        "categories": "distribution_based",
+        "max_seconds": 8,
+        "fps": 25
+      }'
+    ```
+    **🔥 Merged Output**: 
+    - **AIGVE Native**: `fid_results.json`, `is_results.json`, `fvd_results.json` (ResNet3D-18)
+    - **CD-FVD Package**: `cdfvd_results.json` (I3D + VideoMAE models)
+    
+    Notes:
+    - Paths must reference mounted container paths (e.g., `/app/data`, `/app/out`).
+    - All CLI flags from `scripts/prepare_annotations.py` are exposed as JSON fields. For new/advanced flags, use `extra_args` (array of raw CLI tokens).
+    - OpenAPI UI available at `/docs` and `/redoc`.
 
 ### Python client (scripts/call_aigve_api.py)
 
@@ -405,11 +465,11 @@ Use the included Python client to call the REST API and run distribution-based m
   # Docs: http://localhost:2200/docs
   ```
 
-- Run the client (automatically computes CD-FVD with both models):
+- Run the client (merged AIGVE + CD-FVD computation):
   ```bash
   python scripts/call_aigve_api.py
   ```
-  **Note**: No need to specify `--use-cdfvd` anymore - CD-FVD is computed by default!
+  **🎯 Merged Results**: AIGVE native metrics (FID, IS, FVD-ResNet3D) + CD-FVD package (I3D, VideoMAE) automatically!
 
 <!-- CPU-only client mode is not supported by the default server container. -->
 
@@ -419,7 +479,7 @@ Use the included Python client to call the REST API and run distribution-based m
   python scripts/call_aigve_api.py --max-seconds 8 --fps 25 \
     --base-url http://localhost:2200 --save-dir ./results
   ```
-  **Returns**: Both legacy metrics (FID/IS/FVD) AND CD-FVD results (VideMAE + I3D models) automatically!
+  **🔄 Merged Returns**: AIGVE native (FID, IS, FVD-ResNet3D) + CD-FVD package (VideoMAE + I3D) automatically!
 
 Client defaults (container paths):
 - `input_dir=/app/data` (mount your host `./data` to this path)
@@ -459,7 +519,7 @@ Client parameter quick reference (scripts/call_aigve_api.py):
 - `--save-dir` Where to save returned artifacts locally (default: `./results`)
 - `--cpu` Force CPU (server container enforces GPU by default; see note above)
 
-**Note**: CD-FVD is now computed automatically with both VideMAE and I3D models. No `--use-cdfvd` flag needed!
+**🔥 Merged Ecosystem**: AIGVE native metrics + CD-FVD package computed automatically - no additional flags needed!
 
 CD-FVD cropping behavior (max_seconds):
 - When `max_seconds > 0`, each real/fake video is trimmed before CD-FVD computation using ffmpeg.
@@ -480,14 +540,14 @@ CD-FVD cropping behavior (max_seconds):
 
 Quick examples (remote server, explicit files):
 
-- Complete metrics (legacy FID/IS/FVD + CD-FVD with both models):
+- Complete merged evaluation (AIGVE + CD-FVD ecosystems):
   ```bash
   python scripts/call_aigve_api.py \
     --base-url http://<server-ip>:2200 \
     --upload-files ./data/*.mp4 ./data/*.mov \
     --categories distribution_based \
     --max-seconds 8 --fps 25 \
-    --save-dir ./results/complete_ms8
+    --save-dir ./results/merged_evaluation
   ```
 
 - High-resolution CD-FVD with custom sequence length:
@@ -500,32 +560,59 @@ Quick examples (remote server, explicit files):
     --save-dir ./results/cdfvd_high_res_ms8
   ```
 
-Notes:
-- Artifacts (including `cdfvd_results.json` with both VideMAE and I3D results) are saved under `--save-dir` (default `./results`).
-- The CD-FVD results include `max_seconds`, `fps`, and `max_len` metadata for traceability.
+**🗂️ Merged Artifacts Output:**
+- **AIGVE Native**: `fid_results.json`, `is_results.json`, `fvd_results.json` (ResNet3D-18)
+- **CD-FVD Package**: `cdfvd_results.json` (VideMAE + I3D results)
+- All artifacts saved under `--save-dir` (default `./results`) with full traceability metadata.
 
 #### CD-FVD (Fréchet Video Distance with cd-fvd)
 
 **🎉 NEW: CD-FVD is now computed automatically by default!** 
 
-The API automatically computes FVD using the external **cd-fvd** package with both VideMAE and I3D models in addition to the legacy FVD implementation. This provides comprehensive FVD coverage with minimal setup.
+The API automatically computes FVD using the external **`cd-fvd` PyPI package** with both VideMAE and I3D models in addition to the legacy FVD implementation. This provides comprehensive FVD coverage with minimal setup.
 
-Important: FVD implementations differ
-- __Default FVD in AIGVE__: Implemented in `aigve/metrics/video_quality_assessment/distribution_based/fvd/fvd_metric.py` as `FVDScore`. Internally it uses `torchvision.models.video.r3d_18` (ResNet3D‑18) as an I3D alternative and replaces the classification head with `nn.Identity()` to extract features. This is not the same as Kinetics‑400 I3D logits features.
-- __CD-FVD (this section)__: Uses the external `cd-fvd` package with selectable backbones via `--cdfvd-model` (`videomae` [default] or `i3d`). Use this when you need a standardized FVD independent of the default implementation.
-- __MultiTalk paper context__: The paper reports FVD using I3D logits features on Kinetics‑400. To align more closely with that setup, prefer the CD-FVD path with `--cdfvd-model i3d`. Pick `--cdfvd-resolution` and `--cdfvd-sequence-length` to match the target setup (common values: 128/224 resolution; 16/32 frames). For exact pretrained weights used by CD-FVD’s I3D, consult the CD‑FVD documentation.
+**What is CD-FVD?**
 
-Reporting guidance
-- __Do not compare scores across implementations__: Numbers produced by the default FVD (ResNet3D‑18 features) and CD-FVD (I3D/VideoMAE) are not directly comparable. Choose one implementation per experiment or report both clearly labeled.
-- __Reproducing MultiTalk-style FVD__: Use the I3D results from the automatic CD-FVD computation, e.g.:
-  ```bash
-  python scripts/call_aigve_api.py --base-url http://<server-ip>:2200 \
-    --upload-dir ./my_videos \
-    --cdfvd-resolution 128 --cdfvd-sequence-length 16 \
-    --max-seconds 8 --fps 25 --save-dir ./results/cdfvd_mtalk
-  # Extract the I3D model results from cdfvd_results.json
-  ```
-  Adjust resolution/sequence length to match your target paper's protocol.
+CD-FVD is an **external implementation** that AIGVE integrates via the `cd-fvd` PyPI package. Unlike AIGVE's built-in FVD, CD-FVD provides standardized, research-grade FVD computation using state-of-the-art models.
+
+**Installation & Integration:**
+
+- **Source**: `cd-fvd` PyPI package (automatically installed via `requirement.txt`)
+- **Import**: `from cdfvd import fvd as cdfvd` in `server/main.py`
+- **Usage**: Automatically invoked by API endpoints (`/run`, `/run_upload`)
+- **Models**: Both VideoMAE and I3D models computed simultaneously
+
+**Important: FVD Implementation Differences**
+
+**Built-in AIGVE FVD vs CD-FVD Package:**
+
+| Feature | Built-in FVD | CD-FVD Package |
+|---------|--------------|----------------|
+| **Location** | `aigve/metrics/.../fvd_metric.py` | External `cd-fvd` PyPI package |
+| **Backbone** | ResNet3D-18 (`torchvision.models.video.r3d_18`) | I3D or VideoMAE models |
+| **Features** | ResNet3D-18 features (not I3D logits) | Kinetics-400 I3D logits or VideoMAE features |
+| **Usage** | AIGVE config files (`aigve/configs/fvd.py`) | API automatic computation |
+| **Comparability** | ❌ Not comparable with CD-FVD | ✅ Standardized research implementation |
+
+**Key Differences:**
+- __Default FVD in AIGVE__: Uses `torchvision.models.video.r3d_18` (ResNet3D‑18) features with classification head replaced by `nn.Identity()`. This is **not** the same as Kinetics‑400 I3D logits features.
+- __CD-FVD Package__: Uses the external `cd-fvd` package with authentic I3D (Kinetics-400 logits) or VideoMAE backbones via `--cdfvd-model` parameter.
+- __MultiTalk paper alignment__: For reproducing FVD scores from papers using I3D logits features on Kinetics‑400, use CD-FVD with `i3d` model.
+
+**Reporting Guidance:**
+- __Never compare scores across implementations__: ResNet3D‑18 FVD and CD-FVD (I3D/VideoMAE) produce different numerical ranges
+- __Choose one per experiment__: Use either built-in FVD OR CD-FVD, not both for comparison
+- __Label clearly__: Specify which implementation when reporting results
+- __Paper reproduction__: Use CD-FVD I3D results for alignment with standard research protocols
+
+**Reproducing Research-Standard FVD:**
+```bash
+python scripts/call_aigve_api.py --base-url http://<server-ip>:2200 \
+  --upload-dir ./my_videos \
+  --cdfvd-resolution 128 --cdfvd-sequence-length 16 \
+  --max-seconds 8 --fps 25 --save-dir ./results/cdfvd_research
+# Extract the I3D model results from cdfvd_results.json for paper alignment
+```
 
 **Key Features:**
 - **🆕 Automatic computation**: Runs by default with both VideMAE and I3D models
@@ -744,7 +831,7 @@ This project exposes a FastAPI server that wraps `scripts/prepare_annotations.py
       }'
     ```
 
-  - __Compute distribution metrics (FID/IS/FVD + CD-FVD automatically)__
+  - __Compute merged distribution metrics (AIGVE + CD-FVD)__
     ```bash
     curl -X POST http://localhost:2200/run \
       -H 'Content-Type: application/json' \
@@ -757,7 +844,7 @@ This project exposes a FastAPI server that wraps `scripts/prepare_annotations.py
         "generated_suffixes": "synthetic,generated"
       }'
     ```
-    **Note**: This automatically computes both legacy FVD and CD-FVD (VideMAE + I3D models)!
+    **🔥 Dual Ecosystem**: AIGVE native (FID, IS, FVD-ResNet3D) + CD-FVD package (I3D + VideoMAE) computed together!
 
   - __Customize CD-FVD processing parameters__
     ```bash
