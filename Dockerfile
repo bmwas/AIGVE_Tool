@@ -179,7 +179,10 @@ RUN python3 -m pip install --no-cache-dir \
     mkdocs-exclude \
     mkdocstrings[python] || true
 
-# cd-fvd will be installed as user 1000 later to avoid permission issues
+# ------------------------------
+# Install cd-fvd as root to create package structure
+# ------------------------------
+RUN python3 -m pip install --no-cache-dir cd-fvd
 
 # ------------------------------
 # FINAL: Force downgrade NumPy to 1.26.4 after all installations
