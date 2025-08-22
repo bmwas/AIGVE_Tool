@@ -10,7 +10,7 @@ import json
 import time
 import re
 import tempfile
-from typing import List, Optional, Dict, Tuple
+from typing import List, Optional, Dict, Tuple, Any
 from pathlib import Path
 
 import logging
@@ -146,6 +146,7 @@ class PrepareAnnotationsRequest(BaseModel):
     cdfvd_model: Optional[str] = Field("videomae", description="CD-FVD model to use: 'videomae' or 'i3d'")
     cdfvd_resolution: Optional[int] = Field(128, description="Resolution for CD-FVD video processing")
     cdfvd_sequence_length: Optional[int] = Field(16, description="Sequence length for CD-FVD video processing")
+    cdfvd_all_flavors: Optional[bool] = Field(True, description="Compute all FVD flavors (both models, multiple resolutions/sequence lengths)")
 
 
 def _build_cli_args(req: PrepareAnnotationsRequest) -> List[str]:
@@ -204,19 +205,21 @@ def _build_cli_args(req: PrepareAnnotationsRequest) -> List[str]:
 
 def _compute_cdfvd(upload_dir: str, generated_suffixes: str, model: str = "videomae", 
                    resolution: int = 128, sequence_length: int = 16,
-                   max_seconds: Optional[float] = None, fps: Optional[float] = 25.0) -> Dict[str, float]:
+                   max_seconds: Optional[float] = None, fps: Optional[float] = 25.0,
+                   compute_all_flavors: bool = True) -> Dict[str, Any]:
     """
-    Compute FVD using cd-fvd package.
+    Compute FVD using cd-fvd package. Can compute single flavor or all flavors.
     
     Args:
         upload_dir: Directory containing videos
         generated_suffixes: Comma-separated suffixes for synthetic videos
-        model: CD-FVD model type ('videomae' or 'i3d')
-        resolution: Video resolution for processing
-        sequence_length: Number of frames to process
+        model: CD-FVD model type ('videomae' or 'i3d') - used only if compute_all_flavors=False
+        resolution: Video resolution for processing - used only if compute_all_flavors=False
+        sequence_length: Number of frames to process - used only if compute_all_flavors=False
+        compute_all_flavors: If True, compute all model/resolution/sequence combinations
     
     Returns:
-        Dictionary with FVD score
+        Dict with FVD scores and metadata. If compute_all_flavors=True, includes 'flavors' dict.
     """
     logger.info("[CD-FVD] Starting FVD computation with model=%s, resolution=%d, seq_len=%d", 
                 model, resolution, sequence_length)
@@ -380,32 +383,90 @@ def _compute_cdfvd(upload_dir: str, generated_suffixes: str, model: str = "video
             dest = fake_dir / f"video_{i:04d}{Path(video_path).suffix}"
             _trim_or_copy(video_path, dest)
         
-        # Initialize CD-FVD evaluator according to documentation
-        logger.info("[CD-FVD] Initializing evaluator with model='%s'", model)
-        evaluator = fvd.cdfvd(model, ckpt_path=None)
-        
-        # Load and compute real video statistics
-        logger.info("[CD-FVD] Loading and computing real video statistics from %s", real_dir)
-        real_videos = evaluator.load_videos(str(real_dir), resolution=resolution, sequence_length=sequence_length)
-        evaluator.compute_real_stats(real_videos)
-        
-        # Load and compute fake video statistics  
-        logger.info("[CD-FVD] Loading and computing fake video statistics from %s", fake_dir)
-        fake_videos = evaluator.load_videos(str(fake_dir), resolution=resolution, sequence_length=sequence_length)
-        evaluator.compute_fake_stats(fake_videos)
-        
-        # Compute FVD score from statistics
-        logger.info("[CD-FVD] Computing FVD score...")
-        fvd_score = evaluator.compute_fvd_from_stats()
-        
-        result = {
-            "fvd_score": float(fvd_score),
-            "num_real_videos": len(real_videos),
-            "num_fake_videos": len(fake_videos),
-            "model": model,
-            "resolution": resolution,
-            "sequence_length": sequence_length
-        }
+        if compute_all_flavors:
+            # Compute all FVD flavors as requested
+            models = ['i3d', 'videomae']
+            resolutions = [128, 256] 
+            sequence_lengths = [16, 128]
+            
+            flavors = {}
+            total_combinations = len(models) * len(resolutions) * len(sequence_lengths)
+            logger.info("[CD-FVD] Computing all %d FVD flavors", total_combinations)
+            
+            for model_name in models:
+                for res in resolutions:
+                    for seq_len in sequence_lengths:
+                        flavor_key = f"{model_name}_res{res}_len{seq_len}"
+                        logger.info("[CD-FVD] Computing flavor: %s", flavor_key)
+                        
+                        try:
+                            # Initialize evaluator for this configuration
+                            evaluator = fvd.cdfvd(model_name, ckpt_path=None)
+                            
+                            # Load and compute real video statistics
+                            real_videos = evaluator.load_videos(str(real_dir), resolution=res, sequence_length=seq_len)
+                            evaluator.compute_real_stats(real_videos)
+                            
+                            # Load and compute fake video statistics  
+                            fake_videos = evaluator.load_videos(str(fake_dir), resolution=res, sequence_length=seq_len)
+                            evaluator.compute_fake_stats(fake_videos)
+                            
+                            # Compute FVD score from statistics
+                            fvd_score = evaluator.compute_fvd_from_stats()
+                            
+                            flavors[flavor_key] = {
+                                "fvd_score": float(fvd_score),
+                                "model": model_name,
+                                "resolution": res,
+                                "sequence_length": seq_len,
+                                "num_real_videos": len(real_videos),
+                                "num_fake_videos": len(fake_videos)
+                            }
+                            
+                            logger.info("[CD-FVD] %s: %.4f", flavor_key, fvd_score)
+                            
+                            # Clear stats for next iteration
+                            evaluator.empty_real_stats()
+                            evaluator.empty_fake_stats()
+                            
+                        except Exception as e:
+                            logger.error("[CD-FVD] Failed to compute %s: %s", flavor_key, e)
+                            flavors[flavor_key] = {"error": str(e)}
+            
+            result = {
+                "flavors": flavors,
+                "total_flavors": len(flavors),
+                "compute_all_flavors": True
+            }
+            
+        else:
+            # Single flavor computation (legacy behavior)
+            logger.info("[CD-FVD] Computing single flavor with model='%s'", model)
+            evaluator = fvd.cdfvd(model, ckpt_path=None)
+            
+            # Load and compute real video statistics
+            logger.info("[CD-FVD] Loading and computing real video statistics from %s", real_dir)
+            real_videos = evaluator.load_videos(str(real_dir), resolution=resolution, sequence_length=sequence_length)
+            evaluator.compute_real_stats(real_videos)
+            
+            # Load and compute fake video statistics  
+            logger.info("[CD-FVD] Loading and computing fake video statistics from %s", fake_dir)
+            fake_videos = evaluator.load_videos(str(fake_dir), resolution=resolution, sequence_length=sequence_length)
+            evaluator.compute_fake_stats(fake_videos)
+            
+            # Compute FVD score from statistics
+            logger.info("[CD-FVD] Computing FVD score...")
+            fvd_score = evaluator.compute_fvd_from_stats()
+            
+            result = {
+                "fvd_score": float(fvd_score),
+                "num_real_videos": len(real_videos),
+                "num_fake_videos": len(fake_videos),
+                "model": model,
+                "resolution": resolution,
+                "sequence_length": sequence_length,
+                "compute_all_flavors": False
+            }
         # Attach length info if requested
         try:
             if max_seconds is not None:
@@ -418,7 +479,10 @@ def _compute_cdfvd(upload_dir: str, generated_suffixes: str, model: str = "video
         except Exception:
             pass
         
-        logger.info("[CD-FVD] FVD Score: %.4f", fvd_score)
+        if compute_all_flavors:
+            logger.info("[CD-FVD] Computed %d FVD flavors successfully", len(result["flavors"]))
+        else:
+            logger.info("[CD-FVD] FVD Score: %.4f", fvd_score)
         return result
 
 
@@ -666,6 +730,7 @@ def run_upload(
     cdfvd_model: str = Form("videomae"),
     cdfvd_resolution: int = Form(128),
     cdfvd_sequence_length: int = Form(16),
+    cdfvd_all_flavors: bool = Form(True),
 ):
     """
     Accept uploaded video files and run the same pipeline as /run using a
@@ -965,6 +1030,7 @@ def run_upload(
                     sequence_length=cdfvd_sequence_length or 16,
                     max_seconds=max_seconds,
                     fps=fps,
+                    compute_all_flavors=cdfvd_all_flavors,
                 )
                 
                 model_duration = (time.perf_counter() - model_start_time) * 1000.0
@@ -1539,6 +1605,7 @@ def run_prepare(req: PrepareAnnotationsRequest, request: Request):
                         sequence_length=req.cdfvd_sequence_length or 16,
                         max_seconds=req.max_seconds,
                         fps=req.fps,
+                        compute_all_flavors=req.cdfvd_all_flavors if req.cdfvd_all_flavors is not None else True,
                     )
                     
                     model_duration = (time.perf_counter() - model_start_time) * 1000.0
