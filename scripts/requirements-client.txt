@@ -1,3 +1,4 @@
 # Minimal client-only dependencies for scripts/call_aigve_api.py
 # This client only needs 'requests'. No numpy/torch/mmengine required.
 requests>=2.28,<3
+cd-fvd==0.1.1

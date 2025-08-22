@@ -21,7 +21,6 @@ git+https://github.com/TIGER-AI-Lab/Mantis.git
 scipy==1.11.4
 decord==0.6.0
 cd-fvd==0.1.1
-
 neoteroi-mkdocs
 mkdocs-macros-plugin
 mkdocs-jupyter
