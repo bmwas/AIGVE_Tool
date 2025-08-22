@@ -195,6 +195,9 @@ RUN python3 -c "import numpy; assert numpy.__version__.startswith('1.26'), f'Num
 # Copy the repository
 COPY . /app/
 
+# Create uploads directory with proper permissions for both root and user 1000
+RUN mkdir -p /app/uploads && chmod 777 /app/uploads && chown -R 1000:1000 /app/uploads
+
 # Create a simple entrypoint script
 RUN echo '#!/usr/bin/env bash' > /app/entrypoint_noconda.sh && \
     echo 'set -euo pipefail' >> /app/entrypoint_noconda.sh && \

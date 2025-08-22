@@ -9,6 +9,7 @@ import sys
 import json
 import requests
 import tempfile
+import argparse
 from pathlib import Path
 
 # Add scripts directory to path for client import
@@ -186,10 +187,13 @@ def test_upload_with_cdfvd(base_url, real_video, fake_video):
         return False
 
 def main():
-    # Configuration
-    base_url = "http://localhost:2200"
-    if len(sys.argv) > 1:
-        base_url = sys.argv[1]
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(description='Test CD-FVD upload functionality')
+    parser.add_argument('--base_url', default='http://localhost:2200',
+                        help='Base URL of the AIGVE server (default: http://localhost:2200)')
+    
+    args = parser.parse_args()
+    base_url = args.base_url
     
     print(f"🎬 CD-FVD Upload Test")
     print(f"Server: {base_url}")
