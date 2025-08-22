@@ -26,8 +26,47 @@ except Exception:  # pragma: no cover - tolerate missing/failed import
 # Optional cd-fvd import
 try:
     from cdfvd import fvd as cdfvd  # type: ignore
-except Exception:  # pragma: no cover - tolerate missing/failed import
+    
+    # RADICAL FIX: Monkey-patch CD-FVD to use our dedicated model directory
+    import os
+    import logging
+    
+    # Get logger for patch message
+    patch_logger = logging.getLogger("aigve.api")
+    
+    CDFVD_MODEL_DIR = os.getenv("CDFVD_MODEL_DIR", "/app/models/cdfvd/third_party")
+    
+    if hasattr(cdfvd, 'cdfvd'):
+        original_cdfvd_init = cdfvd.cdfvd.__init__
+        
+        def patched_init(self, *args, **kwargs):
+            # Call original init
+            result = original_cdfvd_init(self, *args, **kwargs)
+            
+            # Patch model paths after initialization
+            if hasattr(self, 'model_dir'):
+                self.model_dir = CDFVD_MODEL_DIR
+            
+            # Patch specific model paths if they exist
+            videomae_path = os.path.join(CDFVD_MODEL_DIR, "VideoMAEv2", "vit_g_hybrid_pt_1200e_ssv2_ft.pth")
+            i3d_path = os.path.join(CDFVD_MODEL_DIR, "i3d", "i3d_pretrained_400.pt")
+            
+            if hasattr(self, 'videomae_model_path'):
+                self.videomae_model_path = videomae_path
+            if hasattr(self, 'i3d_model_path'):
+                self.i3d_model_path = i3d_path
+                
+            return result
+        
+        cdfvd.cdfvd.__init__ = patched_init
+        patch_logger.info("CD-FVD monkey-patched to use model directory: %s", CDFVD_MODEL_DIR)
+    
+except Exception as e:  # pragma: no cover - tolerate missing/failed import
     cdfvd = None  # type: ignore
+    # Log the error if it's not just a missing module
+    if "No module named" not in str(e):
+        import logging
+        logging.getLogger("aigve.api").warning("CD-FVD import issue: %s", e)
 
 APP_ROOT = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
 SCRIPT_PATH = os.path.join(APP_ROOT, "scripts", "prepare_annotations.py")

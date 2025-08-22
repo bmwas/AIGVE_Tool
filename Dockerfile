@@ -195,16 +195,26 @@ RUN python3 -c "import numpy; assert numpy.__version__.startswith('1.26'), f'Num
 # Copy the repository
 COPY . /app/
 
-# Create directories with proper permissions for user 1000:1000
-RUN mkdir -p /app/uploads && chmod 777 /app/uploads && chown -R 1000:1000 /app/uploads && \
-    mkdir -p /app/.cache/huggingface && chmod 777 /app/.cache/huggingface && chown -R 1000:1000 /app/.cache/huggingface && \
-    find /usr/local/lib/python3.10/dist-packages/cdfvd -type f -name "*.pth" -exec chmod 666 {} \; && \
-    find /usr/local/lib/python3.10/dist-packages/cdfvd -type d -exec chmod 755 {} \;
+# RADICAL FIX: Create dedicated model directory and replace dist-packages with symlinks
+RUN mkdir -p /app/models/cdfvd/third_party && \
+    mkdir -p /app/uploads && \
+    mkdir -p /app/.cache/huggingface && \
+    mkdir -p /app/.cache/torch && \
+    # Copy CD-FVD model files to our dedicated directory
+    cp -r /usr/local/lib/python3.10/dist-packages/cdfvd/third_party/* /app/models/cdfvd/third_party/ && \
+    # Remove original dist-packages third_party and create symlink to our directory
+    rm -rf /usr/local/lib/python3.10/dist-packages/cdfvd/third_party && \
+    ln -s /app/models/cdfvd/third_party /usr/local/lib/python3.10/dist-packages/cdfvd/third_party && \
+    # Set proper ownership for user 1000:1000  
+    chown -R 1000:1000 /app/models /app/uploads /app/.cache && \
+    chmod -R 755 /app/models && \
+    chmod 777 /app/uploads /app/.cache/huggingface /app/.cache/torch
 
-# Set environment variables for cache directories
+# Set environment variables for cache and model directories
 ENV TRANSFORMERS_CACHE=/app/.cache/huggingface
 ENV HF_HOME=/app/.cache/huggingface
 ENV TORCH_HOME=/app/.cache/torch
+ENV CDFVD_MODEL_DIR=/app/models/cdfvd/third_party
 
 # Create a simple entrypoint script
 RUN echo '#!/usr/bin/env bash' > /app/entrypoint_noconda.sh && \
