@@ -195,6 +195,41 @@ RUN python3 -c "import numpy; assert numpy.__version__.startswith('1.26'), f'Num
 # Copy the repository
 COPY . /app/
 
+# RADICAL FIX: Create user and dedicated model directory with proper permissions
+RUN # Create user with UID 1000
+    useradd -u 1000 -m -s /bin/bash appuser && \
+    # Create all required directories
+    mkdir -p /app/models/cdfvd/third_party/VideoMAEv2 && \
+    mkdir -p /app/models/cdfvd/third_party/i3d && \
+    mkdir -p /app/uploads && \
+    mkdir -p /app/.cache/huggingface/hub && \
+    mkdir -p /app/.cache/torch && \
+    # Install curl for downloading
+    apt-get update && apt-get install -y curl && \
+    # Download CD-FVD model files directly to our dedicated directory  
+    cd /app/models/cdfvd/third_party && \
+    curl -L -o VideoMAEv2/vit_g_hybrid_pt_1200e_ssv2_ft.pth https://huggingface.co/OpenGVLab/VideoMAEv2/resolve/main/vit_g_hybrid_pt_1200e_ssv2_ft.pth && \
+    curl -L -o i3d/i3d_pretrained_400.pt https://github.com/piergiaj/pytorch-i3d/releases/download/v0.1/i3d_pretrained_400.pt && \
+    # Verify downloads
+    ls -la VideoMAEv2/ && ls -la i3d/ && \
+    # Remove original dist-packages third_party if it exists and create symlink
+    rm -rf /usr/local/lib/python3.10/dist-packages/cdfvd/third_party && \
+    ln -s /app/models/cdfvd/third_party /usr/local/lib/python3.10/dist-packages/cdfvd/third_party && \
+    # Set proper ownership for user 1000:1000  
+    chown -R 1000:1000 /app && \
+    chmod -R 755 /app/models && \
+    chmod -R 777 /app/uploads /app/.cache && \
+    # Clean up apt cache
+    apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# Set environment variables for cache and model directories
+ENV HOME=/app
+ENV TRANSFORMERS_CACHE=/app/.cache/huggingface
+ENV HF_HOME=/app/.cache/huggingface  
+ENV TORCH_HOME=/app/.cache/torch
+ENV HF_HUB_CACHE=/app/.cache/huggingface/hub
+ENV CDFVD_MODEL_DIR=/app/models/cdfvd/third_party
+
 # Create uploads directory with proper permissions
 RUN mkdir -p /app/uploads && chmod 777 /app/uploads
 
@@ -246,17 +281,10 @@ RUN echo '#!/usr/bin/env bash' > /app/entrypoint_noconda.sh && \
 
 RUN chmod +x /app/entrypoint_noconda.sh
 
-# Default entrypoint
-EXPOSE 2200
-ENTRYPOINT ["/app/entrypoint_noconda.sh"]
-CMD ["api"]
-
-RUN chmod +x /app/entrypoint_noconda.sh
+# Switch to user 1000 for runtime
+USER 1000
 
 # Default entrypoint
-EXPOSE 2200
-ENTRYPOINT ["/app/entrypoint_noconda.sh"]
-CMD ["api"]
 EXPOSE 2200
 ENTRYPOINT ["/app/entrypoint_noconda.sh"]
 CMD ["api"]
