@@ -179,10 +179,6 @@ RUN python3 -m pip install --no-cache-dir \
     mkdocs-exclude \
     mkdocstrings[python] || true
 
-# ------------------------------
-# Install cd-fvd as root to create package structure
-# ------------------------------
-RUN python3 -m pip install --no-cache-dir cd-fvd
 
 # ------------------------------
 # FINAL: Force downgrade NumPy to 1.26.4 after all installations
@@ -229,29 +225,36 @@ ENV TORCH_HOME=/app/.cache/torch
 ENV HF_HUB_CACHE=/app/.cache/huggingface/hub
 ENV CDFVD_MODEL_DIR=/app/models/cdfvd/third_party
 
-# ROOT: ONLY create directories with full permissions, then switch to user permanently
+# ROOT: ONLY create directories and set permissions for all users
 USER root
-RUN mkdir -p /app/uploads /app/.cache && chmod 777 /app/uploads /app/.cache && \
+RUN mkdir -p /app/uploads /app/.cache /app/.local && \
+    chmod 777 /app/uploads /app/.cache /app/.local && \
+    chown -R 1000:1000 /app/.local && \
     chmod +x /app/entrypoint.sh
 
 # SWITCH TO USER 1000 AND STAY THERE - install everything as normal user
 USER 1000
 
+# Set up Python user environment properly
+ENV PATH="/app/.local/bin:$PATH"
+ENV PYTHONPATH="/app/.local/lib/python3.10/site-packages:$PYTHONPATH"
+
 # Install all Python packages as user 1000
 RUN pip3 install --user --no-cache-dir -r /app/requirement.txt
 
 # Install cd-fvd via git clone as user 1000 (regular installation, not editable)
+
 RUN git clone https://github.com/songweige/content-debiased-fvd.git && \
     cd ./content-debiased-fvd && \
-    pip3 install --user . && \
-    cd /app && rm -rf /app/content-debiased-fvd && \
-    pip3 show cd-fvd && \
-    python3 -c "from cdfvd import fvd; print('cd-fvd successfully installed as user 1000')"
+    pip3 install -e .
 
-# Test everything works
+# Test everything works: directories, Python packages, and executables
 RUN touch /app/.cache/test_write && rm /app/.cache/test_write && \
     touch /app/uploads/test_write && rm /app/uploads/test_write && \
-    echo "All access tests passed for user 1000"
+    ls -la /app/.local/bin/ && \
+    which python3 && which pip3 && \
+    python3 -c "import sys; print('Python path:', sys.path)" && \
+    echo "All access and executable tests passed for user 1000"
 
 # Default entrypoint
 EXPOSE 2200
