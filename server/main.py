@@ -695,15 +695,31 @@ def run_upload(
     upload_dir = os.path.join(APP_ROOT, "uploads", session_id)
     os.makedirs(upload_dir, exist_ok=True)
 
+    # ENFORCE EXACTLY 2 VIDEOS REQUIREMENT
+    if not videos or len(videos) != 2:
+        logger.error("[%s] Invalid video count: received %d videos, exactly 2 required", rid, len(videos or []))
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "error": "Exactly 2 videos required",
+                "received_count": len(videos or []),
+                "required_count": 2,
+                "expected": "One real video and one generated/synthetic video",
+                "naming_convention": "Generated video should contain 'synthetic' or 'generated' in filename"
+            }
+        )
+
     allowed_exts = {".mp4", ".mov", ".mkv", ".avi", ".webm", ".m4v"}
     saved_files: List[str] = []
+    upload_errors: List[str] = []
+    
     for uf in videos:
         try:
             name = os.path.basename(uf.filename or "video")
             ext = os.path.splitext(name)[1].lower()
             if ext and ext not in allowed_exts:
-                # Skip unknown extensions; do not fail entire request
-                logger.warning("[%s] Skipping upload with unsupported extension: %s", rid, name)
+                upload_errors.append(f"Unsupported extension: {name}")
+                logger.error("[%s] Unsupported video extension: %s", rid, name)
                 continue
             dest_path = os.path.join(upload_dir, name)
             # Ensure parent exists
@@ -713,9 +729,59 @@ def run_upload(
             saved_files.append(name)
             logger.info("[%s] Saved upload -> %s", rid, dest_path)
         except Exception as e:
-            # Continue saving others; report error later
-            saved_files.append(f"ERROR:{getattr(uf, 'filename', 'unknown')}: {e}")
+            upload_errors.append(f"Failed to save {getattr(uf, 'filename', 'unknown')}: {e}")
             logger.exception("[%s] Error saving uploaded file %s: %s", rid, getattr(uf, 'filename', 'unknown'), e)
+
+    # Validate that we successfully saved exactly 2 videos
+    valid_videos = [f for f in saved_files if not f.startswith("ERROR:")]
+    
+    if len(valid_videos) != 2:
+        logger.error("[%s] Failed to save exactly 2 valid videos: saved %d valid, %d errors", 
+                    rid, len(valid_videos), len(upload_errors))
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "error": "Failed to process exactly 2 valid videos",
+                "valid_videos_saved": len(valid_videos),
+                "required_count": 2,
+                "saved_files": valid_videos,
+                "upload_errors": upload_errors,
+                "supported_extensions": list(allowed_exts)
+            }
+        )
+
+    # Validate naming convention for real vs generated videos
+    suffixes = [s.strip().lower() for s in generated_suffixes.split(',') if s.strip()]
+    logger.debug("[%s] Generated video suffixes for validation: %s", rid, suffixes)
+    
+    def _is_generated_video(filename: str) -> bool:
+        base = filename.lower()
+        for suffix in suffixes:
+            if suffix in base:
+                return True
+        return False
+    
+    real_videos = [f for f in valid_videos if not _is_generated_video(f)]
+    generated_videos = [f for f in valid_videos if _is_generated_video(f)]
+    
+    logger.info("[%s] Video classification: %d real, %d generated", rid, len(real_videos), len(generated_videos))
+    logger.debug("[%s] Real videos: %s", rid, real_videos)
+    logger.debug("[%s] Generated videos: %s", rid, generated_videos)
+    
+    if len(real_videos) != 1 or len(generated_videos) != 1:
+        logger.error("[%s] Invalid video pair: need exactly 1 real and 1 generated video", rid)
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "error": "Invalid video pair: need exactly 1 real and 1 generated video",
+                "real_videos_found": len(real_videos),
+                "generated_videos_found": len(generated_videos),
+                "real_videos": real_videos,
+                "generated_videos": generated_videos,
+                "generated_suffixes": suffixes,
+                "naming_requirement": "Generated video filename must contain one of the suffixes: " + ", ".join(suffixes)
+            }
+        )
 
     # Determine stage dataset dir
     if stage_dataset:
@@ -725,15 +791,15 @@ def run_upload(
     logger.info("[%s] Session=%s upload_dir=%s stage_dir=%s saved=%d", rid, session_id, upload_dir, stage_dir, len(saved_files))
 
     # Build args via existing request model helper
-    # If use_cdfvd is True, only stage the dataset, don't compute legacy metrics
+    # ALWAYS compute ALL metrics: FID, IS, FVD from legacy script + CD-FVD variants
     req = PrepareAnnotationsRequest(
         input_dir=upload_dir,
         generated_suffixes=generated_suffixes,
         stage_dataset=stage_dir,
         link=link,
-        compute=compute if not use_cdfvd else False,  # Skip legacy metrics when using CD-FVD
-        metrics=(metrics or None),
-        categories=(categories or None),
+        compute=True,  # ALWAYS compute legacy metrics (FID, IS, FVD)
+        metrics="fid,is,fvd",  # Explicitly request all distribution-based metrics
+        categories="distribution_based",  # Ensure we get FID, IS, FVD
         max_len=max_len,
         max_seconds=max_seconds,
         fps=fps,
@@ -744,19 +810,67 @@ def run_upload(
     cmd = [sys.executable, SCRIPT_PATH] + args
     logger.info("[%s] Exec: %s", rid, " ".join(shlex.quote(c) for c in cmd))
 
-    try:
-        proc = subprocess.run(
-            cmd,
-            cwd=APP_ROOT,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-            check=False,
-        )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to execute: {e}")
+    # Execute script with retry mechanism for robustness
+    max_retries = 3
+    proc = None
+    script_success = False
+    
+    logger.info("[%s] Starting script execution with %d max retries for ALL metrics", rid, max_retries)
+    
+    for attempt in range(1, max_retries + 1):
+        logger.info("[%s] Attempt %d/%d: Executing script for FID/IS/FVD computation", rid, attempt, max_retries)
+        
+        try:
+            proc = subprocess.run(
+                cmd,
+                cwd=APP_ROOT,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                check=False,
+                timeout=300  # 5 minute timeout per attempt
+            )
+            
+            attempt_duration = (time.perf_counter() - t0) * 1000.0
+            logger.info("[%s] Attempt %d/%d: Completed in %.1f ms with return code %d", 
+                       rid, attempt, max_retries, attempt_duration, proc.returncode)
+            
+            # Check for successful execution
+            if proc.returncode == 0:
+                logger.info("[%s] Attempt %d/%d: SUCCESS - Script executed successfully", rid, attempt, max_retries)
+                script_success = True
+                break
+            else:
+                logger.warning("[%s] Attempt %d/%d: FAILURE - Return code %d", rid, attempt, max_retries, proc.returncode)
+                if proc.stderr:
+                    stderr_preview = proc.stderr.strip()[:200] + ("..." if len(proc.stderr.strip()) > 200 else "")
+                    logger.warning("[%s] Attempt %d/%d: Error details: %s", rid, attempt, max_retries, stderr_preview)
+                
+                if attempt < max_retries:
+                    logger.info("[%s] Attempt %d/%d: Retrying in 2 seconds...", rid, attempt, max_retries)
+                    time.sleep(2)
+                
+        except subprocess.TimeoutExpired:
+            logger.error("[%s] Attempt %d/%d: Script execution timed out after 5 minutes", rid, attempt, max_retries)
+            if attempt < max_retries:
+                logger.info("[%s] Attempt %d/%d: Retrying after timeout...", rid, attempt, max_retries)
+            else:
+                raise HTTPException(status_code=500, detail="Script execution timed out after all retry attempts")
+        except Exception as e:
+            logger.error("[%s] Attempt %d/%d: Script execution failed: %s", rid, attempt, max_retries, e)
+            if attempt < max_retries:
+                logger.info("[%s] Attempt %d/%d: Retrying after exception...", rid, attempt, max_retries)
+            else:
+                raise HTTPException(status_code=500, detail=f"Failed to execute script after all attempts: {e}")
+    
+    if not script_success:
+        logger.error("[%s] All %d attempts failed - script execution unsuccessful", rid, max_retries)
+        # Continue anyway - we can still try CD-FVD computation
+        logger.warning("[%s] Continuing with CD-FVD computation despite script failure", rid)
+    
     dur = (time.perf_counter() - t0) * 1000.0
-    logger.info("[%s] /run_upload rc=%s in %.1f ms (stdout=%dB, stderr=%dB)", rid, proc.returncode, dur, len(proc.stdout or ""), len(proc.stderr or ""))
+    logger.info("[%s] /run_upload script phase complete: rc=%s in %.1f ms (stdout=%dB, stderr=%dB)", 
+                rid, proc.returncode if proc else -1, dur, len(proc.stdout or "") if proc else 0, len(proc.stderr or "") if proc else 0)
 
     response = {
         "cmd": " ".join(shlex.quote(c) for c in cmd),
@@ -766,34 +880,88 @@ def run_upload(
         "session": {"id": session_id, "upload_dir": upload_dir, "stage_dir": stage_dir, "files": saved_files},
     }
     
-    # Compute CD-FVD by default with all available models
-    try:
-        logger.info("[%s] Computing FVD using cd-fvd package with all models...", rid)
-        # Check both possible locations for staged videos
-        video_dir = os.path.join(stage_dir, "evaluate")
-        if not os.path.exists(video_dir):
-            print(f"[CD-FVD] evaluate dir not found, checking stage_dir directly: {stage_dir}")
-            video_dir = stage_dir
-        
-        # List contents to debug
-        print(f"[CD-FVD] Looking for videos in: {video_dir}")
-        if os.path.exists(video_dir):
-            files = os.listdir(video_dir)
-            print(f"[CD-FVD] Files found: {files}")
-            # Check subdirectories
-            for item in files:
-                item_path = os.path.join(video_dir, item)
-                if os.path.isdir(item_path):
-                    subfiles = os.listdir(item_path)
-                    print(f"[CD-FVD] Subdirectory {item}: {subfiles}")
-        
-        # Compute CD-FVD with all available models
-        cdfvd_results = {}
-        models = ["videomae", "i3d"]
-        
-        for model in models:
+    # MANDATORY CD-FVD computation with ALL available models - MUST NOT FAIL
+    logger.info("[%s] Starting MANDATORY CD-FVD computation with all models", rid)
+    cdfvd_results = {}
+    models = ["videomae", "i3d"]
+    
+    # Determine video directory with multiple fallback strategies
+    video_locations = [
+        os.path.join(stage_dir, "evaluate"),  # Staged location
+        stage_dir,                           # Stage directory directly
+        upload_dir                           # Original upload directory
+    ]
+    
+    video_dir = None
+    for location in video_locations:
+        if os.path.exists(location):
+            # Check if it contains video files
             try:
-                logger.info("[%s] Computing CD-FVD with model: %s", rid, model)
+                files = os.listdir(location)
+                video_files = [f for f in files if f.lower().endswith(('.mp4', '.mov', '.avi', '.mkv', '.webm', '.m4v'))]
+                if video_files:
+                    video_dir = location
+                    logger.info("[%s] Found videos in directory: %s (%d video files)", rid, location, len(video_files))
+                    break
+                else:
+                    logger.debug("[%s] Directory %s exists but contains no video files", rid, location)
+            except Exception as e:
+                logger.warning("[%s] Failed to check directory %s: %s", rid, location, e)
+                
+    if not video_dir:
+        logger.error("[%s] CRITICAL: No directory with video files found for CD-FVD", rid)
+        # As last resort, use upload directory and ensure videos are there
+        video_dir = upload_dir
+        logger.warning("[%s] Using upload directory as fallback: %s", rid, video_dir)
+    
+    # Ensure videos are accessible in the chosen directory
+    logger.info("[%s] CD-FVD using video directory: %s", rid, video_dir)
+    
+    try:
+        files = os.listdir(video_dir)
+        video_files = [f for f in files if f.lower().endswith(('.mp4', '.mov', '.avi', '.mkv', '.webm', '.m4v'))]
+        logger.info("[%s] CD-FVD directory analysis: %d total files, %d video files", rid, len(files), len(video_files))
+        logger.debug("[%s] Video files found: %s", rid, video_files)
+        
+        if len(video_files) < 2:
+            logger.error("[%s] CRITICAL: Insufficient video files for CD-FVD (%d found, 2+ required)", rid, len(video_files))
+            # Copy videos from upload directory if needed
+            if video_dir != upload_dir:
+                logger.info("[%s] Attempting to copy videos from upload directory: %s", rid, upload_dir)
+                try:
+                    upload_files = os.listdir(upload_dir)
+                    upload_videos = [f for f in upload_files if f.lower().endswith(('.mp4', '.mov', '.avi', '.mkv', '.webm', '.m4v'))]
+                    
+                    for video_file in upload_videos:
+                        src = os.path.join(upload_dir, video_file)
+                        dst = os.path.join(video_dir, video_file)
+                        if not os.path.exists(dst):
+                            shutil.copy2(src, dst)
+                            logger.info("[%s] Copied video for CD-FVD: %s -> %s", rid, src, dst)
+                    
+                    # Re-check video count
+                    files = os.listdir(video_dir)
+                    video_files = [f for f in files if f.lower().endswith(('.mp4', '.mov', '.avi', '.mkv', '.webm', '.m4v'))]
+                    logger.info("[%s] After copying: %d video files available", rid, len(video_files))
+                    
+                except Exception as copy_e:
+                    logger.error("[%s] Failed to copy videos for CD-FVD: %s", rid, copy_e)
+                    
+    except Exception as e:
+        logger.error("[%s] Failed to analyze video directory for CD-FVD: %s", rid, e)
+    
+    # MANDATORY computation for each model - no failures allowed
+    for model_idx, model in enumerate(models):
+        model_start_time = time.perf_counter()
+        logger.info("[%s] MANDATORY CD-FVD computation %d/%d: %s", rid, model_idx + 1, len(models), model)
+        
+        max_model_retries = 3
+        model_success = False
+        
+        for model_attempt in range(1, max_model_retries + 1):
+            try:
+                logger.info("[%s] CD-FVD %s attempt %d/%d", rid, model, model_attempt, max_model_retries)
+                
                 cdfvd_result = _compute_cdfvd(
                     upload_dir=video_dir,
                     generated_suffixes=generated_suffixes,
@@ -803,18 +971,45 @@ def run_upload(
                     max_seconds=max_seconds,
                     fps=fps,
                 )
+                
+                model_duration = (time.perf_counter() - model_start_time) * 1000.0
                 cdfvd_results[model] = cdfvd_result
-                logger.info("[%s] CD-FVD %s score: %.4f", rid, model, cdfvd_result.get("fvd_score", 0))
+                model_success = True
+                
+                fvd_score = cdfvd_result.get("fvd_score", 0)
+                logger.info("[%s] CD-FVD %s SUCCESS in %.1f ms: score=%.4f", rid, model, model_duration, fvd_score)
+                break
+                
             except Exception as e:
-                logger.error("[%s] CD-FVD %s computation error: %s", rid, model, e)
-                cdfvd_results[model] = {"error": str(e)}
+                logger.error("[%s] CD-FVD %s attempt %d/%d failed: %s", rid, model, model_attempt, max_model_retries, e)
+                if model_attempt < max_model_retries:
+                    logger.info("[%s] CD-FVD %s retrying in 1 second...", rid, model)
+                    time.sleep(1)
+                else:
+                    # Final attempt failed - record error but continue with next model
+                    model_duration = (time.perf_counter() - model_start_time) * 1000.0
+                    cdfvd_results[model] = {
+                        "error": str(e), 
+                        "attempts": max_model_retries,
+                        "duration_ms": model_duration
+                    }
+                    logger.error("[%s] CD-FVD %s FAILED after %d attempts in %.1f ms", 
+                               rid, model, max_model_retries, model_duration)
         
-        response["cdfvd_results"] = cdfvd_results
-        
-        # Save CD-FVD results
+        if not model_success:
+            logger.warning("[%s] CD-FVD %s computation unsuccessful - continuing with next model", rid, model)
+    
+    # CD-FVD computation phase complete
+    logger.info("[%s] CD-FVD computation phase complete: %d models processed", rid, len(models))
+    response["cdfvd_results"] = cdfvd_results
+    
+    # Save CD-FVD results to file
+    try:
         cdfvd_json_path = os.path.join(stage_dir, "cdfvd_results.json")
+        os.makedirs(os.path.dirname(cdfvd_json_path), exist_ok=True)
         with open(cdfvd_json_path, "w") as f:
             json.dump(cdfvd_results, f, indent=2)
+        logger.info("[%s] CD-FVD results saved to: %s", rid, cdfvd_json_path)
         
         # Return CD-FVD artifacts along with any legacy artifacts
         cdfvd_artifacts = [
@@ -825,20 +1020,22 @@ def run_upload(
             }
         ]
         
-        # Also collect legacy artifacts
+        # Also collect legacy artifacts (FID, IS, FVD results)
         try:
             legacy_arts = _collect_artifacts(APP_ROOT, proc.stdout or "")
             response["artifacts"] = cdfvd_artifacts + legacy_arts
-            logger.info("[%s] CD-FVD + legacy artifacts: %d total", rid, len(response["artifacts"]))
+            logger.info("[%s] ALL artifacts collected: %d total (CD-FVD + legacy)", rid, len(response["artifacts"]))
         except Exception as e:
             response["artifacts"] = cdfvd_artifacts
             response["artifact_error"] = str(e)
             logger.warning("[%s] Legacy artifact collection error: %s", rid, e)
+            
+    except Exception as cdfvd_save_e:
+        logger.error("[%s] Failed to save CD-FVD results: %s", rid, cdfvd_save_e)
+        response["cdfvd_results"] = cdfvd_results
+        response["cdfvd_save_error"] = str(cdfvd_save_e)
         
-    except Exception as e:
-        response["cdfvd_error"] = str(e)
-        logger.error("[%s] CD-FVD computation error: %s", rid, e)
-        # Still collect legacy artifacts on CD-FVD failure
+        # Still collect legacy artifacts on CD-FVD save failure
         try:
             arts = _collect_artifacts(APP_ROOT, proc.stdout or "")
             response["artifacts"] = arts
@@ -847,6 +1044,31 @@ def run_upload(
         except Exception as e2:
             response["artifact_error"] = str(e2)
             logger.warning("[%s] Legacy artifact collection error: %s", rid, e2)
+    
+    # Final validation: ensure ALL required metrics were computed
+    logger.info("[%s] Final processing validation", rid)
+    total_duration = (time.perf_counter() - t0) * 1000.0
+    
+    # Check legacy metrics (from script)
+    legacy_metrics = ["fid", "is", "fvd"]
+    legacy_success = script_success and proc and proc.returncode == 0
+    
+    # Check CD-FVD metrics
+    cdfvd_success_count = sum(1 for model in models if "error" not in cdfvd_results.get(model, {}))
+    
+    processing_summary = {
+        "total_duration_ms": total_duration,
+        "script_success": legacy_success,
+        "legacy_metrics_attempted": legacy_metrics,
+        "cdfvd_models_successful": cdfvd_success_count,
+        "cdfvd_models_total": len(models),
+        "videos_processed": len(valid_videos)
+    }
+    
+    response["processing_summary"] = processing_summary
+    
+    logger.info("[%s] Processing complete: script=%s, cd-fvd=%d/%d models, duration=%.1f ms", 
+                rid, legacy_success, cdfvd_success_count, len(models), total_duration)
     return response
 
 
@@ -1032,33 +1254,43 @@ def run_prepare(req: PrepareAnnotationsRequest, request: Request):
                 logger.error("[%s] Unexpected error testing stage write permissions for %s: %s", rid, req.stage_dataset, test_e)
                 # Continue anyway
 
-    # Debug: Show final directories and their contents with comprehensive error handling
+    # Log final directory contents and validate input
     try:
-        if req.input_dir:
-            if os.path.exists(req.input_dir):
-                try:
-                    files = os.listdir(req.input_dir)
-                    logger.info("[%s] Final input_dir contents: %s -> %d items: %s", rid, req.input_dir, len(files), files)
-                except Exception as e:
-                    logger.error("[%s] Failed to list final input_dir contents %s: %s", rid, req.input_dir, e)
-            else:
-                logger.warning("[%s] Final input_dir does not exist: %s", rid, req.input_dir)
-        else:
-            logger.info("[%s] No input_dir specified", rid)
+        input_files = os.listdir(req.input_dir) if os.path.exists(req.input_dir) else []
+        logger.info("[%s] Final input_dir contents: %s -> %d items: %s", rid, req.input_dir, len(input_files), input_files)
+        
+        # Check for video files in input directory
+        video_extensions = {'.mp4', '.mov', '.avi', '.mkv', '.webm', '.m4v'}
+        video_files = [f for f in input_files if any(f.lower().endswith(ext) for ext in video_extensions)]
+        logger.info("[%s] Found %d video files in input directory: %s", rid, len(video_files), video_files)
+        
+        if len(video_files) == 0:
+            logger.error("[%s] No video files found in input directory", rid)
+            raise HTTPException(
+                status_code=422, 
+                detail={
+                    "error": "No video files found in input directory",
+                    "input_dir": req.input_dir,
+                    "files_found": input_files,
+                    "supported_extensions": list(video_extensions),
+                    "suggestion": "Use /run_upload endpoint to upload video files, or ensure your input_dir contains videos with supported extensions"
+                }
+            )
             
-        if req.stage_dataset:
-            if os.path.exists(req.stage_dataset):
-                try:
-                    files = os.listdir(req.stage_dataset)
-                    logger.info("[%s] Final stage_dataset contents: %s -> %d items: %s", rid, req.stage_dataset, len(files), files)
-                except Exception as e:
-                    logger.error("[%s] Failed to list final stage_dataset contents %s: %s", rid, req.stage_dataset, e)
-            else:
-                logger.warning("[%s] Final stage_dataset does not exist: %s", rid, req.stage_dataset)
-        else:
-            logger.info("[%s] No stage_dataset specified", rid)
+    except HTTPException:
+        raise  # Re-raise validation errors
     except Exception as e:
-        logger.error("[%s] Unexpected error in final directory debug: %s", rid, e)
+        logger.error("[%s] Failed to list final input_dir contents: %s", rid, e)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to access input directory: {e}"
+        )
+    
+    try:
+        stage_files = os.listdir(req.stage_dataset) if req.stage_dataset and os.path.exists(req.stage_dataset) else []
+        logger.info("[%s] Final stage_dataset contents: %s -> %d items: %s", rid, req.stage_dataset, len(stage_files), stage_files)
+    except Exception as e:
+        logger.error("[%s] Failed to list final stage_dataset contents: %s", rid, e)
 
     t0 = time.perf_counter()
     logger.info("[%s] /run input_dir=%s stage_dataset=%s compute=%s categories=%s metrics=%s", rid, req.input_dir, req.stage_dataset, bool(req.compute), req.categories, req.metrics)

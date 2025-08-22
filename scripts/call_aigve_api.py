@@ -1,7 +1,12 @@
 #!/usr/bin/env python3
 """
-A simple client to call the AIGVE API (server/main.py) to compute
-distribution-based metrics (FID/IS/FVD) on a folder of mixed videos.
+A client to call the AIGVE API (server/main.py) to compute ALL metrics
+(FID/IS/FVD + CD-FVD variants) on video pairs.
+
+REQUIREMENTS (enforced by server):
+- Upload mode: EXACTLY 2 videos (1 real + 1 generated) via /run_upload
+- Generated video filename MUST contain 'synthetic' or 'generated' (configurable)
+- ALL metrics computed: FID, IS, FVD (legacy) + CD-FVD (videomae, i3d)
 
 Assumptions
 - The AIGVE Docker container is already running and exposes the API at
@@ -15,18 +20,16 @@ Assumptions
 
 What this script does
 1) GET /healthz to verify the API is up.
-2) POST /run with fields mapped to scripts/prepare_annotations.py flags:
-   - input_dir: "/app/data"
-   - stage_dataset: "/app/out/staged"  (dataset will be created here)
-   - compute: true
-   - categories: "distribution_based"  (i.e., fid,is,fvd)
-   - max_seconds, fps: control duration
+2a) POST /run_upload (recommended): Upload exactly 2 local videos
+2b) POST /run (legacy): Use server-side paths with video validation
+3) Computes ALL metrics with comprehensive retry logic and error handling
 
-Notes
-- Inside Docker, paths must be container paths (e.g., /app/data, /app/out).
-- Generated files (e.g., fid_results.json) are written to the container's CWD
-  (normally /app). When running with the example docker command above, you'll
-  find staged data under ./out/staged on the host.
+Output Metrics
+- FID (Fréchet Inception Distance)
+- IS (Inception Score) 
+- FVD (Fréchet Video Distance)
+- CD-FVD VideMAE (Content-aware FVD)
+- CD-FVD I3D (Content-aware FVD)
 """
 from __future__ import annotations
 
@@ -126,9 +129,11 @@ def run_distribution_metrics_upload(
 ) -> Dict[str, Any]:
     """
     Uploads local video files to the server and calls POST /run_upload.
-    When using this mode, server-side paths are not required; the server
-    computes on the uploaded files only. CD-FVD is computed by default
-    with both videomae and i3d models.
+    
+    REQUIREMENTS (enforced by server):
+    - EXACTLY 2 videos must be uploaded (1 real + 1 generated)
+    - Generated video must contain one of the suffixes in filename
+    - ALL metrics computed: FID, IS, FVD (legacy) + CD-FVD (videomae, i3d)
     """
     files_to_send: List[str] = []
     if upload_files:
@@ -140,6 +145,31 @@ def run_distribution_metrics_upload(
     files_to_send = [f for f in files_to_send if not (f in seen or seen.add(f))]
     if not files_to_send:
         raise ValueError("No video files to upload. Provide --upload-files or --upload-dir with supported extensions.")
+
+    # VALIDATE EXACTLY 2 VIDEOS REQUIREMENT
+    if len(files_to_send) != 2:
+        raise ValueError(f"Server requires exactly 2 videos (1 real + 1 generated), got {len(files_to_send)}. "
+                        f"Files found: {[os.path.basename(f) for f in files_to_send]}")
+
+    # VALIDATE NAMING CONVENTION
+    suffixes = [s.strip().lower() for s in generated_suffixes.split(',') if s.strip()]
+    
+    def _is_generated_video(filename: str) -> bool:
+        base = filename.lower()
+        return any(suffix in base for suffix in suffixes)
+    
+    real_videos = [f for f in files_to_send if not _is_generated_video(os.path.basename(f))]
+    generated_videos = [f for f in files_to_send if _is_generated_video(os.path.basename(f))]
+    
+    if len(real_videos) != 1 or len(generated_videos) != 1:
+        print(f"\n⚠️  NAMING CONVENTION WARNING:")
+        print(f"   Expected: 1 real + 1 generated video")
+        print(f"   Found: {len(real_videos)} real, {len(generated_videos)} generated")
+        print(f"   Real videos: {[os.path.basename(f) for f in real_videos]}")
+        print(f"   Generated videos: {[os.path.basename(f) for f in generated_videos]}")
+        print(f"   Generated suffixes: {suffixes}")
+        print(f"   Note: Generated video filename must contain: {' or '.join(suffixes)}")
+        print(f"   Server will validate and may reject the request.\n")
 
     form_data: Dict[str, Any] = {
         "compute": True,
@@ -178,9 +208,15 @@ def run_distribution_metrics_upload(
         if not files_param:
             raise ValueError("No acceptable files to upload after filtering by extension.")
 
-        print(f"[upload] Sending {len(files_param)} files:")
+        # Final validation that we're sending exactly 2 videos
+        if len(files_param) != 2:
+            raise ValueError(f"Server requires exactly 2 videos, but {len(files_param)} valid files remain after filtering.")
+
+        print(f"[upload] Sending {len(files_param)} files (server requires exactly 2):")
         for _, (fname, _, _) in files_param:
             print(" -", fname)
+        print(f"[upload] ALL metrics will be computed: FID, IS, FVD (legacy) + CD-FVD (videomae, i3d)")
+        print(f"[upload] Generated suffixes for pairing: {generated_suffixes}")
 
         r = requests.post(url, data=form_data, files=files_param, timeout=7200)
         r.raise_for_status()
@@ -358,15 +394,37 @@ def main(argv: list[str] | None = None) -> int:
     if stderr:
         print("\nstderr (last 40 lines):\n" + tail(stderr, 40))
 
-    # Print CD-FVD results if available (multiple models)
+    # Print ALL metric results
+    print("\n--- ALL METRICS RESULTS ---")
+    
+    # Legacy metrics summary
+    artifacts = result.get("artifacts", [])
+    legacy_metrics_found = []
+    for art in artifacts:
+        name = art.get("name", "")
+        if name in ["fid_results.json", "is_results.json", "fvd_results.json"]:
+            legacy_metrics_found.append(name.replace("_results.json", "").upper())
+    
+    if legacy_metrics_found:
+        print(f"Legacy metrics computed: {', '.join(legacy_metrics_found)}")
+    else:
+        print("Legacy metrics: No results found (check script execution)")
+    
+    # CD-FVD results (multiple models) 
     if "cdfvd_results" in result:
-        print("\n--- CD-FVD Results ---")
+        print("\n--- CD-FVD Results (All Models) ---")
         cdfvd_results = result["cdfvd_results"]
+        successful_models = 0
+        total_models = len(cdfvd_results)
+        
         for model, cdfvd_res in cdfvd_results.items():
             if "error" in cdfvd_res:
-                print(f"\n{model.upper()} Model: ERROR - {cdfvd_res['error']}")
+                print(f"\n{model.upper()} Model: ❌ ERROR - {cdfvd_res['error']}")
+                if "attempts" in cdfvd_res:
+                    print(f"  Failed after {cdfvd_res['attempts']} attempts")
             else:
-                print(f"\n{model.upper()} Model:")
+                successful_models += 1
+                print(f"\n{model.upper()} Model: ✅ SUCCESS")
                 print(f"  FVD Score: {cdfvd_res.get('fvd_score', 'N/A')}")
                 print(f"  Real Videos: {cdfvd_res.get('num_real_videos', 'N/A')}")
                 print(f"  Fake Videos: {cdfvd_res.get('num_fake_videos', 'N/A')}")
@@ -379,8 +437,19 @@ def main(argv: list[str] | None = None) -> int:
                         print(f"  Clip: {ms} s at {fps_v} fps (~{max_len} frames)")
                     else:
                         print(f"  Clip: {ms} s")
+        
+        print(f"\nCD-FVD Summary: {successful_models}/{total_models} models successful")
     elif "cdfvd_error" in result:
-        print(f"\n[CD-FVD Error] {result['cdfvd_error']}")
+        print(f"\n❌ CD-FVD Error: {result['cdfvd_error']}")
+    
+    # Processing summary if available
+    if "processing_summary" in result:
+        summary = result["processing_summary"]
+        print(f"\n--- Processing Summary ---")
+        print(f"Total Duration: {summary.get('total_duration_ms', 0):.1f} ms")
+        print(f"Script Success: {'✅' if summary.get('script_success') else '❌'}")
+        print(f"CD-FVD Models: {summary.get('cdfvd_models_successful', 0)}/{summary.get('cdfvd_models_total', 0)} successful")
+        print(f"Videos Processed: {summary.get('videos_processed', 0)}")
     
     # Save any returned artifacts locally
     try:
@@ -388,9 +457,10 @@ def main(argv: list[str] | None = None) -> int:
         # Also save CD-FVD results if present (multiple models)
         if "cdfvd_results" in result:
             cdfvd_path = os.path.join(args.save_dir, "cdfvd_results.json")
+            os.makedirs(args.save_dir, exist_ok=True)
             with open(cdfvd_path, "w") as f:
                 json.dump(result["cdfvd_results"], f, indent=2)
-            print(f"[CD-FVD] Results saved to {cdfvd_path}")
+            print(f"\n[artifacts] CD-FVD results saved to {cdfvd_path}")
     except Exception as e:
         print(f"[artifacts] Error while saving artifacts: {e}", flush=True)
 
