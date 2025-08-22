@@ -195,77 +195,8 @@ RUN python3 -c "import numpy; assert numpy.__version__.startswith('1.26'), f'Num
 # Copy the repository
 COPY . /app/
 
-# RADICAL FIX: Create dedicated model directory and download CD-FVD models using Python
-RUN mkdir -p /app/models/cdfvd/third_party/VideoMAEv2 && \
-    mkdir -p /app/models/cdfvd/third_party/i3d && \
-    mkdir -p /app/uploads && \
-    mkdir -p /app/.cache/huggingface && \
-    mkdir -p /app/.cache/torch && \
-    # Download CD-FVD model files using Python urllib (more reliable than wget)
-    python3 -c "
-import urllib.request
-import os
-import sys
-
-def download_file(url, filepath):
-    print(f'Downloading {url} to {filepath}')
-    try:
-        urllib.request.urlretrieve(url, filepath)
-        if os.path.exists(filepath) and os.path.getsize(filepath) > 1000:
-            print(f'✅ Downloaded {filepath} ({os.path.getsize(filepath)} bytes)')
-            return True
-        else:
-            print(f'❌ Download failed or file too small: {filepath}')
-            return False
-    except Exception as e:
-        print(f'❌ Error downloading {url}: {e}')
-        return False
-
-# VideoMAE model
-videomae_url = 'https://huggingface.co/OpenGVLab/VideoMAEv2/resolve/main/vit_g_hybrid_pt_1200e_ssv2_ft.pth'
-videomae_path = '/app/models/cdfvd/third_party/VideoMAEv2/vit_g_hybrid_pt_1200e_ssv2_ft.pth'
-
-# I3D model - try multiple sources
-i3d_urls = [
-    'https://github.com/piergiaj/pytorch-i3d/releases/download/v0.1/i3d_pretrained_400.pt',
-    'https://download.pytorch.org/models/i3d_pretrained_400.pt'
-]
-i3d_path = '/app/models/cdfvd/third_party/i3d/i3d_pretrained_400.pt'
-
-success = True
-if not download_file(videomae_url, videomae_path):
-    success = False
-    
-# Try multiple I3D sources
-i3d_success = False
-for url in i3d_urls:
-    if download_file(url, i3d_path):
-        i3d_success = True
-        break
-        
-if not i3d_success:
-    print('❌ Failed to download I3D model from all sources')
-    success = False
-
-if not success:
-    print('❌ Failed to download required model files')
-    sys.exit(1)
-else:
-    print('✅ All model files downloaded successfully')
-" && \
-    # Remove original dist-packages third_party if it exists and create symlink
-    rm -rf /usr/local/lib/python3.10/dist-packages/cdfvd/third_party && \
-    ln -s /app/models/cdfvd/third_party /usr/local/lib/python3.10/dist-packages/cdfvd/third_party && \
-    # Set proper ownership for user 1000:1000  
-    chown -R 1000:1000 /app/models /app/uploads /app/.cache && \
-    chmod -R 755 /app/models && \
-    chmod 777 /app/uploads /app/.cache/huggingface /app/.cache/torch
-
-# Set environment variables for cache and model directories
-ENV TRANSFORMERS_CACHE=/app/.cache/huggingface
-ENV HF_HOME=/app/.cache/huggingface
-ENV TORCH_HOME=/app/.cache/torch
-ENV CDFVD_MODEL_DIR=/app/models/cdfvd/third_party
+# Create uploads directory with proper permissions
+RUN mkdir -p /app/uploads && chmod 777 /app/uploads
 
 # Create a simple entrypoint script
 RUN echo '#!/usr/bin/env bash' > /app/entrypoint_noconda.sh && \
@@ -316,6 +247,16 @@ RUN echo '#!/usr/bin/env bash' > /app/entrypoint_noconda.sh && \
 RUN chmod +x /app/entrypoint_noconda.sh
 
 # Default entrypoint
+EXPOSE 2200
+ENTRYPOINT ["/app/entrypoint_noconda.sh"]
+CMD ["api"]
+
+RUN chmod +x /app/entrypoint_noconda.sh
+
+# Default entrypoint
+EXPOSE 2200
+ENTRYPOINT ["/app/entrypoint_noconda.sh"]
+CMD ["api"]
 EXPOSE 2200
 ENTRYPOINT ["/app/entrypoint_noconda.sh"]
 CMD ["api"]
