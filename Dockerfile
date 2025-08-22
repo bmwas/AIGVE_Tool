@@ -236,14 +236,22 @@ RUN mkdir -p /app/uploads && chmod 777 /app/uploads
 USER root
 RUN pip3 install --no-cache-dir -r /app/requirement.txt
 
-# Install cd-fvd via git clone as required (install system-wide with proper permissions)
+# Install cd-fvd via git clone as required (global installation)
 RUN git clone https://github.com/songweige/content-debiased-fvd.git && \
     cd ./content-debiased-fvd && \
-    pip3 install -e . --system && \
+    pip3 install -e . && \
     cd / && rm -rf /app/content-debiased-fvd && \
     pip3 show cd-fvd && \
-    # Verify installation is accessible by testing import
-    python3 -c "from cdfvd import fvd; print('cd-fvd successfully installed and importable')"
+    # Verify installation is accessible as root
+    python3 -c "from cdfvd import fvd; print('cd-fvd successfully installed and importable as root')"
+
+# Test cd-fvd import as user 1000 after switching
+USER 1000
+RUN python3 -c "from cdfvd import fvd; print('cd-fvd successfully accessible as user 1000')" || \
+    (echo "ERROR: cd-fvd not accessible to user 1000" && exit 1)
+
+# Switch back to root for remaining setup
+USER root
 
 # Copy and set up entrypoint script  
 RUN chmod +x /app/entrypoint.sh
