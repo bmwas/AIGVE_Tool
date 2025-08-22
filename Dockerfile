@@ -195,14 +195,17 @@ RUN python3 -c "import numpy; assert numpy.__version__.startswith('1.26'), f'Num
 # Copy the repository
 COPY . /app/
 
-# RADICAL FIX: Create dedicated model directory and replace dist-packages with symlinks
-RUN mkdir -p /app/models/cdfvd/third_party && \
+# RADICAL FIX: Create dedicated model directory and download CD-FVD models directly
+RUN mkdir -p /app/models/cdfvd/third_party/VideoMAEv2 && \
+    mkdir -p /app/models/cdfvd/third_party/i3d && \
     mkdir -p /app/uploads && \
     mkdir -p /app/.cache/huggingface && \
     mkdir -p /app/.cache/torch && \
-    # Copy CD-FVD model files to our dedicated directory
-    cp -r /usr/local/lib/python3.10/dist-packages/cdfvd/third_party/* /app/models/cdfvd/third_party/ && \
-    # Remove original dist-packages third_party and create symlink to our directory
+    # Download CD-FVD model files directly to our dedicated directory
+    cd /app/models/cdfvd/third_party && \
+    wget -q https://huggingface.co/OpenGVLab/VideoMAEv2/resolve/main/vit_g_hybrid_pt_1200e_ssv2_ft.pth -O VideoMAEv2/vit_g_hybrid_pt_1200e_ssv2_ft.pth && \
+    wget -q https://www.dropbox.com/s/ge9e5ujwgetktms/i3d_torchscript.pt -O i3d/i3d_pretrained_400.pt && \
+    # Remove original dist-packages third_party if it exists and create symlink
     rm -rf /usr/local/lib/python3.10/dist-packages/cdfvd/third_party && \
     ln -s /app/models/cdfvd/third_party /usr/local/lib/python3.10/dist-packages/cdfvd/third_party && \
     # Set proper ownership for user 1000:1000  
