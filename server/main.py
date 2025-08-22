@@ -25,48 +25,11 @@ except Exception:  # pragma: no cover - tolerate missing/failed import
 
 # Optional cd-fvd import
 try:
-    from cdfvd import fvd as cdfvd  # type: ignore
-    
-    # RADICAL FIX: Monkey-patch CD-FVD to use our dedicated model directory
-    import os
-    import logging
-    
-    # Get logger for patch message
-    patch_logger = logging.getLogger("aigve.api")
-    
-    CDFVD_MODEL_DIR = os.getenv("CDFVD_MODEL_DIR", "/app/models/cdfvd/third_party")
-    
-    if hasattr(cdfvd, 'cdfvd'):
-        original_cdfvd_init = cdfvd.cdfvd.__init__
-        
-        def patched_init(self, *args, **kwargs):
-            # Call original init
-            result = original_cdfvd_init(self, *args, **kwargs)
-            
-            # Patch model paths after initialization
-            if hasattr(self, 'model_dir'):
-                self.model_dir = CDFVD_MODEL_DIR
-            
-            # Patch specific model paths if they exist
-            videomae_path = os.path.join(CDFVD_MODEL_DIR, "VideoMAEv2", "vit_g_hybrid_pt_1200e_ssv2_ft.pth")
-            i3d_path = os.path.join(CDFVD_MODEL_DIR, "i3d", "i3d_pretrained_400.pt")
-            
-            if hasattr(self, 'videomae_model_path'):
-                self.videomae_model_path = videomae_path
-            if hasattr(self, 'i3d_model_path'):
-                self.i3d_model_path = i3d_path
-                
-            return result
-        
-        cdfvd.cdfvd.__init__ = patched_init
-        patch_logger.info("CD-FVD monkey-patched to use model directory: %s", CDFVD_MODEL_DIR)
-    
-except Exception as e:  # pragma: no cover - tolerate missing/failed import
-    cdfvd = None  # type: ignore
-    # Log the error if it's not just a missing module
-    if "No module named" not in str(e):
-        import logging
-        logging.getLogger("aigve.api").warning("CD-FVD import issue: %s", e)
+    from cdfvd import fvd  # type: ignore
+    cdfvd_available = True
+except ImportError:
+    fvd = None  # type: ignore
+    cdfvd_available = False
 
 APP_ROOT = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
 SCRIPT_PATH = os.path.join(APP_ROOT, "scripts", "prepare_annotations.py")
@@ -260,7 +223,7 @@ def _compute_cdfvd(upload_dir: str, generated_suffixes: str, model: str = "video
     logger.debug("[CD-FVD] Parameters: upload_dir=%s, suffixes=%s, max_seconds=%s, fps=%s", 
                 upload_dir, generated_suffixes, max_seconds, fps)
     
-    if cdfvd is None:
+    if not cdfvd_available:
         logger.error("[CD-FVD] cd-fvd package is not installed")
         raise RuntimeError("cd-fvd package is not installed. Run: pip install cd-fvd")
     
@@ -417,38 +380,31 @@ def _compute_cdfvd(upload_dir: str, generated_suffixes: str, model: str = "video
             dest = fake_dir / f"video_{i:04d}{Path(video_path).suffix}"
             _trim_or_copy(video_path, dest)
         
-        # Initialize CD-FVD evaluator
-        device = 'cuda' if torch and torch.cuda.is_available() else 'cpu'
-        logger.info("[CD-FVD] Using model='%s' on device='%s'", model, device)
-        evaluator = cdfvd.cdfvd(model=model, n_real='full', n_fake='full', device=device)
+        # Initialize CD-FVD evaluator according to documentation
+        logger.info("[CD-FVD] Initializing evaluator with model='%s'", model)
+        evaluator = fvd.cdfvd(model, ckpt_path=None)
         
-        # Load videos
-        logger.info("[CD-FVD] Loading real videos from %s", real_dir)
-        real_loader = evaluator.load_videos(str(real_dir), data_type='video_folder',
-                                           resolution=resolution, sequence_length=sequence_length)
+        # Load and compute real video statistics
+        logger.info("[CD-FVD] Loading and computing real video statistics from %s", real_dir)
+        real_videos = evaluator.load_videos(str(real_dir), resolution=resolution, sequence_length=sequence_length)
+        evaluator.compute_real_stats(real_videos)
         
-        logger.info("[CD-FVD] Loading fake videos from %s", fake_dir)
-        fake_loader = evaluator.load_videos(str(fake_dir), data_type='video_folder',
-                                           resolution=resolution, sequence_length=sequence_length)
+        # Load and compute fake video statistics  
+        logger.info("[CD-FVD] Loading and computing fake video statistics from %s", fake_dir)
+        fake_videos = evaluator.load_videos(str(fake_dir), resolution=resolution, sequence_length=sequence_length)
+        evaluator.compute_fake_stats(fake_videos)
         
-        # Compute FVD
-        logger.info("[CD-FVD] Computing real video statistics...")
-        evaluator.compute_real_stats(real_loader)
-        
-        logger.info("[CD-FVD] Computing fake video statistics...")
-        evaluator.compute_fake_stats(fake_loader)
-        
+        # Compute FVD score from statistics
         logger.info("[CD-FVD] Computing FVD score...")
-        score = evaluator.compute_fvd_from_stats()
+        fvd_score = evaluator.compute_fvd_from_stats()
         
         result = {
-            "fvd_score": float(score),
+            "fvd_score": float(fvd_score),
             "num_real_videos": len(real_videos),
             "num_fake_videos": len(fake_videos),
             "model": model,
             "resolution": resolution,
-            "sequence_length": sequence_length,
-            "device": device
+            "sequence_length": sequence_length
         }
         # Attach length info if requested
         try:

@@ -232,24 +232,25 @@ ENV CDFVD_MODEL_DIR=/app/models/cdfvd/third_party
 # Create uploads directory with proper permissions
 RUN mkdir -p /app/uploads && chmod 777 /app/uploads
 
-# Copy and set up entrypoint script
+# Install cd-fvd from correct GitHub repository as root for system-wide access
+USER root
+RUN pip3 install --no-cache-dir git+https://github.com/songweige/content-debiased-fvd.git && \
+    # Verify the correct import pattern from documentation
+    python3 -c "from cdfvd import fvd; print('cd-fvd installed: fvd module accessible')" && \
+    # Test that appuser can also import it
+    su - appuser -c "python3 -c 'from cdfvd import fvd; print(\"cd-fvd accessible to appuser\")'" && \
+    echo "cd-fvd installation verified"
+
+# Copy and set up entrypoint script  
 RUN chmod +x /app/entrypoint.sh
 
-# Switch to user 1000 and install cd-fvd for this user
+# Switch to user 1000 and verify everything works
 USER 1000
-RUN python3 -m pip install --user --no-cache-dir cd-fvd && \
-    # Verify cd-fvd import works
-    python3 -c "import cdfvd; print('cd-fvd installed and accessible to user 1000')" && \
-    # Verify access to all critical directories
-    echo "Testing directory access as user 1000:" && \
-    ls -la /app/models/cdfvd/third_party/ && \
-    ls -la /app/.cache/ && \
-    ls -la /app/uploads/ && \
-    # Test write access to cache and uploads
+RUN # Verify cd-fvd and directory access
+    python3 -c "from cdfvd import fvd; print('Final check: cd-fvd working for user 1000')" && \
+    # Test write access to critical directories
     touch /app/.cache/test_write && rm /app/.cache/test_write && \
     touch /app/uploads/test_write && rm /app/uploads/test_write && \
-    # Verify Python can find user-installed packages
-    python3 -c "import sys; print('Python user site:', __import__('site').USER_SITE); print('User site in path:', __import__('site').USER_SITE in sys.path)" && \
     echo "All access tests passed for user 1000"
 
 # Default entrypoint
