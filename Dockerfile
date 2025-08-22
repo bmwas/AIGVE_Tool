@@ -232,14 +232,16 @@ ENV CDFVD_MODEL_DIR=/app/models/cdfvd/third_party
 # Create uploads directory with proper permissions
 RUN mkdir -p /app/uploads && chmod 777 /app/uploads
 
-# Install cd-fvd from correct GitHub repository as root for system-wide access
+# Install cd-fvd from PyPI as root, then ensure both users can access it
 USER root
-RUN pip3 install --no-cache-dir git+https://github.com/songweige/content-debiased-fvd.git && \
-    # Verify the correct import pattern from documentation
-    python3 -c "from cdfvd import fvd; print('cd-fvd installed: fvd module accessible')" && \
-    # Test that appuser can also import it
-    su - appuser -c "python3 -c 'from cdfvd import fvd; print(\"cd-fvd accessible to appuser\")'" && \
-    echo "cd-fvd installation verified"
+RUN pip3 install --no-cache-dir cd-fvd==0.1.1 && \
+    # Install for user 1000 as well to ensure accessibility
+    runuser -l appuser -c 'pip3 install --user --no-cache-dir cd-fvd==0.1.1' && \
+    # Verify import works for root
+    python3 -c "from cdfvd import fvd; print('cd-fvd system installation works')" && \
+    # Verify import works for appuser  
+    runuser -l appuser -c "python3 -c 'from cdfvd import fvd; print(\"cd-fvd user installation works\")'" && \
+    echo "cd-fvd dual installation verified"
 
 # Copy and set up entrypoint script  
 RUN chmod +x /app/entrypoint.sh
