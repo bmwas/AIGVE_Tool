@@ -208,8 +208,6 @@ RUN useradd -u 1000 -m -s /bin/bash appuser && \
     # Verify downloads
     ls -la VideoMAEv2/ && ls -la i3d/ && \
     # Remove original dist-packages third_party if it exists and create symlink
-    rm -rf /usr/local/lib/python3.10/dist-packages/cdfvd/third_party && \
-    ln -s /app/models/cdfvd/third_party /usr/local/lib/python3.10/dist-packages/cdfvd/third_party && \
     # Set proper ownership for user 1000:1000  
     chown -R 1000:1000 /app && \
     chmod -R 755 /app/models && \
@@ -242,11 +240,11 @@ ENV PYTHONPATH="/app/.local/lib/python3.10/site-packages:$PYTHONPATH"
 # Install all Python packages as user 1000
 RUN pip3 install --user --no-cache-dir -r /app/requirement.txt
 
-# Install cd-fvd via git clone as user 1000 (regular installation, not editable)
-
+# Install cd-fvd via git clone as user 1000 (editable install to keep source)
 RUN git clone https://github.com/songweige/content-debiased-fvd.git && \
     cd ./content-debiased-fvd && \
-    pip3 install -e .
+    pip3 install -e . && \
+    echo "cd-fvd installed successfully ..."
 
 # Test everything works: directories, Python packages, and executables
 RUN touch /app/.cache/test_write && rm /app/.cache/test_write && \
