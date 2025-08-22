@@ -667,23 +667,48 @@ def run_prepare(req: PrepareAnnotationsRequest, request: Request):
         raise HTTPException(status_code=500, detail=f"Script not found at {SCRIPT_PATH}")
 
     rid = getattr(getattr(request, "state", object()), "rid", "-")
+    
+    # Ensure input_dir exists
+    if req.input_dir and not os.path.exists(req.input_dir):
+        logger.info("[%s] Creating missing input_dir: %s", rid, req.input_dir)
+        os.makedirs(req.input_dir, exist_ok=True)
+    
+    # Ensure stage_dataset exists if specified
+    if req.stage_dataset and not os.path.exists(req.stage_dataset):
+        logger.info("[%s] Creating missing stage_dataset: %s", rid, req.stage_dataset)
+        os.makedirs(req.stage_dataset, exist_ok=True)
+
     t0 = time.perf_counter()
     logger.info("[%s] /run input_dir=%s stage_dataset=%s compute=%s categories=%s metrics=%s", rid, req.input_dir, req.stage_dataset, bool(req.compute), req.categories, req.metrics)
     args = _build_cli_args(req)
     cmd = [sys.executable, SCRIPT_PATH] + args
     logger.info("[%s] Exec: %s", rid, " ".join(shlex.quote(c) for c in cmd))
 
-    try:
-        proc = subprocess.run(
-            cmd,
-            cwd=APP_ROOT,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-            check=False,
-        )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to execute: {e}")
+    # Retry mechanism for prepare_annotations.py
+    max_retries = 3
+    proc = None
+    for attempt in range(max_retries):
+        try:
+            proc = subprocess.run(
+                cmd,
+                cwd=APP_ROOT,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                check=False,
+            )
+            if proc.returncode == 0:
+                break
+            else:
+                logger.warning("[%s] Attempt %d/%d failed with return code %s", rid, attempt + 1, max_retries, proc.returncode)
+                if attempt < max_retries - 1:
+                    # Wait before retry
+                    time.sleep(1)
+        except Exception as e:
+            logger.warning("[%s] Attempt %d/%d failed with exception: %s", rid, attempt + 1, max_retries, e)
+            if attempt == max_retries - 1:
+                raise HTTPException(status_code=500, detail=f"Failed to execute after {max_retries} attempts: {e}")
+    
     dur = (time.perf_counter() - t0) * 1000.0
     logger.info("[%s] /run rc=%s in %.1f ms (stdout=%dB, stderr=%dB)", rid, proc.returncode, dur, len(proc.stdout or ""), len(proc.stderr or ""))
 
@@ -694,58 +719,93 @@ def run_prepare(req: PrepareAnnotationsRequest, request: Request):
         "stderr": proc.stderr,
     }
     
+    # Log warning but continue if prepare_annotations.py failed after retries
+    if proc.returncode != 0:
+        logger.warning("[%s] prepare_annotations.py failed after %d attempts, continuing with CD-FVD computation", rid, max_retries)
+    
     # Compute CD-FVD by default with all available models
     if req.input_dir:
         try:
             logger.info("[%s] Computing FVD using cd-fvd package with all models...", rid)
-            # Check for staged dataset directory (similar to /run_upload logic)
-            video_dir = req.input_dir
+            
+            # Determine video directory - prioritize staged locations, create if needed
+            video_dir = None
             if req.stage_dataset:
+                # Try staged evaluate directory first
                 staged_evaluate_dir = os.path.join(req.stage_dataset, "evaluate")
                 if os.path.exists(staged_evaluate_dir):
                     video_dir = staged_evaluate_dir
                     print(f"[CD-FVD] Using staged evaluate directory: {video_dir}")
-                elif os.path.exists(req.stage_dataset):
-                    video_dir = req.stage_dataset
-                    print(f"[CD-FVD] Using staged dataset directory: {video_dir}")
+                else:
+                    # Create staged evaluate directory if it doesn't exist
+                    try:
+                        os.makedirs(staged_evaluate_dir, exist_ok=True)
+                        video_dir = staged_evaluate_dir
+                        print(f"[CD-FVD] Created and using staged evaluate directory: {video_dir}")
+                    except Exception as e:
+                        logger.warning("[%s] Could not create staged evaluate directory %s: %s", rid, staged_evaluate_dir, e)
+                        # Fall back to stage_dataset root
+                        if os.path.exists(req.stage_dataset):
+                            video_dir = req.stage_dataset
+                            print(f"[CD-FVD] Using staged dataset directory: {video_dir}")
+                        else:
+                            print(f"[CD-FVD] Staged dataset directory does not exist: {req.stage_dataset}")
+            
+            # Fall back to input_dir if no staging was requested or staging failed
+            if video_dir is None:
+                if os.path.exists(req.input_dir):
+                    video_dir = req.input_dir
+                    print(f"[CD-FVD] Using input directory: {video_dir}")
+                else:
+                    # Create input directory if it doesn't exist
+                    try:
+                        os.makedirs(req.input_dir, exist_ok=True)
+                        video_dir = req.input_dir
+                        print(f"[CD-FVD] Created and using input directory: {video_dir}")
+                    except Exception as e:
+                        # As last resort, create a temporary directory
+                        import tempfile
+                        video_dir = tempfile.mkdtemp(prefix="aigve_cdfvd_")
+                        logger.warning("[%s] Could not use input_dir %s (%s), using temporary directory: %s", rid, req.input_dir, e, video_dir)
+                        print(f"[CD-FVD] Using temporary directory: {video_dir}")
+            
+            # Ensure video directory exists (final safety check)
+            if not os.path.exists(video_dir):
+                logger.warning("[%s] Video directory %s does not exist, creating it", rid, video_dir)
+                os.makedirs(video_dir, exist_ok=True)
             
             # List contents to debug
             print(f"[CD-FVD] Looking for videos in: {video_dir}")
-            if os.path.exists(video_dir):
-                files = os.listdir(video_dir)
-                print(f"[CD-FVD] Files found: {files}")
-                # Check subdirectories
-                for item in files:
-                    item_path = os.path.join(video_dir, item)
-                    if os.path.isdir(item_path):
-                        subfiles = os.listdir(item_path)
-                        print(f"[CD-FVD] Subdirectory {item}: {subfiles}")
+            files = os.listdir(video_dir)
+            print(f"[CD-FVD] Files found: {files}")
+            # Check subdirectories
+            for item in files:
+                item_path = os.path.join(video_dir, item)
+                if os.path.isdir(item_path):
+                    subfiles = os.listdir(item_path)
+                    print(f"[CD-FVD] Subdirectory {item}: {subfiles}")
             
             # Compute CD-FVD with all available models
             cdfvd_results = {}
             models = ["videomae", "i3d"]
             
             for model in models:
-                try:
-                    logger.info("[%s] Computing CD-FVD with model: %s", rid, model)
-                    cdfvd_result = _compute_cdfvd(
-                        upload_dir=video_dir,
-                        generated_suffixes=req.generated_suffixes or "synthetic,generated",
-                        model=model,
-                        resolution=req.cdfvd_resolution or 128,
-                        sequence_length=req.cdfvd_sequence_length or 16,
-                        max_seconds=req.max_seconds,
-                        fps=req.fps,
-                    )
-                    cdfvd_results[model] = cdfvd_result
-                    logger.info("[%s] CD-FVD %s score: %.4f", rid, model, cdfvd_result.get("fvd_score", 0))
-                except Exception as e:
-                    logger.error("[%s] CD-FVD %s computation error: %s", rid, model, e)
-                    cdfvd_results[model] = {"error": str(e)}
+                logger.info("[%s] Computing CD-FVD with model: %s", rid, model)
+                cdfvd_result = _compute_cdfvd(
+                    upload_dir=video_dir,
+                    generated_suffixes=req.generated_suffixes or "synthetic,generated",
+                    model=model,
+                    resolution=req.cdfvd_resolution or 128,
+                    sequence_length=req.cdfvd_sequence_length or 16,
+                    max_seconds=req.max_seconds,
+                    fps=req.fps,
+                )
+                cdfvd_results[model] = cdfvd_result
+                logger.info("[%s] CD-FVD %s score: %.4f", rid, model, cdfvd_result.get("fvd_score", 0))
             
             response["cdfvd_results"] = cdfvd_results
             
-            # Save CD-FVD results to a JSON file
+            # Save CD-FVD result to a JSON file
             cdfvd_json_path = os.path.join(APP_ROOT, "cdfvd_results.json")
             with open(cdfvd_json_path, "w") as f:
                 json.dump(cdfvd_results, f, indent=2)
