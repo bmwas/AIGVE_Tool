@@ -246,8 +246,7 @@ RUN chmod +x /app/entrypoint.sh
 
 # Switch to user 1000 and verify everything works
 USER 1000
-RUN # Verify cd-fvd and directory access
-    python3 -c "from cdfvd import fvd; print('Final check: cd-fvd working for user 1000')" && \
+RUN python3 -c "from cdfvd import fvd; print('Final check: cd-fvd working for user 1000')" && \
     # Test write access to critical directories
     touch /app/.cache/test_write && rm /app/.cache/test_write && \
     touch /app/uploads/test_write && rm /app/uploads/test_write && \
