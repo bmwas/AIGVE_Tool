@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Test script to verify CD-FVD upload mode functionality
-Creates test videos and uploads them via the API
+Test script to verify CD-FVD upload mode functionality with all FVD flavors
+Creates test videos and uploads them via the API to compute all 8 FVD combinations
 """
 
 import os
@@ -98,13 +98,15 @@ def test_upload_with_cdfvd(base_url, real_video, fake_video):
         'max_seconds': '8',
         'fps': '25',
         'cdfvd_resolution': '128',
-        'cdfvd_sequence_length': '16'
+        'cdfvd_sequence_length': '16',
+        'cdfvd_all_flavors': 'true'  # Compute all 8 FVD flavors by default
     }
     
     print("\nTesting merged AIGVE + CD-FVD computation with following parameters:")
-    print(f"  - CD-FVD Models: VideMAE + I3D (automatic)")
-    print(f"  - Resolution: 128")
-    print(f"  - Sequence length: 16")
+    print(f"  - CD-FVD: All 8 flavors (2 models × 2 resolutions × 2 sequence lengths)")
+    print(f"  - Models: i3d + videomae")
+    print(f"  - Resolutions: 128 + 256")
+    print(f"  - Sequence lengths: 16 + 128")
     print(f"  - Max seconds: 8")
     print(f"  - Real video: {os.path.basename(real_video)}")
     print(f"  - Fake video: {os.path.basename(fake_video)}")
@@ -122,18 +124,52 @@ def test_upload_with_cdfvd(base_url, real_video, fake_video):
             print("\n✅ Upload successful!")
             print(f"Return code: {result.get('returncode', 'N/A')}")
             
-            # Check for CD-FVD results (new format: multiple models)
+            # Check for CD-FVD results (all flavors format)
             if 'cdfvd_results' in result:
                 cdfvd_results = result['cdfvd_results']
-                print("\n📊 CD-FVD Results (Merged Ecosystem):")
-                for model, model_result in cdfvd_results.items():
-                    if 'error' in model_result:
-                        print(f"  - {model.upper()}: ERROR - {model_result['error']}")
-                    else:
-                        score = model_result.get('fvd_score', 'N/A')
-                        print(f"  - {model.upper()}: FVD Score = {score}")
-                        print(f"    Real videos: {model_result.get('n_real', 0)}")
-                        print(f"    Fake videos: {model_result.get('n_fake', 0)}")
+                print("\n📊 CD-FVD Results (All Flavors):")
+                
+                # Handle all-flavors format
+                if isinstance(cdfvd_results, dict) and 'flavors' in cdfvd_results:
+                    flavors = cdfvd_results['flavors']
+                    successful_flavors = 0
+                    total_flavors = len(flavors)
+                    
+                    for flavor_key, flavor_result in flavors.items():
+                        if 'error' in flavor_result:
+                            print(f"  - {flavor_key}: ❌ ERROR - {flavor_result['error']}")
+                        else:
+                            successful_flavors += 1
+                            score = flavor_result.get('fvd_score', 'N/A')
+                            model = flavor_result.get('model', '')
+                            res = flavor_result.get('resolution', '')
+                            seq = flavor_result.get('sequence_length', '')
+                            print(f"  - {flavor_key}: ✅ {score} (model={model}, res={res}, seq={seq})")
+                    
+                    print(f"\n    Summary: {successful_flavors}/{total_flavors} flavors successful")
+                    
+                # Handle legacy multi-model format (fallback)
+                elif isinstance(cdfvd_results, dict):
+                    for model, model_result in cdfvd_results.items():
+                        if 'error' in model_result:
+                            print(f"  - {model.upper()}: ERROR - {model_result['error']}")
+                        else:
+                            # Check if this model has flavors
+                            if 'flavors' in model_result:
+                                flavors = model_result['flavors']
+                                print(f"  - {model.upper()} Model ({len(flavors)} flavors):")
+                                for flavor_key, flavor_result in flavors.items():
+                                    if 'error' in flavor_result:
+                                        print(f"    • {flavor_key}: ERROR - {flavor_result['error']}")
+                                    else:
+                                        score = flavor_result.get('fvd_score', 'N/A')
+                                        print(f"    • {flavor_key}: {score}")
+                            else:
+                                # Single flavor result
+                                score = model_result.get('fvd_score', 'N/A')
+                                print(f"  - {model.upper()}: FVD Score = {score}")
+                                print(f"    Real videos: {model_result.get('num_real_videos', 0)}")
+                                print(f"    Fake videos: {model_result.get('num_fake_videos', 0)}")
             elif 'cdfvd_error' in result:
                 print(f"\n⚠️ CD-FVD Error: {result['cdfvd_error']}")
             else:

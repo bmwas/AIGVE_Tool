@@ -237,14 +237,9 @@ USER root
 RUN pip3 install --no-cache-dir -r /app/requirement.txt
 
 # Install cd-fvd via git clone as required
-RUN cd /tmp && \
-    git clone https://github.com/songweige/content-debiased-fvd.git && \
+RUN git clone https://github.com/songweige/content-debiased-fvd.git && \
     cd ./content-debiased-fvd && \
     pip install -e . && \
-    cd / && rm -rf /tmp/content-debiased-fvd && \
-    # Verify cd-fvd installed
-    pip3 show cd-fvd && \
-    echo "cd-fvd installed via git clone - symlinks will fix missing modules"
 
 # Copy and set up entrypoint script  
 RUN chmod +x /app/entrypoint.sh

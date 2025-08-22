@@ -28,8 +28,7 @@ Output Metrics
 - FID (Fréchet Inception Distance)
 - IS (Inception Score) 
 - FVD (Fréchet Video Distance)
-- CD-FVD VideMAE (Content-aware FVD)
-- CD-FVD I3D (Content-aware FVD)
+- CD-FVD (8 flavors): i3d/videomae models × 128/256 resolution × 16/128 sequence length
 """
 from __future__ import annotations
 
@@ -66,6 +65,7 @@ def run_distribution_metrics(
     generated_suffixes: str = "synthetic,generated",
     cdfvd_resolution: int = 128,
     cdfvd_sequence_length: int = 16,
+    cdfvd_all_flavors: bool = True,
 ) -> Dict[str, Any]:
     """
     Calls POST /run with the minimal JSON body to stage and compute
@@ -89,9 +89,10 @@ def run_distribution_metrics(
     if use_cpu:
         payload["use_cpu"] = True
     
-    # CD-FVD is computed by default with both models, but allow resolution/sequence customization
+    # CD-FVD is computed by default with all 8 flavors, but allow single-flavor mode
     payload["cdfvd_resolution"] = cdfvd_resolution
     payload["cdfvd_sequence_length"] = cdfvd_sequence_length
+    payload["cdfvd_all_flavors"] = cdfvd_all_flavors
 
     url = f"{base_url.rstrip('/')}/run"
     r = requests.post(url, json=payload, timeout=3600)
@@ -126,6 +127,7 @@ def run_distribution_metrics_upload(
     metrics: str = "",
     cdfvd_resolution: int = 128,
     cdfvd_sequence_length: int = 16,
+    cdfvd_all_flavors: bool = True,
 ) -> Dict[str, Any]:
     """
     Uploads local video files to the server and calls POST /run_upload.
@@ -133,7 +135,7 @@ def run_distribution_metrics_upload(
     REQUIREMENTS (enforced by server):
     - EXACTLY 2 videos must be uploaded (1 real + 1 generated)
     - Generated video must contain one of the suffixes in filename
-    - ALL metrics computed: FID, IS, FVD (legacy) + CD-FVD (videomae, i3d)
+    - ALL metrics computed: FID, IS, FVD (legacy) + CD-FVD (8 flavors)
     """
     files_to_send: List[str] = []
     if upload_files:
@@ -188,9 +190,10 @@ def run_distribution_metrics_upload(
         form_data["use_cpu"] = True
     if metrics:
         form_data["metrics"] = metrics
-    # CD-FVD is computed by default with both models, but allow resolution/sequence customization
+    # CD-FVD is computed by default with all 8 flavors, but allow single-flavor mode
     form_data["cdfvd_resolution"] = cdfvd_resolution
     form_data["cdfvd_sequence_length"] = cdfvd_sequence_length
+    form_data["cdfvd_all_flavors"] = cdfvd_all_flavors
 
     url = f"{base_url.rstrip('/')}/run_upload"
     opened: List[Any] = []
@@ -215,7 +218,7 @@ def run_distribution_metrics_upload(
         print(f"[upload] Sending {len(files_param)} files (server requires exactly 2):")
         for _, (fname, _, _) in files_param:
             print(" -", fname)
-        print(f"[upload] ALL metrics will be computed: FID, IS, FVD (legacy) + CD-FVD (videomae, i3d)")
+        print(f"[upload] ALL metrics will be computed: FID, IS, FVD (legacy) + CD-FVD (8 flavors)")
         print(f"[upload] Generated suffixes for pairing: {generated_suffixes}")
 
         r = requests.post(url, data=form_data, files=files_param, timeout=7200)
@@ -299,11 +302,13 @@ def main(argv: list[str] | None = None) -> int:
                     help="Metric categories CSV (e.g., distribution_based,nn_based_video). Default: distribution_based")
     ap.add_argument("--metrics", default="",
                     help="Specific metric names CSV (optional). Example: fid,is,fvd or lightvqa+")
-    # CD-FVD options (CD-FVD is computed by default with both videomae and i3d models)
+    # CD-FVD options (CD-FVD computes all 8 flavors by default)
     ap.add_argument("--cdfvd-resolution", type=int, default=128,
-                    help="Resolution for CD-FVD video processing. Default: 128")
+                    help="Resolution for CD-FVD video processing (single-flavor mode). Default: 128")
     ap.add_argument("--cdfvd-sequence-length", type=int, default=16,
-                    help="Sequence length for CD-FVD video processing. Default: 16")
+                    help="Sequence length for CD-FVD video processing (single-flavor mode). Default: 16")
+    ap.add_argument("--cdfvd-single-flavor", action="store_true",
+                    help="Compute only single CD-FVD flavor instead of all 8 combinations")
 
     args = ap.parse_args(argv)
 
@@ -345,7 +350,10 @@ def main(argv: list[str] | None = None) -> int:
     # 3) Run distribution metrics (upload mode or server-path mode)
     if args.upload_dir or args.upload_files:
         print(f"\n[3/3] Running distribution metrics via {base_url}/run_upload ...", flush=True)
-        print(f"[CD-FVD] Computing with both videomae and i3d models, resolution={args.cdfvd_resolution}, sequence_length={args.cdfvd_sequence_length}")
+        if args.cdfvd_single_flavor:
+            print(f"[CD-FVD] Single flavor mode: resolution={args.cdfvd_resolution}, sequence_length={args.cdfvd_sequence_length}")
+        else:
+            print(f"[CD-FVD] All flavors mode: computing 8 combinations (2 models × 2 resolutions × 2 sequence lengths)")
         result = run_distribution_metrics_upload(
             base_url=base_url,
             upload_files=args.upload_files,
@@ -359,10 +367,14 @@ def main(argv: list[str] | None = None) -> int:
             metrics=args.metrics,
             cdfvd_resolution=args.cdfvd_resolution,
             cdfvd_sequence_length=args.cdfvd_sequence_length,
+            cdfvd_all_flavors=not args.cdfvd_single_flavor,
         )
     else:
         print(f"\n[3/3] Running distribution metrics via {base_url}/run ...", flush=True)
-        print(f"[CD-FVD] Computing with both videomae and i3d models, resolution={args.cdfvd_resolution}, sequence_length={args.cdfvd_sequence_length}")
+        if args.cdfvd_single_flavor:
+            print(f"[CD-FVD] Single flavor mode: resolution={args.cdfvd_resolution}, sequence_length={args.cdfvd_sequence_length}")
+        else:
+            print(f"[CD-FVD] All flavors mode: computing 8 combinations (2 models × 2 resolutions × 2 sequence lengths)")
         result = run_distribution_metrics(
             base_url=base_url,
             input_dir=args.input_dir,
@@ -373,6 +385,7 @@ def main(argv: list[str] | None = None) -> int:
             generated_suffixes=args.generated_suffixes,
             cdfvd_resolution=args.cdfvd_resolution,
             cdfvd_sequence_length=args.cdfvd_sequence_length,
+            cdfvd_all_flavors=not args.cdfvd_single_flavor,
         )
 
     print("\n--- /run result ---")
@@ -410,35 +423,85 @@ def main(argv: list[str] | None = None) -> int:
     else:
         print("Legacy metrics: No results found (check script execution)")
     
-    # CD-FVD results (multiple models) 
+    # CD-FVD results (all flavors or legacy models)
     if "cdfvd_results" in result:
-        print("\n--- CD-FVD Results (All Models) ---")
+        print("\n--- CD-FVD Results ---")
         cdfvd_results = result["cdfvd_results"]
-        successful_models = 0
-        total_models = len(cdfvd_results)
         
-        for model, cdfvd_res in cdfvd_results.items():
-            if "error" in cdfvd_res:
-                print(f"\n{model.upper()} Model: ❌ ERROR - {cdfvd_res['error']}")
-                if "attempts" in cdfvd_res:
-                    print(f"  Failed after {cdfvd_res['attempts']} attempts")
-            else:
-                successful_models += 1
-                print(f"\n{model.upper()} Model: ✅ SUCCESS")
-                print(f"  FVD Score: {cdfvd_res.get('fvd_score', 'N/A')}")
-                print(f"  Real Videos: {cdfvd_res.get('num_real_videos', 'N/A')}")
-                print(f"  Fake Videos: {cdfvd_res.get('num_fake_videos', 'N/A')}")
-                # If server returned length metadata, show it
-                if "max_seconds" in cdfvd_res:
-                    ms = cdfvd_res.get("max_seconds")
-                    fps_v = cdfvd_res.get("fps")
-                    max_len = cdfvd_res.get("max_len")
-                    if fps_v is not None and max_len is not None:
-                        print(f"  Clip: {ms} s at {fps_v} fps (~{max_len} frames)")
+        # Check if this is the new all-flavors format
+        if isinstance(cdfvd_results, dict) and any("flavors" in res for res in cdfvd_results.values() if isinstance(res, dict)):
+            # New all-flavors format: each model contains a "flavors" dict
+            successful_flavors = 0
+            total_flavors = 0
+            
+            for model, model_result in cdfvd_results.items():
+                if "error" in model_result:
+                    print(f"\n{model.upper()} Model: ❌ ERROR - {model_result['error']}")
+                    continue
+                    
+                flavors = model_result.get("flavors", {})
+                if not flavors:
+                    continue
+                    
+                print(f"\n{model.upper()} Model - All Flavors:")
+                for flavor_key, flavor_result in flavors.items():
+                    total_flavors += 1
+                    if "error" in flavor_result:
+                        print(f"  {flavor_key}: ❌ ERROR - {flavor_result['error']}")
                     else:
-                        print(f"  Clip: {ms} s")
-        
-        print(f"\nCD-FVD Summary: {successful_models}/{total_models} models successful")
+                        successful_flavors += 1
+                        fvd_score = flavor_result.get('fvd_score', 'N/A')
+                        print(f"  {flavor_key}: ✅ {fvd_score}")
+            
+            print(f"\nCD-FVD Summary: {successful_flavors}/{total_flavors} flavors successful")
+            
+        elif isinstance(cdfvd_results, dict) and "flavors" in cdfvd_results:
+            # Single all-flavors result format
+            flavors = cdfvd_results["flavors"]
+            successful_flavors = 0
+            total_flavors = len(flavors)
+            
+            print("All FVD Flavors:")
+            for flavor_key, flavor_result in flavors.items():
+                if "error" in flavor_result:
+                    print(f"  {flavor_key}: ❌ ERROR - {flavor_result['error']}")
+                else:
+                    successful_flavors += 1
+                    fvd_score = flavor_result.get('fvd_score', 'N/A')
+                    model = flavor_result.get('model', '')
+                    res = flavor_result.get('resolution', '')
+                    seq = flavor_result.get('sequence_length', '')
+                    print(f"  {flavor_key}: ✅ {fvd_score} (model={model}, res={res}, seq={seq})")
+            
+            print(f"\nCD-FVD Summary: {successful_flavors}/{total_flavors} flavors successful")
+            
+        else:
+            # Legacy format: individual model results
+            successful_models = 0
+            total_models = len(cdfvd_results)
+            
+            for model, cdfvd_res in cdfvd_results.items():
+                if "error" in cdfvd_res:
+                    print(f"\n{model.upper()} Model: ❌ ERROR - {cdfvd_res['error']}")
+                    if "attempts" in cdfvd_res:
+                        print(f"  Failed after {cdfvd_res['attempts']} attempts")
+                else:
+                    successful_models += 1
+                    print(f"\n{model.upper()} Model: ✅ SUCCESS")
+                    print(f"  FVD Score: {cdfvd_res.get('fvd_score', 'N/A')}")
+                    print(f"  Real Videos: {cdfvd_res.get('num_real_videos', 'N/A')}")
+                    print(f"  Fake Videos: {cdfvd_res.get('num_fake_videos', 'N/A')}")
+                    # If server returned length metadata, show it
+                    if "max_seconds" in cdfvd_res:
+                        ms = cdfvd_res.get("max_seconds")
+                        fps_v = cdfvd_res.get("fps")
+                        max_len = cdfvd_res.get("max_len")
+                        if fps_v is not None and max_len is not None:
+                            print(f"  Clip: {ms} s at {fps_v} fps (~{max_len} frames)")
+                        else:
+                            print(f"  Clip: {ms} s")
+            
+            print(f"\nCD-FVD Summary: {successful_models}/{total_models} models successful")
     elif "cdfvd_error" in result:
         print(f"\n❌ CD-FVD Error: {result['cdfvd_error']}")
     
