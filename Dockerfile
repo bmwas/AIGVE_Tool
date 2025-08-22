@@ -229,38 +229,29 @@ ENV TORCH_HOME=/app/.cache/torch
 ENV HF_HUB_CACHE=/app/.cache/huggingface/hub
 ENV CDFVD_MODEL_DIR=/app/models/cdfvd/third_party
 
-# Create uploads directory with proper permissions
-RUN mkdir -p /app/uploads && chmod 777 /app/uploads
-
-# Install requirements (excluding cd-fvd which will be installed via git clone)
+# ROOT: ONLY create directories with full permissions, then switch to user permanently
 USER root
-RUN pip3 install --no-cache-dir -r /app/requirement.txt
+RUN mkdir -p /app/uploads /app/.cache && chmod 777 /app/uploads /app/.cache && \
+    chmod +x /app/entrypoint.sh
 
-# Install cd-fvd via git clone as required (regular installation, not editable)
+# SWITCH TO USER 1000 AND STAY THERE - install everything as normal user
+USER 1000
+
+# Install all Python packages as user 1000
+RUN pip3 install --user --no-cache-dir -r /app/requirement.txt
+
+# Install cd-fvd via git clone as user 1000 (regular installation, not editable)
 RUN git clone https://github.com/songweige/content-debiased-fvd.git && \
     cd ./content-debiased-fvd && \
-    pip3 install . && \
-    cd / && rm -rf /app/content-debiased-fvd && \
+    pip3 install --user . && \
+    cd /app && rm -rf /app/content-debiased-fvd && \
     pip3 show cd-fvd && \
-    # Verify installation is accessible as root
-    python3 -c "from cdfvd import fvd; print('cd-fvd successfully installed and importable as root')"
+    python3 -c "from cdfvd import fvd; print('cd-fvd successfully installed as user 1000')"
 
-# Test cd-fvd import as user 1000 after switching
-USER 1000
-RUN python3 -c "from cdfvd import fvd; print('cd-fvd successfully accessible as user 1000')" || \
-    (echo "ERROR: cd-fvd not accessible to user 1000" && exit 1)
-
-# Switch back to root for remaining setup
-USER root
-
-# Copy and set up entrypoint script  
-RUN chmod +x /app/entrypoint.sh
-
-# Switch to user 1000 and verify directory access works
-USER 1000
+# Test everything works
 RUN touch /app/.cache/test_write && rm /app/.cache/test_write && \
     touch /app/uploads/test_write && rm /app/uploads/test_write && \
-    echo "Directory access tests passed for user 1000"
+    echo "All access tests passed for user 1000"
 
 # Default entrypoint
 EXPOSE 2200
