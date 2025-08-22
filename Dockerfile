@@ -179,12 +179,7 @@ RUN python3 -m pip install --no-cache-dir \
     mkdocs-exclude \
     mkdocstrings[python] || true
 
-# ------------------------------
-# Install cd-fvd for CD-FVD metrics
-# ------------------------------
-RUN python3 -m pip install --no-cache-dir cd-fvd && \
-    # Verify installation works
-    python3 -c "import cdfvd; print('cd-fvd installed successfully')"
+# cd-fvd will be installed as user 1000 later to avoid permission issues
 
 # ------------------------------
 # FINAL: Force downgrade NumPy to 1.26.4 after all installations
@@ -237,12 +232,10 @@ RUN mkdir -p /app/uploads && chmod 777 /app/uploads
 # Copy and set up entrypoint script
 RUN chmod +x /app/entrypoint.sh
 
-# Verify cd-fvd is accessible to user 1000
-RUN sudo -u appuser python3 -c "import cdfvd; print('cd-fvd accessible to user 1000')" || \
-    echo "WARNING: cd-fvd not accessible to user 1000"
-
-# Switch to user 1000 for runtime
+# Switch to user 1000 and install cd-fvd for this user
 USER 1000
+RUN python3 -m pip install --user --no-cache-dir cd-fvd && \
+    python3 -c "import cdfvd; print('cd-fvd installed and accessible to user 1000')"
 
 # Default entrypoint
 EXPOSE 2200
