@@ -92,20 +92,19 @@ def test_upload_with_cdfvd(base_url, real_video, fake_video):
     
     data = {
         'compute': 'true',
-        'use_cdfvd': 'true',
-        'cdfvd_model': 'i3d',
-        'cdfvd_resolution': '128',
-        'cdfvd_sequence_length': '16',
         'generated_suffixes': 'synthetic',
         'categories': 'distribution_based',
-        'metrics': 'fid,is',
-        'max_seconds': '8'
+        'max_seconds': '8',
+        'fps': '25',
+        'cdfvd_resolution': '128',
+        'cdfvd_sequence_length': '16'
     }
     
-    print("\nTesting CD-FVD upload with following parameters:")
-    print(f"  - Model: i3d")
+    print("\nTesting merged AIGVE + CD-FVD computation with following parameters:")
+    print(f"  - CD-FVD Models: VideMAE + I3D (automatic)")
     print(f"  - Resolution: 128")
     print(f"  - Sequence length: 16")
+    print(f"  - Max seconds: 8")
     print(f"  - Real video: {os.path.basename(real_video)}")
     print(f"  - Fake video: {os.path.basename(fake_video)}")
     
@@ -122,21 +121,34 @@ def test_upload_with_cdfvd(base_url, real_video, fake_video):
             print("\n✅ Upload successful!")
             print(f"Return code: {result.get('returncode', 'N/A')}")
             
-            # Check for CD-FVD results
-            if 'cdfvd_result' in result:
-                cdfvd = result['cdfvd_result']
-                print("\n📊 CD-FVD Results:")
-                print(f"  - FVD Score: {cdfvd.get('fvd_score', 'N/A')}")
-                print(f"  - Model: {cdfvd.get('model', 'N/A')}")
-                print(f"  - Real videos: {cdfvd.get('n_real', 0)}")
-                print(f"  - Fake videos: {cdfvd.get('n_fake', 0)}")
+            # Check for CD-FVD results (new format: multiple models)
+            if 'cdfvd_results' in result:
+                cdfvd_results = result['cdfvd_results']
+                print("\n📊 CD-FVD Results (Merged Ecosystem):")
+                for model, model_result in cdfvd_results.items():
+                    if 'error' in model_result:
+                        print(f"  - {model.upper()}: ERROR - {model_result['error']}")
+                    else:
+                        score = model_result.get('fvd_score', 'N/A')
+                        print(f"  - {model.upper()}: FVD Score = {score}")
+                        print(f"    Real videos: {model_result.get('n_real', 0)}")
+                        print(f"    Fake videos: {model_result.get('n_fake', 0)}")
             elif 'cdfvd_error' in result:
                 print(f"\n⚠️ CD-FVD Error: {result['cdfvd_error']}")
-                if 'cd-fvd package is not installed' in result['cdfvd_error']:
-                    print("\n💡 Solution: The server container needs cd-fvd installed.")
-                    print("   Run: docker exec <container_id> pip install cd-fvd")
             else:
                 print("\n⚠️ No CD-FVD results in response")
+            
+            # Check for AIGVE native results
+            native_results = []
+            for artifact in result.get('artifacts', []):
+                name = artifact.get('name', '')
+                if name in ['fid_results.json', 'is_results.json', 'fvd_results.json']:
+                    native_results.append(name)
+            
+            if native_results:
+                print(f"\n📊 AIGVE Native Results: {', '.join(native_results)}")
+            else:
+                print("\n⚠️ No AIGVE native results found")
             
             # Check artifacts
             if 'artifacts' in result:
@@ -230,9 +242,10 @@ def main():
         print("\n❌ Test failed!")
         print("\n🔧 Troubleshooting steps:")
         print("1. Ensure the server is running: docker ps")
-        print("2. Install cd-fvd in container: docker exec <container_id> pip install cd-fvd")
-        print("3. Check server logs: docker logs <container_id>")
+        print("2. Check server logs: docker logs <container_id>")
+        print("3. Verify server health: curl http://localhost:2200/healthz")
         print("4. Verify GPU access: docker exec <container_id> python -c 'import torch; print(torch.cuda.is_available())'")
+        print("5. Check cd-fvd installation: docker exec <container_id> python -c 'import cdfvd; print(\"OK\")')")
     
     return 0 if success else 1
 
