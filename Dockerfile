@@ -182,7 +182,9 @@ RUN python3 -m pip install --no-cache-dir \
 # ------------------------------
 # Install cd-fvd for CD-FVD metrics
 # ------------------------------
-RUN python3 -m pip install --no-cache-dir cd-fvd
+RUN python3 -m pip install --no-cache-dir cd-fvd && \
+    # Verify installation works
+    python3 -c "import cdfvd; print('cd-fvd installed successfully')"
 
 # ------------------------------
 # FINAL: Force downgrade NumPy to 1.26.4 after all installations
@@ -279,6 +281,10 @@ RUN echo '#!/usr/bin/env bash' > /app/entrypoint_noconda.sh && \
     echo 'exec python3 scripts/prepare_annotations.py "$@"' >> /app/entrypoint_noconda.sh
 
 RUN chmod +x /app/entrypoint_noconda.sh
+
+# Verify cd-fvd is accessible to user 1000
+RUN sudo -u appuser python3 -c "import cdfvd; print('cd-fvd accessible to user 1000')" || \
+    echo "WARNING: cd-fvd not accessible to user 1000"
 
 # Switch to user 1000 for runtime
 USER 1000
