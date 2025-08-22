@@ -234,53 +234,8 @@ ENV CDFVD_MODEL_DIR=/app/models/cdfvd/third_party
 # Create uploads directory with proper permissions
 RUN mkdir -p /app/uploads && chmod 777 /app/uploads
 
-# Create a simple entrypoint script
-RUN echo '#!/usr/bin/env bash' > /app/entrypoint_noconda.sh && \
-    echo 'set -euo pipefail' >> /app/entrypoint_noconda.sh && \
-    echo '' >> /app/entrypoint_noconda.sh && \
-    echo '# GPU detection' >> /app/entrypoint_noconda.sh && \
-    echo 'REQUIRE_GPU="${REQUIRE_GPU:-1}"' >> /app/entrypoint_noconda.sh && \
-    echo 'if [[ "${CUDA_VISIBLE_DEVICES+x}" == "x" && -z "${CUDA_VISIBLE_DEVICES}" ]]; then' >> /app/entrypoint_noconda.sh && \
-    echo '  echo "[WARN] CUDA_VISIBLE_DEVICES is empty; unsetting to allow GPU visibility."' >> /app/entrypoint_noconda.sh && \
-    echo '  unset CUDA_VISIBLE_DEVICES' >> /app/entrypoint_noconda.sh && \
-    echo 'fi' >> /app/entrypoint_noconda.sh && \
-    echo '' >> /app/entrypoint_noconda.sh && \
-    echo '# Test CUDA availability' >> /app/entrypoint_noconda.sh && \
-    echo 'echo "[INFO] Testing CUDA availability..."' >> /app/entrypoint_noconda.sh && \
-    echo 'python3 -c "import torch; print(f'"'"'PyTorch: {torch.__version__}, CUDA available: {torch.cuda.is_available()}, Devices: {torch.cuda.device_count()}'"'"')" || true' >> /app/entrypoint_noconda.sh && \
-    echo '' >> /app/entrypoint_noconda.sh && \
-    echo 'if [[ "$REQUIRE_GPU" == "1" ]]; then' >> /app/entrypoint_noconda.sh && \
-    echo '  if ! python3 -c "import torch; assert torch.cuda.is_available(), '"'"'CUDA not available'"'"'"; then' >> /app/entrypoint_noconda.sh && \
-    echo '    echo "[FATAL] GPU required but CUDA not available" >&2' >> /app/entrypoint_noconda.sh && \
-    echo '    echo "        Ensure you run with: docker run --gpus all ..." >&2' >> /app/entrypoint_noconda.sh && \
-    echo '    nvidia-smi -L || echo "nvidia-smi not available" >&2' >> /app/entrypoint_noconda.sh && \
-    echo '    exit 1' >> /app/entrypoint_noconda.sh && \
-    echo '  fi' >> /app/entrypoint_noconda.sh && \
-    echo 'fi' >> /app/entrypoint_noconda.sh && \
-    echo '' >> /app/entrypoint_noconda.sh && \
-    echo '# If first arg is a direct command, execute it' >> /app/entrypoint_noconda.sh && \
-    echo 'if [[ "$1" == "python3" || "$1" == "python" || "$1" == "bash" || "$1" == "sh" ]]; then' >> /app/entrypoint_noconda.sh && \
-    echo '  exec "$@"' >> /app/entrypoint_noconda.sh && \
-    echo 'fi' >> /app/entrypoint_noconda.sh && \
-    echo '' >> /app/entrypoint_noconda.sh && \
-    echo '# Serve API by default or when explicitly requested' >> /app/entrypoint_noconda.sh && \
-    echo 'PORT="${PORT:-2200}"' >> /app/entrypoint_noconda.sh && \
-    echo 'if [[ $# -eq 0 || "$1" == "api" ]]; then' >> /app/entrypoint_noconda.sh && \
-    echo '  if [[ $# -gt 0 ]]; then shift; fi' >> /app/entrypoint_noconda.sh && \
-    echo '  echo "[INFO] Starting API server on 0.0.0.0:${PORT}"' >> /app/entrypoint_noconda.sh && \
-    echo '  exec uvicorn server.main:app --host 0.0.0.0 --port "${PORT}" "$@"' >> /app/entrypoint_noconda.sh && \
-    echo 'fi' >> /app/entrypoint_noconda.sh && \
-    echo '' >> /app/entrypoint_noconda.sh && \
-    echo '# Help passthrough' >> /app/entrypoint_noconda.sh && \
-    echo 'if [[ "$1" == "-h" || "$1" == "--help" ]]; then' >> /app/entrypoint_noconda.sh && \
-    echo '  exec python3 scripts/prepare_annotations.py --help' >> /app/entrypoint_noconda.sh && \
-    echo 'fi' >> /app/entrypoint_noconda.sh && \
-    echo '' >> /app/entrypoint_noconda.sh && \
-    echo '# Otherwise, treat args as CLI' >> /app/entrypoint_noconda.sh && \
-    echo 'echo "[INFO] Running CLI: scripts/prepare_annotations.py $*"' >> /app/entrypoint_noconda.sh && \
-    echo 'exec python3 scripts/prepare_annotations.py "$@"' >> /app/entrypoint_noconda.sh
-
-RUN chmod +x /app/entrypoint_noconda.sh
+# Copy and set up entrypoint script
+RUN chmod +x /app/entrypoint.sh
 
 # Verify cd-fvd is accessible to user 1000
 RUN sudo -u appuser python3 -c "import cdfvd; print('cd-fvd accessible to user 1000')" || \
@@ -291,5 +246,5 @@ USER 1000
 
 # Default entrypoint
 EXPOSE 2200
-ENTRYPOINT ["/app/entrypoint_noconda.sh"]
+ENTRYPOINT ["/app/entrypoint.sh"]
 CMD ["api"]
