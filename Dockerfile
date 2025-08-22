@@ -234,7 +234,7 @@ RUN mkdir -p /app/uploads && chmod 777 /app/uploads
 
 # Install requirements including cd-fvd, then fix missing modules with symlinks
 USER root
-RUN pip3 install --no-cache-dir -r requirement.txt && \
+RUN pip3 install --no-cache-dir -r /app/requirement.txt && \
     # Verify cd-fvd installed but expect import error due to missing third_party
     pip3 show cd-fvd && \
     echo "cd-fvd installed - symlinks will fix missing modules"
@@ -244,8 +244,7 @@ RUN chmod +x /app/entrypoint.sh
 
 # Switch to user 1000 and verify directory access works
 USER 1000
-RUN # Test write access to critical directories
-    touch /app/.cache/test_write && rm /app/.cache/test_write && \
+RUN touch /app/.cache/test_write && rm /app/.cache/test_write && \
     touch /app/uploads/test_write && rm /app/uploads/test_write && \
     echo "Directory access tests passed for user 1000"
 
