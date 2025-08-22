@@ -281,7 +281,7 @@ Open the docs: http://localhost:2200/docs
   ```bash
   curl http://localhost:2200/healthz
   ```
-- Example run (distribution metrics):
+- Example run (distribution metrics + CD-FVD):
   ```bash
   curl -X POST http://localhost:2200/run \
     -H 'Content-Type: application/json' \
@@ -294,6 +294,8 @@ Open the docs: http://localhost:2200/docs
       "fps": 25
     }'
   ```
+  **Note**: CD-FVD is now computed automatically with both VideMAE and I3D models. No additional parameters needed!
+  ```
 
 - Upload files directly (no server-side paths):
   ```bash
@@ -304,6 +306,7 @@ Open the docs: http://localhost:2200/docs
     -F "categories=distribution_based" \
     -F "max_seconds=8" -F "fps=25"
   ```
+  **Note**: This automatically computes CD-FVD with both VideMAE and I3D models in addition to legacy FID/IS/FVD metrics.
   Notes:
   - Use `-F videos=@<path>` once per file. Supported extensions: `.mp4,.mov,.webm,.mkv,.avi,.m4v`.
   - The server stores uploads under `uploads/<session-id>/` and stages a dataset there by default.
@@ -402,10 +405,11 @@ Use the included Python client to call the REST API and run distribution-based m
   # Docs: http://localhost:2200/docs
   ```
 
-- Run the client (GPU by default):
+- Run the client (automatically computes CD-FVD with both models):
   ```bash
   python scripts/call_aigve_api.py
   ```
+  **Note**: No need to specify `--use-cdfvd` anymore - CD-FVD is computed by default!
 
 <!-- CPU-only client mode is not supported by the default server container. -->
 
@@ -415,6 +419,7 @@ Use the included Python client to call the REST API and run distribution-based m
   python scripts/call_aigve_api.py --max-seconds 8 --fps 25 \
     --base-url http://localhost:2200 --save-dir ./results
   ```
+  **Returns**: Both legacy metrics (FID/IS/FVD) AND CD-FVD results (VideMAE + I3D models) automatically!
 
 Client defaults (container paths):
 - `input_dir=/app/data` (mount your host `./data` to this path)
@@ -432,12 +437,12 @@ Upload mode (send files instead of referencing server paths):
     --upload-files ./data/40596_2019_1140_MOESM1_ESM.mov ./data/40596_2019_1140_MOESM1_ESM_synthetic.mp4 \
     --categories distribution_based --max-seconds 8 --fps 25
   ```
-- With cd-fvd computation:
+- With custom CD-FVD resolution/sequence length:
   ```bash
-  # Use cd-fvd for FVD computation
+  # Customize CD-FVD processing parameters (both VideMAE and I3D models run automatically)
   python scripts/call_aigve_api.py --base-url http://localhost:2200 \
-    --upload-dir ./my_videos --use-cdfvd \
-    --cdfvd-model videomae --cdfvd-resolution 128 --cdfvd-sequence-length 16 \
+    --upload-dir ./my_videos \
+    --cdfvd-resolution 224 --cdfvd-sequence-length 32 \
     --max-seconds 8 --fps 25
   ```
 Behavior:
@@ -449,10 +454,12 @@ Client parameter quick reference (scripts/call_aigve_api.py):
 - `--upload-dir`, `--upload-files` Upload mode to `POST /run_upload`; no server paths needed
 - `--input-dir`, `--stage-dataset` Server-path mode and where to build a staged dataset
 - `--max-seconds`, `--fps` Control evaluation duration; see cropping notes below for CD-FVD vs default pipeline
-- `--use-cdfvd` Toggle cd-fvd computation; with `--cdfvd-model`, `--cdfvd-resolution`, `--cdfvd-sequence-length`
+- `--cdfvd-resolution`, `--cdfvd-sequence-length` Customize CD-FVD processing (both VideMAE and I3D models run automatically)
 - `--categories`, `--metrics` Choose metric sets (e.g., `distribution_based` or specific names like `fid,is`)
 - `--save-dir` Where to save returned artifacts locally (default: `./results`)
 - `--cpu` Force CPU (server container enforces GPU by default; see note above)
+
+**Note**: CD-FVD is now computed automatically with both VideMAE and I3D models. No `--use-cdfvd` flag needed!
 
 CD-FVD cropping behavior (max_seconds):
 - When `max_seconds > 0`, each real/fake video is trimmed before CD-FVD computation using ffmpeg.
@@ -473,34 +480,35 @@ CD-FVD cropping behavior (max_seconds):
 
 Quick examples (remote server, explicit files):
 
-- Non-CD-FVD (distribution metrics with default pipeline):
+- Complete metrics (legacy FID/IS/FVD + CD-FVD with both models):
   ```bash
   python scripts/call_aigve_api.py \
     --base-url http://<server-ip>:2200 \
     --upload-files ./data/*.mp4 ./data/*.mov \
     --categories distribution_based \
     --max-seconds 8 --fps 25 \
-    --save-dir ./results/noncdfvd_ms8
+    --save-dir ./results/complete_ms8
   ```
 
-- CD-FVD using I3D model (matches popular settings in logs):
+- High-resolution CD-FVD with custom sequence length:
   ```bash
   python scripts/call_aigve_api.py \
     --base-url http://<server-ip>:2200 \
     --upload-files ./data/*.mp4 ./data/*.mov \
-    --use-cdfvd --cdfvd-model i3d \
-    --cdfvd-resolution 128 --cdfvd-sequence-length 16 \
+    --cdfvd-resolution 224 --cdfvd-sequence-length 32 \
     --max-seconds 8 --fps 25 \
-    --save-dir ./results/cdfvd_i3d_ms8
+    --save-dir ./results/cdfvd_high_res_ms8
   ```
 
 Notes:
-- Artifacts (including `cdfvd_results.json` when `--use-cdfvd` is set) are saved under `--save-dir` (default `./results`).
-- The CD-FVD result includes `max_seconds`, `fps`, and `max_len` metadata for traceability.
+- Artifacts (including `cdfvd_results.json` with both VideMAE and I3D results) are saved under `--save-dir` (default `./results`).
+- The CD-FVD results include `max_seconds`, `fps`, and `max_len` metadata for traceability.
 
 #### CD-FVD (Fréchet Video Distance with cd-fvd)
 
-The API supports computing FVD using the external **cd-fvd** package as an alternative to the default FVD implementation. This provides an independent FVD computation using pre-trained video models.
+**🎉 NEW: CD-FVD is now computed automatically by default!** 
+
+The API automatically computes FVD using the external **cd-fvd** package with both VideMAE and I3D models in addition to the legacy FVD implementation. This provides comprehensive FVD coverage with minimal setup.
 
 Important: FVD implementations differ
 - __Default FVD in AIGVE__: Implemented in `aigve/metrics/video_quality_assessment/distribution_based/fvd/fvd_metric.py` as `FVDScore`. Internally it uses `torchvision.models.video.r3d_18` (ResNet3D‑18) as an I3D alternative and replaces the classification head with `nn.Identity()` to extract features. This is not the same as Kinetics‑400 I3D logits features.
@@ -509,27 +517,27 @@ Important: FVD implementations differ
 
 Reporting guidance
 - __Do not compare scores across implementations__: Numbers produced by the default FVD (ResNet3D‑18 features) and CD-FVD (I3D/VideoMAE) are not directly comparable. Choose one implementation per experiment or report both clearly labeled.
-- __Reproducing MultiTalk-style FVD__: Prefer CD-FVD with I3D, e.g.:
+- __Reproducing MultiTalk-style FVD__: Use the I3D results from the automatic CD-FVD computation, e.g.:
   ```bash
   python scripts/call_aigve_api.py --base-url http://<server-ip>:2200 \
     --upload-dir ./my_videos \
-    --use-cdfvd --cdfvd-model i3d \
     --cdfvd-resolution 128 --cdfvd-sequence-length 16 \
-    --max-seconds 8 --fps 25 --save-dir ./results/cdfvd_i3d_mtalk
+    --max-seconds 8 --fps 25 --save-dir ./results/cdfvd_mtalk
+  # Extract the I3D model results from cdfvd_results.json
   ```
-  Adjust resolution/sequence length to match your target paper’s protocol.
+  Adjust resolution/sequence length to match your target paper's protocol.
 
 **Key Features:**
-- **Independent computation**: Runs separately from the default metrics pipeline
-- **Two model options**: VideoMAE (recommended) or I3D
+- **🆕 Automatic computation**: Runs by default with both VideMAE and I3D models
+- **Comprehensive coverage**: Get results from both state-of-the-art models simultaneously
 - **GPU-accelerated**: Automatically uses CUDA if available
 - **Flexible parameters**: Configurable resolution and sequence length
 
-**Available Options:**
-- `--use-cdfvd`: Enable CD-FVD computation (flag)
-- `--cdfvd-model`: Choose model - `videomae` (default, recommended) or `i3d`
-  - **VideoMAE**: State-of-the-art video masked autoencoder, better for modern video generation
-  - **I3D**: Inflated 3D ConvNet, classic choice for action recognition
+**Available Models (both run automatically):**
+- **VideoMAE**: State-of-the-art video masked autoencoder, better for modern video generation
+- **I3D**: Inflated 3D ConvNet, classic choice for action recognition
+
+**Customizable Options:**
 - `--cdfvd-resolution`: Video resolution for processing (default: 128)
   - Common values: 64, 128, 224, 256
 - `--cdfvd-sequence-length`: Number of frames to process (default: 16)
@@ -537,53 +545,67 @@ Reporting guidance
 
 **Usage Examples:**
 
-1. Basic CD-FVD with VideoMAE (recommended):
+1. Basic usage (CD-FVD computed automatically):
   ```bash
   python scripts/call_aigve_api.py --base-url http://localhost:2200 \
-    --upload-dir ./my_videos --use-cdfvd
+    --upload-dir ./my_videos
   ```
 
-2. Using I3D model with custom resolution:
+2. Custom resolution for both models:
    ```bash
    python scripts/call_aigve_api.py --base-url http://localhost:2200 \
-     --upload-dir ./my_videos --use-cdfvd \
-     --cdfvd-model i3d --cdfvd-resolution 224
+     --upload-dir ./my_videos \
+     --cdfvd-resolution 224
    ```
 
 3. High-resolution with longer sequences:
   ```bash
   python scripts/call_aigve_api.py --base-url http://localhost:2200 \
-    --upload-dir ./my_videos --use-cdfvd \
-    --cdfvd-model videomae --cdfvd-resolution 256 --cdfvd-sequence-length 32
+    --upload-dir ./my_videos \
+    --cdfvd-resolution 256 --cdfvd-sequence-length 32
   ```
 
-4. Combined with other metrics:
+4. Combined with other metrics (all computed automatically):
   ```bash
   python scripts/call_aigve_api.py --base-url http://localhost:2200 \
     --upload-dir ./my_videos \
-    --categories distribution_based --metrics fid,is \
-    --use-cdfvd --cdfvd-model videomae
+    --categories distribution_based --metrics fid,is
   ```
 
 **Output:**
-- CD-FVD results are included in the API response as `cdfvd_result`
+- CD-FVD results are included in the API response as `cdfvd_results` (contains both VideMAE and I3D results)
 - Results are saved to `cdfvd_results.json` in the save directory
-- Console output displays FVD score, model used, and video counts
+- Console output displays FVD scores for both models, video counts, and any errors
+
+**Example output format:**
+```
+--- CD-FVD Results ---
+
+VIDEOMAE Model:
+  FVD Score: 123.45
+  Real Videos: 10
+  Fake Videos: 10
+
+I3D Model:
+  FVD Score: 234.56
+  Real Videos: 10
+  Fake Videos: 10
+```
 
 Verifying clip duration effect (recommended):
 - Run twice with different durations and compare FVD:
   ```bash
-  # 8s clip
+  # 8s clip (both VideMAE and I3D computed automatically)
   python scripts/call_aigve_api.py --base-url http://<server-ip>:2200 \
     --upload-files ./data/*.mp4 ./data/*.mov \
-    --use-cdfvd --cdfvd-model i3d --cdfvd-resolution 128 --cdfvd-sequence-length 16 \
-    --max-seconds 8 --fps 25 --save-dir ./results/cdfvd_i3d_ms8
+    --cdfvd-resolution 128 --cdfvd-sequence-length 16 \
+    --max-seconds 8 --fps 25 --save-dir ./results/cdfvd_ms8
 
   # 30s clip
   python scripts/call_aigve_api.py --base-url http://<server-ip>:2200 \
     --upload-files ./data/*.mp4 ./data/*.mov \
-    --use-cdfvd --cdfvd-model i3d --cdfvd-resolution 128 --cdfvd-sequence-length 16 \
-    --max-seconds 30 --fps 25 --save-dir ./results/cdfvd_i3d_ms30
+    --cdfvd-resolution 128 --cdfvd-sequence-length 16 \
+    --max-seconds 30 --fps 25 --save-dir ./results/cdfvd_ms30
   ```
   - The server logs will show `[CD-FVD Trim] ... -t <duration> ...` for each file.
   - `cdfvd_results.json` includes `max_seconds`/`fps` metadata to confirm the run config.
@@ -722,7 +744,7 @@ This project exposes a FastAPI server that wraps `scripts/prepare_annotations.py
       }'
     ```
 
-  - __Compute distribution metrics (FID/IS/FVD)__
+  - __Compute distribution metrics (FID/IS/FVD + CD-FVD automatically)__
     ```bash
     curl -X POST http://localhost:2200/run \
       -H 'Content-Type: application/json' \
@@ -735,7 +757,9 @@ This project exposes a FastAPI server that wraps `scripts/prepare_annotations.py
         "generated_suffixes": "synthetic,generated"
       }'
     ```
-  - __Compute FVD using cd-fvd package__
+    **Note**: This automatically computes both legacy FVD and CD-FVD (VideMAE + I3D models)!
+
+  - __Customize CD-FVD processing parameters__
     ```bash
     curl -X POST http://localhost:2200/run \
       -H 'Content-Type: application/json' \
@@ -743,10 +767,8 @@ This project exposes a FastAPI server that wraps `scripts/prepare_annotations.py
         "input_dir": "/app/data",
         "stage_dataset": "/app/out/staged",
         "compute": true,
-        "use_cdfvd": true,
-        "cdfvd_model": "videomae",
-        "cdfvd_resolution": 128,
-        "cdfvd_sequence_length": 16,
+        "cdfvd_resolution": 224,
+        "cdfvd_sequence_length": 32,
         "max_seconds": 8,
         "generated_suffixes": "synthetic,generated"
       }'
@@ -766,13 +788,12 @@ This project exposes a FastAPI server that wraps `scripts/prepare_annotations.py
     -F "generated_suffixes=synthetic,generated" \
     -F "categories=distribution_based"
   
-  # Upload with cd-fvd computation
+  # Upload with custom CD-FVD parameters (computed automatically)
   curl -X POST http://localhost:2200/run_upload \
     -F "videos=@real_video1.mp4" \
     -F "videos=@fake_video1_synthetic.mp4" \
-    -F "use_cdfvd=true" \
-    -F "cdfvd_model=videomae" \
-    -F "cdfvd_resolution=128" \
+    -F "cdfvd_resolution=224" \
+    -F "cdfvd_sequence_length=32" \
     -F "compute=true"
   ```
   - __Compute video-only NN metrics (provide model paths)__

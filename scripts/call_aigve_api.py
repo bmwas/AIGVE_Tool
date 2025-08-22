@@ -61,14 +61,13 @@ def run_distribution_metrics(
     fps: float = 25.0,
     use_cpu: bool = False,
     generated_suffixes: str = "synthetic,generated",
-    use_cdfvd: bool = False,
-    cdfvd_model: str = "videomae",
     cdfvd_resolution: int = 128,
     cdfvd_sequence_length: int = 16,
 ) -> Dict[str, Any]:
     """
     Calls POST /run with the minimal JSON body to stage and compute
-    distribution-based metrics. See server/main.py and
+    distribution-based metrics. CD-FVD is computed by default with both
+    videomae and i3d models. See server/main.py and
     scripts/prepare_annotations.py for field semantics.
     """
     payload: Dict[str, Any] = {
@@ -87,11 +86,9 @@ def run_distribution_metrics(
     if use_cpu:
         payload["use_cpu"] = True
     
-    if use_cdfvd:
-        payload["use_cdfvd"] = True
-        payload["cdfvd_model"] = cdfvd_model
-        payload["cdfvd_resolution"] = cdfvd_resolution
-        payload["cdfvd_sequence_length"] = cdfvd_sequence_length
+    # CD-FVD is computed by default with both models, but allow resolution/sequence customization
+    payload["cdfvd_resolution"] = cdfvd_resolution
+    payload["cdfvd_sequence_length"] = cdfvd_sequence_length
 
     url = f"{base_url.rstrip('/')}/run"
     r = requests.post(url, json=payload, timeout=3600)
@@ -124,15 +121,14 @@ def run_distribution_metrics_upload(
     generated_suffixes: str = "synthetic,generated",
     categories: str = "distribution_based",
     metrics: str = "",
-    use_cdfvd: bool = False,
-    cdfvd_model: str = "videomae",
     cdfvd_resolution: int = 128,
     cdfvd_sequence_length: int = 16,
 ) -> Dict[str, Any]:
     """
     Uploads local video files to the server and calls POST /run_upload.
     When using this mode, server-side paths are not required; the server
-    computes on the uploaded files only.
+    computes on the uploaded files only. CD-FVD is computed by default
+    with both videomae and i3d models.
     """
     files_to_send: List[str] = []
     if upload_files:
@@ -162,11 +158,9 @@ def run_distribution_metrics_upload(
         form_data["use_cpu"] = True
     if metrics:
         form_data["metrics"] = metrics
-    if use_cdfvd:
-        form_data["use_cdfvd"] = True
-        form_data["cdfvd_model"] = cdfvd_model
-        form_data["cdfvd_resolution"] = cdfvd_resolution
-        form_data["cdfvd_sequence_length"] = cdfvd_sequence_length
+    # CD-FVD is computed by default with both models, but allow resolution/sequence customization
+    form_data["cdfvd_resolution"] = cdfvd_resolution
+    form_data["cdfvd_sequence_length"] = cdfvd_sequence_length
 
     url = f"{base_url.rstrip('/')}/run_upload"
     opened: List[Any] = []
@@ -269,11 +263,7 @@ def main(argv: list[str] | None = None) -> int:
                     help="Metric categories CSV (e.g., distribution_based,nn_based_video). Default: distribution_based")
     ap.add_argument("--metrics", default="",
                     help="Specific metric names CSV (optional). Example: fid,is,fvd or lightvqa+")
-    # CD-FVD options
-    ap.add_argument("--use-cdfvd", action="store_true",
-                    help="Use cd-fvd package for FVD computation instead of default")
-    ap.add_argument("--cdfvd-model", default="videomae", choices=["videomae", "i3d"],
-                    help="CD-FVD model to use: 'videomae' (recommended) or 'i3d'. Default: videomae")
+    # CD-FVD options (CD-FVD is computed by default with both videomae and i3d models)
     ap.add_argument("--cdfvd-resolution", type=int, default=128,
                     help="Resolution for CD-FVD video processing. Default: 128")
     ap.add_argument("--cdfvd-sequence-length", type=int, default=16,
@@ -319,8 +309,7 @@ def main(argv: list[str] | None = None) -> int:
     # 3) Run distribution metrics (upload mode or server-path mode)
     if args.upload_dir or args.upload_files:
         print(f"\n[3/3] Running distribution metrics via {base_url}/run_upload ...", flush=True)
-        if args.use_cdfvd:
-            print(f"[CD-FVD] Enabled with model={args.cdfvd_model}, resolution={args.cdfvd_resolution}, sequence_length={args.cdfvd_sequence_length}")
+        print(f"[CD-FVD] Computing with both videomae and i3d models, resolution={args.cdfvd_resolution}, sequence_length={args.cdfvd_sequence_length}")
         result = run_distribution_metrics_upload(
             base_url=base_url,
             upload_files=args.upload_files,
@@ -332,15 +321,12 @@ def main(argv: list[str] | None = None) -> int:
             generated_suffixes=args.generated_suffixes,
             categories=args.categories,
             metrics=args.metrics,
-            use_cdfvd=args.use_cdfvd,
-            cdfvd_model=args.cdfvd_model,
             cdfvd_resolution=args.cdfvd_resolution,
             cdfvd_sequence_length=args.cdfvd_sequence_length,
         )
     else:
         print(f"\n[3/3] Running distribution metrics via {base_url}/run ...", flush=True)
-        if args.use_cdfvd:
-            print(f"[CD-FVD] Enabled with model={args.cdfvd_model}, resolution={args.cdfvd_resolution}, sequence_length={args.cdfvd_sequence_length}")
+        print(f"[CD-FVD] Computing with both videomae and i3d models, resolution={args.cdfvd_resolution}, sequence_length={args.cdfvd_sequence_length}")
         result = run_distribution_metrics(
             base_url=base_url,
             input_dir=args.input_dir,
@@ -349,8 +335,6 @@ def main(argv: list[str] | None = None) -> int:
             fps=args.fps,
             use_cpu=args.cpu,
             generated_suffixes=args.generated_suffixes,
-            use_cdfvd=args.use_cdfvd,
-            cdfvd_model=args.cdfvd_model,
             cdfvd_resolution=args.cdfvd_resolution,
             cdfvd_sequence_length=args.cdfvd_sequence_length,
         )
@@ -374,34 +358,38 @@ def main(argv: list[str] | None = None) -> int:
     if stderr:
         print("\nstderr (last 40 lines):\n" + tail(stderr, 40))
 
-    # Print CD-FVD result if available
-    if "cdfvd_result" in result:
-        print("\n--- CD-FVD Result ---")
-        cdfvd_res = result["cdfvd_result"]
-        print(f"FVD Score: {cdfvd_res.get('fvd_score', 'N/A')}")
-        print(f"Model: {cdfvd_res.get('model', 'N/A')}")
-        print(f"Real Videos: {cdfvd_res.get('num_real_videos', 'N/A')}")
-        print(f"Fake Videos: {cdfvd_res.get('num_fake_videos', 'N/A')}")
-        # If server returned length metadata, show it
-        if "max_seconds" in cdfvd_res:
-            ms = cdfvd_res.get("max_seconds")
-            fps_v = cdfvd_res.get("fps")
-            max_len = cdfvd_res.get("max_len")
-            if fps_v is not None and max_len is not None:
-                print(f"Clip: {ms} s at {fps_v} fps (~{max_len} frames)")
+    # Print CD-FVD results if available (multiple models)
+    if "cdfvd_results" in result:
+        print("\n--- CD-FVD Results ---")
+        cdfvd_results = result["cdfvd_results"]
+        for model, cdfvd_res in cdfvd_results.items():
+            if "error" in cdfvd_res:
+                print(f"\n{model.upper()} Model: ERROR - {cdfvd_res['error']}")
             else:
-                print(f"Clip: {ms} s")
+                print(f"\n{model.upper()} Model:")
+                print(f"  FVD Score: {cdfvd_res.get('fvd_score', 'N/A')}")
+                print(f"  Real Videos: {cdfvd_res.get('num_real_videos', 'N/A')}")
+                print(f"  Fake Videos: {cdfvd_res.get('num_fake_videos', 'N/A')}")
+                # If server returned length metadata, show it
+                if "max_seconds" in cdfvd_res:
+                    ms = cdfvd_res.get("max_seconds")
+                    fps_v = cdfvd_res.get("fps")
+                    max_len = cdfvd_res.get("max_len")
+                    if fps_v is not None and max_len is not None:
+                        print(f"  Clip: {ms} s at {fps_v} fps (~{max_len} frames)")
+                    else:
+                        print(f"  Clip: {ms} s")
     elif "cdfvd_error" in result:
         print(f"\n[CD-FVD Error] {result['cdfvd_error']}")
     
     # Save any returned artifacts locally
     try:
         save_artifacts_locally(result, args.save_dir)
-        # Also save CD-FVD result if present
-        if "cdfvd_result" in result:
+        # Also save CD-FVD results if present (multiple models)
+        if "cdfvd_results" in result:
             cdfvd_path = os.path.join(args.save_dir, "cdfvd_results.json")
             with open(cdfvd_path, "w") as f:
-                json.dump(result["cdfvd_result"], f, indent=2)
+                json.dump(result["cdfvd_results"], f, indent=2)
             print(f"[CD-FVD] Results saved to {cdfvd_path}")
     except Exception as e:
         print(f"[artifacts] Error while saving artifacts: {e}", flush=True)
