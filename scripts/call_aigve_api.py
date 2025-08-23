@@ -303,8 +303,8 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--metrics", default="",
                     help="Specific metric names CSV (optional). Example: fid,is,fvd or lightvqa+")
     # CD-FVD options (CD-FVD computes all 8 flavors by default)
-    ap.add_argument("--cdfvd-resolution", type=int, default=128,
-                    help="Resolution for CD-FVD video processing (single-flavor mode). Default: 128")
+    ap.add_argument("--cdfvd-resolution", type=int, default=224,
+                    help="Resolution for CD-FVD video processing (single-flavor mode). Default: 224 (min safe for i3d)")
     ap.add_argument("--cdfvd-sequence-length", type=int, default=16,
                     help="Sequence length for CD-FVD video processing (single-flavor mode). Default: 16")
     ap.add_argument("--cdfvd-single-flavor", action="store_true",
