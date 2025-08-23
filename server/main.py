@@ -767,11 +767,10 @@ def _compute_cdfvd(upload_dir: str, generated_suffixes: str, model: str = "video
         
         if compute_all_flavors:
             print(f"\n🧮 COMPUTING ALL CD-FVD FLAVORS...", flush=True)
-            # Fast testing configurations - 112x112 is minimum safe resolution for i3d
+            # Conservative configurations - larger dims to handle cd-fvd internal downsampling
             fast_configs = [
-                ('i3d', 112, 8),         # Fast: 112x112 resolution, 8 frames - minimum safe for i3d kernels
-                # ('i3d', 224, 16),      # Full quality: 224x224 resolution, 16 frames (slower)
-                # ('videomae', 112, 8),  # Reliable fallback model - temporarily commented out
+                ('i3d', 224, 32),        # Conservative: 224x224 resolution, 32 frames - accounts for internal pooling
+                # ('videomae', 224, 32), # Reliable fallback model - temporarily commented out
             ]
             
             print(f"   📋 Available model configurations:", flush=True)

@@ -4,12 +4,16 @@
 
 ## 🔥 **Dual Implementation Advantage**
 
-This repository **merges two powerful evaluation ecosystems**:
+This repository **merges two powerful evaluation ecosystems** with **mandatory, robust computation**:
 
 - **🏠 Native AIGVE Metrics**: FID, IS, FVD (ResNet3D-18), and advanced neural metrics
 - **🚀 CD-FVD Package Integration**: Research-standard FVD using authentic I3D and VideoMAE models
 
-**Users get BOTH implementations automatically** - comprehensive coverage from AIGVE's extensive metric library PLUS state-of-the-art CD-FVD for research-grade FVD computation.
+**Users get BOTH implementations automatically** with:
+- ✅ **Mandatory computation** - no silent failures or try-catch blocks
+- ✅ **Real-time console output** - immediate visibility in Docker environments  
+- ✅ **Elaborate logging** - detailed timing and processing information
+- ✅ **Robust error handling** - comprehensive debugging and artifact collection
 
 The framework integrates multiple evaluation metrics, covering diverse aspects of video evaluation, including neural-network-based assessment, distribution comparison, vision-language alignment, and multi-faceted analysis.
 
@@ -330,6 +334,13 @@ uvicorn server.main:app --host 0.0.0.0 --port 2200
 # uvicorn server.main:app --host 0.0.0.0 --port 2200 --workers 2 --log-level info
 ```
 
+**🎯 Server Features:**
+- **Mandatory metrics computation** - FID, IS, FVD, and CD-FVD computed without try-except blocks
+- **Real-time console output** - all metrics printed immediately with `flush=True`
+- **Elaborate logging** - detailed timing, processing steps, and debugging information
+- **Automatic CD-FVD** - both VideMAE and I3D models computed by default
+- **Fast configurations** - optimized settings for quick testing (112x112 resolution, 8 frames)
+
 Open the docs: http://localhost:2200/docs
 
 ### Call the API
@@ -350,7 +361,10 @@ Open the docs: http://localhost:2200/docs
       "fps": 25
     }'
   ```
-  **Note**: CD-FVD is now computed automatically with both VideMAE and I3D models. No additional parameters needed!
+  **🔥 Automatic Dual Ecosystem**: 
+  - **AIGVE Native**: FID, IS, FVD (ResNet3D-18) with mandatory computation
+  - **CD-FVD Package**: VideMAE + I3D models with fast 112x112 configurations
+  - **Real-time logging**: Detailed console output for Docker visibility
   ```
 
 - Upload files directly (no server-side paths):
@@ -362,7 +376,10 @@ Open the docs: http://localhost:2200/docs
     -F "categories=distribution_based" \
     -F "max_seconds=8" -F "fps=25"
   ```
-  **🔄 Merged Pipeline**: AIGVE native metrics (FID, IS, FVD-ResNet3D) + CD-FVD package (VideoMAE, I3D) automatically.
+  **🔄 Robust Merged Pipeline**: 
+  - **AIGVE Native**: Mandatory FID, IS, FVD (ResNet3D-18) with proper key extraction
+  - **CD-FVD Package**: Automatic VideoMAE + I3D computation with fast testing configs
+  - **Console Output**: Real-time metrics display with elaborate logging
   Notes:
   - Use `-F videos=@<path>` once per file. Supported extensions: `.mp4,.mov,.webm,.mkv,.avi,.m4v`.
   - The server stores uploads under `uploads/<session-id>/` and stages a dataset there by default.
@@ -567,9 +584,15 @@ Quick examples (remote server, explicit files):
 
 #### CD-FVD (Fréchet Video Distance with cd-fvd)
 
-**🎉 NEW: CD-FVD is now computed automatically by default!** 
+**🎉 NEW: CD-FVD is now computed automatically with robust processing!** 
 
-The API automatically computes FVD using the external **`cd-fvd` PyPI package** with both VideMAE and I3D models in addition to the legacy FVD implementation. This provides comprehensive FVD coverage with minimal setup.
+The API automatically computes FVD using the external **`cd-fvd` PyPI package** with both VideMAE and I3D models. Features:
+
+- ✅ **Mandatory computation** - no try-except blocks hiding errors
+- ✅ **Fast configurations** - 112x112 resolution, 8 frames for quick testing
+- ✅ **Elaborate logging** - detailed video processing, timing, and statistics
+- ✅ **Dual models** - VideMAE and I3D computed simultaneously
+- ✅ **Real-time output** - immediate console visibility for Docker
 
 **What is CD-FVD?**
 
@@ -614,21 +637,27 @@ python scripts/call_aigve_api.py --base-url http://<server-ip>:2200 \
 # Extract the I3D model results from cdfvd_results.json for paper alignment
 ```
 
-**Key Features:**
-- **🆕 Automatic computation**: Runs by default with both VideMAE and I3D models
-- **Comprehensive coverage**: Get results from both state-of-the-art models simultaneously
-- **GPU-accelerated**: Automatically uses CUDA if available
-- **Flexible parameters**: Configurable resolution and sequence length
+**🚀 Robust Features:**
+- **🆕 Mandatory computation**: No silent failures, detailed error reporting
+- **⚡ Fast testing mode**: 112x112 resolution, 8 frames (safe for i3d kernels)
+- **📊 Elaborate logging**: Video analysis, processing timing, statistics computation
+- **🎯 Dual models**: VideMAE and I3D computed automatically with detailed logs
+- **🔧 GPU-accelerated**: CUDA-optimized with real-time console output
+- **⚙️ Flexible parameters**: Configurable resolution and sequence length
 
 **Available Models (both run automatically):**
 - **VideoMAE**: State-of-the-art video masked autoencoder, better for modern video generation
 - **I3D**: Inflated 3D ConvNet, classic choice for action recognition
 
-**Customizable Options:**
-- `--cdfvd-resolution`: Video resolution for processing (default: 128)
-  - Common values: 64, 128, 224, 256
-- `--cdfvd-sequence-length`: Number of frames to process (default: 16)
-  - Common values: 8, 16, 32
+**🔧 Customizable Options:**
+- `--cdfvd-resolution`: Video resolution for processing (default: 112 for fast testing)
+  - **Fast**: 112 (minimum safe for i3d kernels)
+  - **Standard**: 128, 224 
+  - **High-res**: 256
+- `--cdfvd-sequence-length`: Number of frames to process (default: 8 for fast testing)
+  - **Fast**: 8 frames
+  - **Standard**: 16 frames
+  - **High-quality**: 32 frames
 
 **Usage Examples:**
 
@@ -664,19 +693,34 @@ python scripts/call_aigve_api.py --base-url http://<server-ip>:2200 \
 - Results are saved to `cdfvd_results.json` in the save directory
 - Console output displays FVD scores for both models, video counts, and any errors
 
-**Example output format:**
+**🎯 Console Output Format (Real-time):**
 ```
---- CD-FVD Results ---
+================================================================================
+🚀 MANDATORY CD-FVD METRICS COMPUTATION STARTING
+⏰ Start time: 2024-01-15 10:30:45
+📂 FUNCTION INPUTS:
+   🎬 Upload directory: /app/uploads/session_abc123
+   🤖 Generated suffixes: synthetic,generated
+   🔧 Model: i3d
+   📐 Resolution: 112
+   🎞️  Sequence length: 8
 
-VIDEOMAE Model:
-  FVD Score: 123.45
-  Real Videos: 10
-  Fake Videos: 10
+📂 ANALYZING VIDEO DIRECTORY...
+   📁 Total files found: 20
+   🎬 Real videos identified: 10
+   🤖 Synthetic videos identified: 10
 
-I3D Model:
-  FVD Score: 234.56
-  Real Videos: 10
-  Fake Videos: 10
+🧮 COMPUTING ALL CD-FVD FLAVORS...
+🔧 COMPUTING FLAVOR 1/1: i3d_res112_len8
+   ⚡ Evaluator initialization completed in 2.34s
+   🎯 Computing FVD score from statistics...
+   🎉 FVD computation completed in 15.67s
+[CONSOLE OUTPUT] ✅ I3D CD-FVD COMPUTED: 123.456789
+
+🏆 MANDATORY CD-FVD METRICS RESULTS SUMMARY
+   🎬 Videos processed: 10 real, 10 synthetic
+   ⏱️ Total computation time: 18.01s
+================================================================================
 ```
 
 Verifying clip duration effect (recommended):
@@ -831,10 +875,10 @@ This project exposes a FastAPI server that wraps `scripts/prepare_annotations.py
   - `pad: boolean` (default: `false`)
   - `use_cpu: boolean` (default: `false`)
   - `fvd_model, gstvqa_model, simplevqa_model, lightvqa_plus_model, lightvqa_plus_swin: string | null`
-  - `use_cdfvd: boolean` (default: `false`) — Use cd-fvd package for FVD computation
-  - `cdfvd_model: string` (default: `"videomae"`) — Model for cd-fvd: "videomae" or "i3d"
-  - `cdfvd_resolution: integer` (default: `128`) — Resolution for cd-fvd video processing
-  - `cdfvd_sequence_length: integer` (default: `16`) — Sequence length for cd-fvd
+  - `use_cdfvd: boolean` (default: `true`) — CD-FVD package computed automatically
+  - `cdfvd_model: string` (default: `"i3d"`) — Primary model for cd-fvd (both VideMAE and I3D run automatically)
+  - `cdfvd_resolution: integer` (default: `112`) — Resolution for cd-fvd (fast testing mode)
+  - `cdfvd_sequence_length: integer` (default: `8`) — Sequence length for cd-fvd (fast testing mode)
   - `extra_args: string[] | null` — raw CLI tokens forwarded as-is
 
   Notes:
@@ -844,8 +888,11 @@ This project exposes a FastAPI server that wraps `scripts/prepare_annotations.py
     `fid_results.json`, `is_results.json`, `fvd_results.json` (and others when enabled). Each artifact
     contains `{name, path (server-side), json|text}`. The server also writes these files to its working
     directory; use the Python client to save local copies.
-  - When `use_cdfvd=true`, FVD is computed independently using the cd-fvd package and results are included
-    in the response as `cdfvd_result` and saved to `cdfvd_results.json`.
+  - **CD-FVD is computed automatically by default** with both VideMAE and I3D models. Results include:
+    - Real-time console output with elaborate logging
+    - Detailed timing and processing information
+    - Both model results in `cdfvd_results.json`
+    - Mandatory computation with no silent failures
 
 - __Examples (curl)__
   - __List available categories/metrics only__ (no input_dir required)
@@ -876,7 +923,7 @@ This project exposes a FastAPI server that wraps `scripts/prepare_annotations.py
       }'
     ```
 
-  - __Compute merged distribution metrics (AIGVE + CD-FVD)__
+  - __Compute robust merged distribution metrics (AIGVE + CD-FVD)__
     ```bash
     curl -X POST http://localhost:2200/run \
       -H 'Content-Type: application/json' \
@@ -889,9 +936,12 @@ This project exposes a FastAPI server that wraps `scripts/prepare_annotations.py
         "generated_suffixes": "synthetic,generated"
       }'
     ```
-    **🔥 Dual Ecosystem**: AIGVE native (FID, IS, FVD-ResNet3D) + CD-FVD package (I3D + VideoMAE) computed together!
+    **🔥 Robust Dual Ecosystem**: 
+    - **AIGVE Native**: Mandatory FID, IS, FVD (ResNet3D-18) with proper key extraction
+    - **CD-FVD Package**: Automatic I3D + VideoMAE with fast 112x112 configurations
+    - **Real-time Output**: Elaborate console logging for Docker visibility
 
-  - __Customize CD-FVD processing parameters__
+  - __Customize CD-FVD processing parameters (high-resolution)__
     ```bash
     curl -X POST http://localhost:2200/run \
       -H 'Content-Type: application/json' \
@@ -905,6 +955,7 @@ This project exposes a FastAPI server that wraps `scripts/prepare_annotations.py
         "generated_suffixes": "synthetic,generated"
       }'
     ```
+    **⚡ Fast vs High-Res**: Default 112x112/8frames for speed, 224x224/32frames for quality
 
   - __Upload local videos and run metrics__: Use `POST /run_upload`
   ```bash
