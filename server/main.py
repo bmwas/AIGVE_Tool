@@ -959,10 +959,10 @@ def run_upload(
         "session": {"id": session_id, "upload_dir": upload_dir, "stage_dir": stage_dir, "files": saved_files},
     }
     
-    # MANDATORY CD-FVD computation with ALL available models - MUST NOT FAIL
-    logger.info("[%s] Starting MANDATORY CD-FVD computation with all models", rid)
+    # MANDATORY CD-FVD computation with i3d only - videomae temporarily disabled
+    logger.info("[%s] Starting MANDATORY CD-FVD computation with i3d only", rid)
     cdfvd_results = {}
-    models = ["videomae", "i3d"]
+    models = ["i3d"]  # videomae temporarily commented out for testing
     
     # Determine video directory with multiple fallback strategies
     video_locations = [
