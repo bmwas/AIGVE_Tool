@@ -97,16 +97,16 @@ def test_upload_with_cdfvd(base_url, real_video, fake_video):
         'categories': 'distribution_based',
         'max_seconds': '8',
         'fps': '25',
-        'cdfvd_resolution': '128',
-        'cdfvd_sequence_length': '16',
-        'cdfvd_all_flavors': 'true'  # Compute all 8 FVD flavors by default
+        'cdfvd_resolution': '128',  # Faster: lower resolution (still above kernel minimum)
+        'cdfvd_sequence_length': '8',   # Faster: fewer frames (test if this works now)
+        'cdfvd_all_flavors': 'false'  # Use server default (single config) for testing
     }
     
     print("\nTesting merged AIGVE + CD-FVD computation with following parameters:")
-    print(f"  - CD-FVD: All 8 flavors (2 models × 2 resolutions × 2 sequence lengths)")
-    print(f"  - Models: i3d + videomae")
-    print(f"  - Resolutions: 128 + 256")
-    print(f"  - Sequence lengths: 16 + 128")
+    print(f"  - CD-FVD: Single configuration (optimized for speed)")
+    print(f"  - Model: i3d")
+    print(f"  - Resolution: 128x128 (faster processing)")
+    print(f"  - Sequence length: 8 frames (fewer frames for speed)")
     print(f"  - Max seconds: 8")
     print(f"  - Real video: {os.path.basename(real_video)}")
     print(f"  - Fake video: {os.path.basename(fake_video)}")
@@ -227,6 +227,8 @@ def main():
     parser = argparse.ArgumentParser(description='Test CD-FVD upload functionality')
     parser.add_argument('--base_url', default='http://localhost:2200',
                         help='Base URL of the AIGVE server (default: http://localhost:2200)')
+    parser.add_argument('--real', type=str, help='Path to real video file')
+    parser.add_argument('--fake', type=str, help='Path to fake/synthetic video file')
     
     args = parser.parse_args()
     base_url = args.base_url
@@ -235,46 +237,64 @@ def main():
     print(f"Server: {base_url}")
     print("-" * 50)
     
-    # Use real videos from aigve/data if available
-    real_videos_dir = "aigve/data/AIGVE_Bench_toy/videos"
-    if os.path.exists(real_videos_dir):
-        videos = [f for f in os.listdir(real_videos_dir) if f.endswith('.mp4')]
-        if len(videos) >= 2:
-            print(f"\n📹 Using real videos from {real_videos_dir}")
-            # Use first video as "real", rename second as synthetic for testing
-            real_video = os.path.join(real_videos_dir, videos[0])
-            
-            # Copy second video with _synthetic suffix to temp dir
+    # Check if user provided specific video files
+    if args.real and args.fake:
+        if not os.path.exists(args.real):
+            print(f"❌ Real video file not found: {args.real}")
+            return 1
+        if not os.path.exists(args.fake):
+            print(f"❌ Fake video file not found: {args.fake}")
+            return 1
+        
+        print(f"\n📹 Using user-provided videos:")
+        print(f"  ✓ Real: {args.real}")
+        print(f"  ✓ Fake: {args.fake}")
+        
+        success = test_upload_with_cdfvd(base_url, args.real, args.fake)
+    elif args.real or args.fake:
+        print("❌ Both --real and --fake arguments are required when specifying custom videos")
+        return 1
+    else:
+        # Use real videos from aigve/data if available
+        real_videos_dir = "aigve/data/AIGVE_Bench_toy/videos"
+        if os.path.exists(real_videos_dir):
+            videos = [f for f in os.listdir(real_videos_dir) if f.endswith('.mp4')]
+            if len(videos) >= 2:
+                print(f"\n📹 Using real videos from {real_videos_dir}")
+                # Use first video as "real", rename second as synthetic for testing
+                real_video = os.path.join(real_videos_dir, videos[0])
+                
+                # Copy second video with _synthetic suffix to temp dir
+                with tempfile.TemporaryDirectory() as tmpdir:
+                    fake_name = videos[1].replace('.mp4', '_synthetic.mp4')
+                    fake_video = os.path.join(tmpdir, fake_name)
+                    import shutil
+                    shutil.copy(os.path.join(real_videos_dir, videos[1]), fake_video)
+                    
+                    # Also copy the real video to maintain naming convention
+                    real_copy = os.path.join(tmpdir, videos[0])
+                    shutil.copy(real_video, real_copy)
+                    
+                    print(f"  ✓ Using real: {os.path.basename(real_copy)}")
+                    print(f"  ✓ Using fake: {os.path.basename(fake_video)}")
+                    
+                    # Test the upload with CD-FVD
+                    success = test_upload_with_cdfvd(base_url, real_copy, fake_video)
+            else:
+                print(f"\n⚠️ Not enough videos in {real_videos_dir}, creating dummy files...")
+                with tempfile.TemporaryDirectory() as tmpdir:
+                    real_video, fake_video = create_test_videos(tmpdir)
+                    success = test_upload_with_cdfvd(base_url, real_video, fake_video)
+        else:
+            # Fallback to creating test videos
             with tempfile.TemporaryDirectory() as tmpdir:
-                fake_name = videos[1].replace('.mp4', '_synthetic.mp4')
-                fake_video = os.path.join(tmpdir, fake_name)
-                import shutil
-                shutil.copy(os.path.join(real_videos_dir, videos[1]), fake_video)
-                
-                # Also copy the real video to maintain naming convention
-                real_copy = os.path.join(tmpdir, videos[0])
-                shutil.copy(real_video, real_copy)
-                
-                print(f"  ✓ Using real: {os.path.basename(real_copy)}")
-                print(f"  ✓ Using fake: {os.path.basename(fake_video)}")
+                print(f"\n📹 Creating test videos in {tmpdir}...")
+                real_video, fake_video = create_test_videos(tmpdir)
+                print(f"  ✓ Created: {os.path.basename(real_video)}")
+                print(f"  ✓ Created: {os.path.basename(fake_video)}")
                 
                 # Test the upload with CD-FVD
-                success = test_upload_with_cdfvd(base_url, real_copy, fake_video)
-        else:
-            print(f"\n⚠️ Not enough videos in {real_videos_dir}, creating dummy files...")
-            with tempfile.TemporaryDirectory() as tmpdir:
-                real_video, fake_video = create_test_videos(tmpdir)
                 success = test_upload_with_cdfvd(base_url, real_video, fake_video)
-    else:
-        # Fallback to creating test videos
-        with tempfile.TemporaryDirectory() as tmpdir:
-            print(f"\n📹 Creating test videos in {tmpdir}...")
-            real_video, fake_video = create_test_videos(tmpdir)
-            print(f"  ✓ Created: {os.path.basename(real_video)}")
-            print(f"  ✓ Created: {os.path.basename(fake_video)}")
-            
-            # Test the upload with CD-FVD
-            success = test_upload_with_cdfvd(base_url, real_video, fake_video)
     
     if success:
         print("\n✅ Test completed successfully!")

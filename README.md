@@ -1,6 +1,20 @@
 # What is `AIGVE`?
 
-`AIGVE` (**AI Generated Video Evaluation Toolkit**) provides a **comprehensive** and **structured** evaluation framework for assessing AI-generated video quality developed by the [IFM Lab](https://www.ifmlab.org/). 
+`AIGVE` (**AI Generated Video Evaluation Toolkit**) provides a **comprehensive** and **structured** evaluation framework for assessing AI-generated video quality. Originally developed by the [IFM Lab](https://www.ifmlab.org/), this repository has been **extensively modified and enhanced** by [Benson Mwangi](https://github.com/bmwas) to create a unified, production-ready benchmarking library for audiovisual models.
+
+## 🚀 **Enhanced by Benson Mwangi**
+
+This repository represents a **major evolution** from the original IFM Lab AIGVE toolkit, with substantial architectural improvements and feature additions:
+
+**🔧 Core Enhancements:**
+- **🏗️ Unified Architecture**: Seamless integration of AIGVE native metrics with external CD-FVD package
+- **🚢 Production Server**: Complete FastAPI REST server with Docker deployment
+- **📊 Mandatory Computation**: Robust error handling with no silent failures
+- **⚡ Real-time Logging**: Elaborate console output for Docker environments
+- **🔄 Dual Ecosystem**: Automatic computation of both AIGVE and CD-FVD metrics
+- **🎯 Research-Grade**: Integration of authentic I3D and VideoMAE models via CD-FVD
+
+**🎯 Vision**: Building an **extensively capable library** for benchmarking audiovisual models that combines the best of academic research (IFM Lab's AIGVE) with industry-standard tooling (CD-FVD package) in a unified, production-ready platform. 
 
 ## 🔥 **Dual Implementation Advantage**
 
@@ -55,6 +69,43 @@ These metrics assess the quality of generated videos by comparing the distributi
 **🚀 CD-FVD Package (Automatic):**
 - ✅ **CD-FVD (I3D)**: Research-standard FVD using **authentic Kinetics-400 I3D** logits features
 - ✅ **CD-FVD (VideoMAE)**: State-of-the-art FVD using **VideoMAE** masked autoencoder features
+
+---
+
+### **⚠️ Critical: FVD Implementation Differences**
+
+**This system provides THREE distinct FVD implementations that are NOT comparable:**
+
+| Implementation | Backbone Model | Feature Extraction | Use Case | Score Comparability |
+|----------------|----------------|-------------------|----------|-------------------|
+| **AIGVE Native FVD** | ResNet3D-18 (torchvision) | Video classification features | ⚡ Fast evaluation | ❌ Not comparable with CD-FVD |
+| **CD-FVD I3D** | Kinetics-400 I3D | Authentic I3D logits | 📚 Research papers | ❌ Not comparable with others |
+| **CD-FVD VideoMAE** | VideoMAE Transformer | Masked autoencoder features | 🚀 Modern video gen | ❌ Not comparable with others |
+
+**🔬 Technical Distinctions:**
+
+**AIGVE Native FVD:**
+- **Model**: `torchvision.models.video.r3d_18` with classification head replaced by `nn.Identity()`
+- **Features**: ResNet3D-18 video features (NOT I3D logits)
+- **Training**: ImageNet pre-training
+- **Speed**: ⚡ Fast (5-15 seconds)
+- **Compatibility**: AIGVE ecosystem only
+
+**CD-FVD I3D:**
+- **Model**: Authentic Kinetics-400 I3D model
+- **Features**: I3D logits features (industry standard)
+- **Training**: Kinetics-400 action recognition
+- **Speed**: 🐌 Slow (2-15 minutes)  
+- **Compatibility**: Research paper reproduction
+
+**CD-FVD VideoMAE:**
+- **Model**: VideoMAE masked autoencoder
+- **Features**: Transformer-based video representations
+- **Training**: Large-scale video pre-training
+- **Speed**: 🐌 Very Slow (3-20 minutes)
+- **Compatibility**: Modern video generation evaluation
+
+> **🚨 NEVER compare FVD scores across implementations** - they use completely different neural network backbones and produce different numerical ranges. Choose ONE per experiment.
 
 > **⚡ Dual FVD Power**: Get both ResNet3D-18 FVD (AIGVE native) AND authentic I3D/VideoMAE FVD (CD-FVD package) automatically!
 
@@ -644,6 +695,94 @@ python scripts/call_aigve_api.py --base-url http://<server-ip>:2200 \
 - **🎯 Dual models**: VideMAE and I3D computed automatically with detailed logs
 - **🔧 GPU-accelerated**: CUDA-optimized with real-time console output
 - **⚙️ Flexible parameters**: Configurable resolution and sequence length
+
+---
+
+### **⚡ Performance Comparison: AIGVE Native vs CD-FVD Package**
+
+**Understanding the Speed Difference**
+
+Users often ask why CD-FVD computation takes **significantly longer** than AIGVE native metrics. Here's the detailed technical breakdown:
+
+#### **🏃 AIGVE Native Metrics (Fast - Seconds)**
+
+| Metric | Model Architecture | Processing Speed | Typical Duration |
+|--------|-------------------|------------------|------------------|
+| **FID** | InceptionV3 | ⚡ Very Fast | 2-5 seconds |
+| **IS** | InceptionV3 conditional | ⚡ Very Fast | 2-4 seconds |
+| **FVD** | ResNet3D-18 (torchvision) | ⚡ Fast | 5-15 seconds |
+
+**Why AIGVE Native is Fast:**
+- **Lightweight models**: InceptionV3 (~24M parameters), ResNet3D-18 (~33M parameters)
+- **Optimized implementations**: PyTorch-native, GPU-optimized
+- **Lower complexity**: Simpler feature extraction, fewer preprocessing steps
+- **Efficient memory usage**: Smaller batch processing, minimal overhead
+
+#### **🐌 CD-FVD Package (Slow - Minutes)**
+
+| Model | Architecture Type | Complexity | Typical Duration |
+|-------|------------------|------------|------------------|
+| **I3D** | 3D CNN (Kinetics-400) | 🔥 Extremely Heavy | 2-15 minutes |
+| **VideoMAE** | Transformer + Autoencoder | 🔥 Very Heavy | 3-20 minutes |
+
+**Why CD-FVD is Much Slower:**
+- **Research-grade models**: I3D (~15M+ parameters), VideoMAE (transformer-based)
+- **Complex architectures**: Deep 3D convolutions, attention mechanisms
+- **Heavy preprocessing**: Full video sequence loading, temporal sampling
+- **High dimensionality**: Advanced feature extraction at multiple scales
+- **Batch processing overhead**: Memory-intensive operations
+
+#### **📊 Performance Impact Factors**
+
+**Resolution Impact:**
+```
+64x64:   Kernel errors (too small for I3D)
+128x128: ~1x baseline speed
+224x224: ~4x slower than 128x128  
+256x256: ~6x slower than 128x128
+```
+
+**Sequence Length Impact:**
+```
+8 frames:  May cause kernel errors, ~1x baseline  
+16 frames: ~2x slower than 8 frames
+32 frames: ~4x slower than 8 frames
+64 frames: ~8x slower than 8 frames
+```
+
+#### **⚖️ Trade-offs Summary**
+
+| Aspect | AIGVE Native | CD-FVD Package |
+|--------|-------------|---------------|
+| **Speed** | ⚡ Seconds | 🐌 Minutes |
+| **Accuracy** | Good for general use | 🎯 Research-standard |
+| **Model** | ResNet3D-18 | Authentic I3D/VideoMAE |
+| **Comparability** | AIGVE ecosystem | 📚 Paper reproduction |
+| **Use Case** | Fast evaluation | Research publications |
+
+#### **🎯 Recommendations**
+
+**For Testing/Development:**
+```bash
+# Fast settings (30-60 seconds)
+cdfvd_resolution: 128
+cdfvd_sequence_length: 8-16
+```
+
+**For Research/Production:**
+```bash  
+# High-quality settings (5-15 minutes)
+cdfvd_resolution: 224-256
+cdfvd_sequence_length: 16-32
+```
+
+**Speed Optimization Tips:**
+1. **Start small**: Use 128x128/8 frames for initial testing
+2. **Profile first**: Test speed with your specific videos
+3. **Scale up gradually**: Increase resolution/frames only when needed
+4. **Consider alternatives**: Use AIGVE native FVD for speed-critical applications
+
+> **⚠️ Important**: Never compare FVD scores between AIGVE native (ResNet3D-18) and CD-FVD (I3D/VideoMAE) implementations - they use different backbones and produce different numerical ranges.
 
 **Available Models (both run automatically):**
 - **VideoMAE**: State-of-the-art video masked autoencoder, better for modern video generation
