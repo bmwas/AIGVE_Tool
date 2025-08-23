@@ -384,9 +384,10 @@ def _compute_cdfvd(upload_dir: str, generated_suffixes: str, model: str = "video
             _trim_or_copy(video_path, dest)
         
         if compute_all_flavors:
-            # Single model - videomae only (i3d has persistent kernel issues)
+            # Both models - i3d first (fast), then videomae (slower)  
             fast_configs = [
-                ('videomae', 112, 8),    # Only reliable model
+                ('i3d', 224, 16),        # Use larger kernel size that works with i3d
+                ('videomae', 112, 8),    # Reliable fallback model
             ]
             
             logger.info("[CD-FVD] Computing %d fast FVD flavors (optimized for speed)", len(fast_configs))
