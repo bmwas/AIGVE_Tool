@@ -203,6 +203,110 @@ def _build_cli_args(req: PrepareAnnotationsRequest) -> List[str]:
     return args
 
 
+def _compute_aigve_metrics(video_dir: str, annotation_file: str, max_len: int = 64, 
+                          use_cpu: bool = False, fvd_model: Optional[str] = None) -> Dict[str, Any]:
+    """
+    Compute AIGVE FID, IS, and FVD metrics directly - NO TRY-EXCEPT BLOCKS.
+    This function MUST compute all metrics and print results to console.
+    """
+    print(f"\n" + "="*60)
+    print(f"MANDATORY AIGVE METRICS COMPUTATION STARTING")
+    print(f"="*60)
+    
+    # Import AIGVE components - must succeed
+    from aigve.datasets.fid_dataset import FidDataset
+    from aigve.metrics.video_quality_assessment.distribution_based.fid.fid_metric import FIDScore
+    from aigve.metrics.video_quality_assessment.distribution_based.is_score.is_metric import ISScore
+    from aigve.metrics.video_quality_assessment.distribution_based.fvd.fvd_metric import FVDScore
+    
+    # Determine device
+    device_available = torch.cuda.is_available()
+    use_gpu = not use_cpu and device_available
+    
+    print(f"[AIGVE METRICS] Video directory: {video_dir}")
+    print(f"[AIGVE METRICS] Annotation file: {annotation_file}")
+    print(f"[AIGVE METRICS] Device: {'cuda' if use_gpu else 'cpu'}")
+    print(f"[AIGVE METRICS] Max frames: {max_len}")
+    
+    # Build dataset - must succeed
+    dataset = FidDataset(
+        video_dir=str(video_dir),
+        prompt_dir=str(annotation_file),
+        max_len=max_len,
+        if_pad=False
+    )
+    
+    print(f"[AIGVE METRICS] Dataset loaded: {len(dataset)} samples")
+    
+    results = {}
+    
+    # Helper to iterate dataset samples
+    def iter_samples():
+        for idx in range(len(dataset)):
+            gt_tensor, gen_tensor, gt_name, gen_name = dataset[idx]
+            yield gt_tensor, gen_tensor, gt_name, gen_name
+    
+    # COMPUTE FID - NO TRY-EXCEPT
+    print(f"\n[AIGVE METRICS] Computing FID...")
+    fid_metric = FIDScore(is_gpu=use_gpu)
+    
+    for gt_tensor, gen_tensor, gt_name, gen_name in iter_samples():
+        data_samples = ((gt_tensor,), (gen_tensor,), (gt_name,), (gen_name,))
+        fid_metric.process(data_batch={}, data_samples=data_samples)
+    
+    fid_summary = fid_metric.compute_metrics([])
+    fid_score = fid_summary.get('FID', fid_summary.get('fid_score', 'UNKNOWN'))
+    results['fid'] = {'score': fid_score, 'summary': fid_summary}
+    
+    print(f"[CONSOLE OUTPUT] ✅ FID COMPUTED: {fid_score}")
+    
+    # COMPUTE IS - NO TRY-EXCEPT
+    print(f"\n[AIGVE METRICS] Computing IS...")
+    is_metric = ISScore(is_gpu=use_gpu)
+    
+    for _, gen_tensor, _, gen_name in iter_samples():
+        data_samples = ((), (gen_tensor,), (), (gen_name,))
+        is_metric.process(data_batch={}, data_samples=data_samples)
+    
+    is_summary = is_metric.compute_metrics([])
+    is_score = is_summary.get('IS', is_summary.get('is_score', 'UNKNOWN'))
+    results['is'] = {'score': is_score, 'summary': is_summary}
+    
+    print(f"[CONSOLE OUTPUT] ✅ IS COMPUTED: {is_score}")
+    
+    # COMPUTE FVD - NO TRY-EXCEPT
+    print(f"\n[AIGVE METRICS] Computing FVD...")
+    
+    if fvd_model:
+        model_path = Path(fvd_model).expanduser().resolve()
+    else:
+        model_path = Path(APP_ROOT) / 'aigve/metrics/video_quality_assessment/distribution_based/fvd/model_rgb.pth'
+    
+    print(f"[AIGVE METRICS] FVD model: {model_path}")
+    fvd_metric = FVDScore(model_path=str(model_path), is_gpu=use_gpu)
+    
+    for gt_tensor, gen_tensor, gt_name, gen_name in iter_samples():
+        data_samples = ((gt_tensor,), (gen_tensor,), (gt_name,), (gen_name,))
+        fvd_metric.process(data_batch={}, data_samples=data_samples)
+    
+    fvd_summary = fvd_metric.compute_metrics([])
+    fvd_score = fvd_summary.get('FVD', fvd_summary.get('fvd_score', 'UNKNOWN'))
+    results['fvd'] = {'score': fvd_score, 'summary': fvd_summary}
+    
+    print(f"[CONSOLE OUTPUT] ✅ FVD COMPUTED: {fvd_score}")
+    
+    # FINAL RESULTS DISPLAY
+    print(f"\n" + "="*60)
+    print(f"MANDATORY AIGVE METRICS RESULTS:")
+    print(f"="*60)
+    print(f"FID Score: {results['fid']['score']}")
+    print(f"IS Score:  {results['is']['score']}")  
+    print(f"FVD Score: {results['fvd']['score']}")
+    print(f"="*60)
+    
+    return results
+
+
 def _compute_cdfvd(upload_dir: str, generated_suffixes: str, model: str = "videomae", 
                    resolution: int = 128, sequence_length: int = 16,
                    max_seconds: Optional[float] = None, fps: Optional[float] = 25.0,
@@ -537,9 +641,14 @@ def _collect_artifacts(base_dir: str, stdout: str) -> List[dict]:
                 len(candidate_names), candidate_names)
     
     artifacts = []
+    files_found = 0
+    total_size = 0
     for name in candidate_names:
         full_path = os.path.join(base_dir, name)
         if os.path.exists(full_path):
+            files_found += 1
+            file_size = os.path.getsize(full_path)
+            total_size += file_size
             logger.debug("[Artifacts] Found result file: %s", name)
             try:
                 with open(full_path, 'r') as f:
@@ -552,16 +661,19 @@ def _collect_artifacts(base_dir: str, stdout: str) -> List[dict]:
                 })
                 logger.debug("[Artifacts] Successfully loaded: %s", name)
                 
-                # Print results to console for key metrics
+                # Print results to console for key metrics - MANDATORY OUTPUT
                 if name == "fid_results.json" and isinstance(content, dict):
                     fid_score = content.get('fid_score', content.get('FID', 'N/A'))
-                    print(f"[METRICS RESULT] FID COMPLETED: Score = {fid_score}")
+                    print(f"[METRICS RESULT] ✅ FID COMPLETED: Score = {fid_score}")
+                    print(f"[CONSOLE OUTPUT] FID = {fid_score}")
                 elif name == "is_results.json" and isinstance(content, dict):
                     is_score = content.get('is_score', content.get('IS', 'N/A'))
-                    print(f"[METRICS RESULT] IS COMPLETED: Score = {is_score}")
+                    print(f"[METRICS RESULT] ✅ IS COMPLETED: Score = {is_score}")
+                    print(f"[CONSOLE OUTPUT] IS = {is_score}")
                 elif name == "fvd_results.json" and isinstance(content, dict):
                     fvd_score = content.get('fvd_score', content.get('FVD', 'N/A'))
-                    print(f"[METRICS RESULT] FVD COMPLETED: Score = {fvd_score}")
+                    print(f"[METRICS RESULT] ✅ FVD COMPLETED: Score = {fvd_score}")
+                    print(f"[CONSOLE OUTPUT] FVD = {fvd_score}")
                     
             except Exception as e:
                 logger.warning("[Artifacts] Failed to load JSON from %s: %s", name, e)
@@ -944,20 +1056,93 @@ def run_upload(
     
     if not script_success:
         logger.error("[%s] All %d attempts failed - script execution unsuccessful", rid, max_retries)
-        # Continue anyway - we can still try CD-FVD computation
-        logger.warning("[%s] Continuing with CD-FVD computation despite script failure", rid)
+        # MANDATORY: Compute AIGVE metrics directly if script failed
+        logger.warning("[%s] Script failed - executing MANDATORY direct AIGVE metrics computation", rid)
     
     dur = (time.perf_counter() - t0) * 1000.0
     logger.info("[%s] /run_upload script phase complete: rc=%s in %.1f ms (stdout=%dB, stderr=%dB)", 
                 rid, proc.returncode if proc else -1, dur, len(proc.stdout or "") if proc else 0, len(proc.stderr or "") if proc else 0)
 
+    # MANDATORY: Compute AIGVE metrics directly - ALWAYS EXECUTE
+    logger.info("[%s] Starting MANDATORY direct AIGVE metrics computation", rid)
+    
+    # Find annotation file for metrics computation
+    annotation_file = None
+    possible_annotations = [
+        os.path.join(stage_dir, "annotations", "evaluate.json"),
+        os.path.join(stage_dir, "evaluate.json"),
+        os.path.join(upload_dir, "annotations.json"),
+        os.path.join(stage_dir, "annotations.json")
+    ]
+    
+    for ann_path in possible_annotations:
+        if os.path.exists(ann_path):
+            annotation_file = ann_path
+            logger.info("[%s] Found annotation file: %s", rid, annotation_file)
+            break
+    
+    if not annotation_file:
+        # Create a minimal annotation file from uploaded videos
+        annotation_file = os.path.join(stage_dir, "annotations.json")
+        os.makedirs(os.path.dirname(annotation_file), exist_ok=True)
+        
+        # Use the validated real and generated video names
+        annotation_data = {
+            "metainfo": {"source": "uploaded_videos", "length": 1},
+            "data_list": [{
+                "prompt_gt": "",
+                "video_path_pd": generated_videos[0],
+                "video_path_gt": real_videos[0]
+            }]
+        }
+        
+        with open(annotation_file, 'w') as f:
+            json.dump(annotation_data, f, indent=2)
+        
+        logger.info("[%s] Created annotation file: %s", rid, annotation_file)
+    
+    # Determine video directory for metrics
+    metrics_video_dir = None
+    video_search_dirs = [
+        os.path.join(stage_dir, "evaluate"),
+        stage_dir,
+        upload_dir
+    ]
+    
+    for vdir in video_search_dirs:
+        if os.path.exists(vdir):
+            video_files = [f for f in os.listdir(vdir) if f.lower().endswith(('.mp4', '.mov', '.avi', '.mkv', '.webm', '.m4v'))]
+            if len(video_files) >= 2:
+                metrics_video_dir = vdir
+                logger.info("[%s] Using video directory for metrics: %s (%d videos)", rid, vdir, len(video_files))
+                break
+    
+    if not metrics_video_dir:
+        metrics_video_dir = upload_dir
+        logger.warning("[%s] Using fallback video directory: %s", rid, metrics_video_dir)
+    
+    # MANDATORY AIGVE METRICS COMPUTATION - NO TRY-EXCEPT
+    logger.info("[%s] Computing AIGVE metrics: video_dir=%s, annotation=%s", rid, metrics_video_dir, annotation_file)
+    aigve_results = _compute_aigve_metrics(
+        video_dir=metrics_video_dir,
+        annotation_file=annotation_file,
+        max_len=max_len,
+        use_cpu=use_cpu
+    )
+    
+    # Save AIGVE results
+    aigve_results_file = os.path.join(stage_dir, "aigve_direct_results.json")
+    os.makedirs(os.path.dirname(aigve_results_file), exist_ok=True)
+    with open(aigve_results_file, 'w') as f:
+        json.dump(aigve_results, f, indent=2, default=str)
+    
+    logger.info("[%s] AIGVE results saved to: %s", rid, aigve_results_file)
+
     # Print standard metrics results to console immediately after script execution
     if script_success and proc:
-        try:
-            logger.info("[%s] Collecting and printing standard metrics results", rid)
-            _collect_artifacts(APP_ROOT, proc.stdout or "")
-        except Exception as e:
-            logger.warning("[%s] Failed to collect standard metrics for console output: %s", rid, e)
+        logger.info("[%s] Collecting and printing standard metrics results", rid)
+        # Search in the staged directory where results are actually saved - NO TRY-EXCEPT
+        _collect_artifacts(stage_dir, proc.stdout or "")
 
     response = {
         "cmd": " ".join(shlex.quote(c) for c in cmd),
