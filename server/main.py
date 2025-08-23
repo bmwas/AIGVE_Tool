@@ -389,7 +389,7 @@ def _compute_aigve_metrics(video_dir: str, annotation_file: str, max_len: int = 
     compute_time = time.time() - compute_start
     print(f"   🎉 FID computation completed in {compute_time:.3f}s", flush=True)
     
-    fid_score = fid_summary.get('FID', fid_summary.get('fid_score', 'UNKNOWN'))
+    fid_score = fid_summary.get('FID_Mean_Score', fid_summary.get('FID', fid_summary.get('fid_score', 'UNKNOWN')))
     results['fid'] = {'score': fid_score, 'summary': fid_summary}
     
     fid_total_time = time.time() - fid_start
@@ -427,7 +427,7 @@ def _compute_aigve_metrics(video_dir: str, annotation_file: str, max_len: int = 
     compute_time = time.time() - compute_start
     print(f"   🎉 IS computation completed in {compute_time:.3f}s", flush=True)
     
-    is_score = is_summary.get('IS', is_summary.get('is_score', 'UNKNOWN'))
+    is_score = is_summary.get('IS_Mean_Score', is_summary.get('IS', is_summary.get('is_score', 'UNKNOWN')))
     results['is'] = {'score': is_score, 'summary': is_summary}
     
     is_total_time = time.time() - is_start
@@ -482,7 +482,7 @@ def _compute_aigve_metrics(video_dir: str, annotation_file: str, max_len: int = 
     compute_time = time.time() - compute_start
     print(f"   🎉 FVD computation completed in {compute_time:.3f}s", flush=True)
     
-    fvd_score = fvd_summary.get('FVD', fvd_summary.get('fvd_score', 'UNKNOWN'))
+    fvd_score = fvd_summary.get('FVD_Mean_Score', fvd_summary.get('FVD', fvd_summary.get('fvd_score', 'UNKNOWN')))
     results['fvd'] = {'score': fvd_score, 'summary': fvd_summary}
     
     fvd_total_time = time.time() - fvd_start
