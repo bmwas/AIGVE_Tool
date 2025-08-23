@@ -233,11 +233,11 @@ def _compute_aigve_metrics(video_dir: str, annotation_file: str, max_len: int = 
     print(f"   ✅ FidDataset imported successfully", flush=True)
     
     print(f"   ⏳ Importing FIDScore...", flush=True)
-    from aigve.metrics.video_quality_assessment.distribution_based.fid.fid_metric import FIDScore
+    from aigve.metrics.video_quality_assessment.distribution_based.fid_metric import FIDScore
     print(f"   ✅ FIDScore imported successfully", flush=True)
     
     print(f"   ⏳ Importing ISScore...", flush=True)
-    from aigve.metrics.video_quality_assessment.distribution_based.is_score.is_metric import ISScore
+    from aigve.metrics.video_quality_assessment.distribution_based.is_score_metric import ISScore
     print(f"   ✅ ISScore imported successfully", flush=True)
     
     print(f"   ⏳ Importing FVDScore...", flush=True)
