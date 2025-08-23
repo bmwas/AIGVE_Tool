@@ -951,6 +951,14 @@ def run_upload(
     logger.info("[%s] /run_upload script phase complete: rc=%s in %.1f ms (stdout=%dB, stderr=%dB)", 
                 rid, proc.returncode if proc else -1, dur, len(proc.stdout or "") if proc else 0, len(proc.stderr or "") if proc else 0)
 
+    # Print standard metrics results to console immediately after script execution
+    if script_success and proc:
+        try:
+            logger.info("[%s] Collecting and printing standard metrics results", rid)
+            _collect_artifacts(APP_ROOT, proc.stdout or "")
+        except Exception as e:
+            logger.warning("[%s] Failed to collect standard metrics for console output: %s", rid, e)
+
     response = {
         "cmd": " ".join(shlex.quote(c) for c in cmd),
         "returncode": proc.returncode,
@@ -1058,6 +1066,8 @@ def run_upload(
                 
                 fvd_score = cdfvd_result.get("fvd_score", 0)
                 logger.info("[%s] CD-FVD %s SUCCESS in %.1f ms: score=%.4f", rid, model, model_duration, fvd_score)
+                # Print result immediately to console
+                print(f"[UPLOAD CD-FVD RESULT] ✅ {model.upper()} COMPLETED: FVD Score = {fvd_score:.4f}")
                 break
                 
             except Exception as e:
@@ -1075,6 +1085,8 @@ def run_upload(
                     }
                     logger.error("[%s] CD-FVD %s FAILED after %d attempts in %.1f ms", 
                                rid, model, max_model_retries, model_duration)
+                    # Print failure immediately to console
+                    print(f"[UPLOAD CD-FVD RESULT] ❌ {model.upper()} FAILED: {str(e)}")
         
         if not model_success:
             logger.warning("[%s] CD-FVD %s computation unsuccessful - continuing with next model", rid, model)
