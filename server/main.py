@@ -562,28 +562,16 @@ def _collect_artifacts(base_dir: str, stdout: str) -> List[dict]:
                     fvd_score = content.get('fvd_score', content.get('FVD', 'N/A'))
                     print(f"[METRICS RESULT] FVD COMPLETED: Score = {fvd_score}")
                     
-                                   name, len(parsed_json) if isinstance(parsed_json, dict) else 1)
-                    except json.JSONDecodeError as je:
-                        logger.warning("[Artifacts] JSON parsing failed for %s: %s", name, je)
-                        item["text"] = text
-                        
-                except (IOError, OSError) as fe:
-                    logger.error("[Artifacts] File read error for %s: %s", name, fe)
-                    item["error"] = f"File read error: {fe}"
-                except UnicodeDecodeError as ue:
-                    logger.error("[Artifacts] Unicode decode error for %s: %s", name, ue)
-                    item["error"] = f"Unicode decode error: {ue}"
-                except Exception as e:
-                    logger.error("[Artifacts] Unexpected error reading %s: %s", name, e)
-                    item["error"] = f"Unexpected error: {e}"
-                    
-                artifacts.append(item)
-                
             except Exception as e:
-                logger.error("[Artifacts] Failed to process artifact %s: %s", name, e)
-                artifacts.append({"name": name, "path": path, "error": f"Processing error: {e}"})
+                logger.warning("[Artifacts] Failed to load JSON from %s: %s", name, e)
+                artifacts.append({
+                    "name": name,
+                    "path": full_path,
+                    "error": str(e),
+                    "source": "file_system"
+                })
         else:
-            logger.debug("[Artifacts] Artifact not found: %s", name)
+            logger.debug("[Artifacts] Not found: %s", name)
     
     logger.info("[Artifacts] Collection summary: %d/%d files found, total size %.1f KB", 
                 files_found, len(candidate_names), total_size / 1024)
