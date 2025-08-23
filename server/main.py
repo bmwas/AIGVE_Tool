@@ -1792,7 +1792,6 @@ def run_upload(
                 rid, legacy_success, cdfvd_success_count, len(models), total_duration)
     return response
 
-
 @app.post("/run")
 def run_prepare(req: PrepareAnnotationsRequest, request: Request):
     if not req.list_metrics and not req.input_dir:
