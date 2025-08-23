@@ -1577,80 +1577,87 @@ def run_upload(
         "session": {"id": session_id, "upload_dir": upload_dir, "stage_dir": stage_dir, "files": saved_files},
     }
     
-    # MANDATORY CD-FVD computation with i3d only - videomae temporarily disabled
-    logger.info("[%s] Starting MANDATORY CD-FVD computation with i3d only", rid)
+    # OPTIONAL CD-FVD computation - only when explicitly requested
     cdfvd_results = {}
-    models = ["i3d"]  # videomae temporarily commented out for testing
+    if use_cdfvd:
+        logger.info("[%s] Starting CD-FVD computation (explicitly requested)", rid)
+        models = ["i3d"] if not cdfvd_all_flavors else ["i3d", "videomae"]
+        logger.info("[%s] CD-FVD models to compute: %s", rid, models)
+    else:
+        logger.info("[%s] Skipping CD-FVD computation (use_cdfvd=False) - computing AIGVE native metrics only", rid)
+        models = []
     
-    # Determine video directory with multiple fallback strategies
-    video_locations = [
-        os.path.join(stage_dir, "evaluate"),  # Staged location
-        stage_dir,                           # Stage directory directly
-        upload_dir                           # Original upload directory
-    ]
+    # Only determine video directory if CD-FVD is requested
+    if use_cdfvd:
+        # Determine video directory with multiple fallback strategies
+        video_locations = [
+            os.path.join(stage_dir, "evaluate"),  # Staged location
+            stage_dir,                           # Stage directory directly
+            upload_dir                           # Original upload directory
+        ]
     
-    video_dir = None
-    for location in video_locations:
-        if os.path.exists(location):
-            # Check if it contains video files
-            try:
-                files = os.listdir(location)
-                video_files = [f for f in files if f.lower().endswith(('.mp4', '.mov', '.avi', '.mkv', '.webm', '.m4v'))]
-                if video_files:
-                    video_dir = location
-                    logger.info("[%s] Found videos in directory: %s (%d video files)", rid, location, len(video_files))
-                    break
-                else:
-                    logger.debug("[%s] Directory %s exists but contains no video files", rid, location)
-            except Exception as e:
-                logger.warning("[%s] Failed to check directory %s: %s", rid, location, e)
-                
-    if not video_dir:
-        logger.error("[%s] CRITICAL: No directory with video files found for CD-FVD", rid)
-        # As last resort, use upload directory and ensure videos are there
-        video_dir = upload_dir
-        logger.warning("[%s] Using upload directory as fallback: %s", rid, video_dir)
-    
-    # Ensure videos are accessible in the chosen directory
-    logger.info("[%s] CD-FVD using video directory: %s", rid, video_dir)
-    
-    try:
-        files = os.listdir(video_dir)
-        video_files = [f for f in files if f.lower().endswith(('.mp4', '.mov', '.avi', '.mkv', '.webm', '.m4v'))]
-        logger.info("[%s] CD-FVD directory analysis: %d total files, %d video files", rid, len(files), len(video_files))
-        logger.debug("[%s] Video files found: %s", rid, video_files)
-        
-        if len(video_files) < 2:
-            logger.error("[%s] CRITICAL: Insufficient video files for CD-FVD (%d found, 2+ required)", rid, len(video_files))
-            # Copy videos from upload directory if needed
-            if video_dir != upload_dir:
-                logger.info("[%s] Attempting to copy videos from upload directory: %s", rid, upload_dir)
+        video_dir = None
+        for location in video_locations:
+            if os.path.exists(location):
+                # Check if it contains video files
                 try:
-                    upload_files = os.listdir(upload_dir)
-                    upload_videos = [f for f in upload_files if f.lower().endswith(('.mp4', '.mov', '.avi', '.mkv', '.webm', '.m4v'))]
-                    
-                    for video_file in upload_videos:
-                        src = os.path.join(upload_dir, video_file)
-                        dst = os.path.join(video_dir, video_file)
-                        if not os.path.exists(dst):
-                            shutil.copy2(src, dst)
-                            logger.info("[%s] Copied video for CD-FVD: %s -> %s", rid, src, dst)
-                    
-                    # Re-check video count
-                    files = os.listdir(video_dir)
+                    files = os.listdir(location)
                     video_files = [f for f in files if f.lower().endswith(('.mp4', '.mov', '.avi', '.mkv', '.webm', '.m4v'))]
-                    logger.info("[%s] After copying: %d video files available", rid, len(video_files))
+                    if video_files:
+                        video_dir = location
+                        logger.info("[%s] Found videos in directory: %s (%d video files)", rid, location, len(video_files))
+                        break
+                    else:
+                        logger.debug("[%s] Directory %s exists but contains no video files", rid, location)
+                except Exception as e:
+                    logger.warning("[%s] Failed to check directory %s: %s", rid, location, e)
                     
-                except Exception as copy_e:
-                    logger.error("[%s] Failed to copy videos for CD-FVD: %s", rid, copy_e)
-                    
-    except Exception as e:
-        logger.error("[%s] Failed to analyze video directory for CD-FVD: %s", rid, e)
+        if not video_dir:
+            logger.error("[%s] CRITICAL: No directory with video files found for CD-FVD", rid)
+            # As last resort, use upload directory and ensure videos are there
+            video_dir = upload_dir
+            logger.warning("[%s] Using upload directory as fallback: %s", rid, video_dir)
+        
+        # Ensure videos are accessible in the chosen directory
+        logger.info("[%s] CD-FVD using video directory: %s", rid, video_dir)
     
-    # MANDATORY computation for each model - no failures allowed
+        try:
+            files = os.listdir(video_dir)
+            video_files = [f for f in files if f.lower().endswith(('.mp4', '.mov', '.avi', '.mkv', '.webm', '.m4v'))]
+            logger.info("[%s] CD-FVD directory analysis: %d total files, %d video files", rid, len(files), len(video_files))
+            logger.debug("[%s] Video files found: %s", rid, video_files)
+            
+            if len(video_files) < 2:
+                logger.error("[%s] CRITICAL: Insufficient video files for CD-FVD (%d found, 2+ required)", rid, len(video_files))
+                # Copy videos from upload directory if needed
+                if video_dir != upload_dir:
+                    logger.info("[%s] Attempting to copy videos from upload directory: %s", rid, upload_dir)
+                    try:
+                        upload_files = os.listdir(upload_dir)
+                        upload_videos = [f for f in upload_files if f.lower().endswith(('.mp4', '.mov', '.avi', '.mkv', '.webm', '.m4v'))]
+                        
+                        for video_file in upload_videos:
+                            src = os.path.join(upload_dir, video_file)
+                            dst = os.path.join(video_dir, video_file)
+                            if not os.path.exists(dst):
+                                shutil.copy2(src, dst)
+                                logger.info("[%s] Copied video for CD-FVD: %s -> %s", rid, src, dst)
+                        
+                        # Re-check video count
+                        files = os.listdir(video_dir)
+                        video_files = [f for f in files if f.lower().endswith(('.mp4', '.mov', '.avi', '.mkv', '.webm', '.m4v'))]
+                        logger.info("[%s] After copying: %d video files available", rid, len(video_files))
+                        
+                    except Exception as copy_e:
+                        logger.error("[%s] Failed to copy videos for CD-FVD: %s", rid, copy_e)
+                
+        except Exception as e:
+            logger.error("[%s] Failed to analyze video directory for CD-FVD: %s", rid, e)
+    
+    # CD-FVD computation for each model (when requested)
     for model_idx, model in enumerate(models):
         model_start_time = time.perf_counter()
-        logger.info("[%s] MANDATORY CD-FVD computation %d/%d: %s", rid, model_idx + 1, len(models), model)
+        logger.info("[%s] CD-FVD computation %d/%d: %s", rid, model_idx + 1, len(models), model)
         
         max_model_retries = 3
         model_success = False
@@ -1702,61 +1709,74 @@ def run_upload(
             logger.warning("[%s] CD-FVD %s computation unsuccessful - continuing with next model", rid, model)
     
     # CD-FVD computation phase complete
-    logger.info("[%s] CD-FVD computation phase complete: %d models processed", rid, len(models))
-    response["cdfvd_results"] = cdfvd_results
-    
-    # Save CD-FVD results to file
-    try:
-        cdfvd_json_path = os.path.join(stage_dir, "cdfvd_results.json")
-        os.makedirs(os.path.dirname(cdfvd_json_path), exist_ok=True)
-        with open(cdfvd_json_path, "w") as f:
-            json.dump(cdfvd_results, f, indent=2)
-        logger.info("[%s] CD-FVD results saved to: %s", rid, cdfvd_json_path)
-        
-        # Return CD-FVD artifacts along with any legacy artifacts
-        cdfvd_artifacts = [
-            {
-                "name": "cdfvd_results.json",
-                "path": cdfvd_json_path,
-                "json": cdfvd_results
-            }
-        ]
-        
-        # Also collect legacy artifacts (FID, IS, FVD results)
-        try:
-            legacy_arts = _collect_artifacts(APP_ROOT, proc.stdout or "")
-            response["artifacts"] = cdfvd_artifacts + legacy_arts
-            logger.info("[%s] ALL artifacts collected: %d total (CD-FVD + legacy)", rid, len(response["artifacts"]))
-        except Exception as e:
-            response["artifacts"] = cdfvd_artifacts
-            response["artifact_error"] = str(e)
-            logger.warning("[%s] Legacy artifact collection error: %s", rid, e)
-            
-    except Exception as cdfvd_save_e:
-        logger.error("[%s] Failed to save CD-FVD results: %s", rid, cdfvd_save_e)
+    if use_cdfvd:
+        logger.info("[%s] CD-FVD computation phase complete: %d models processed", rid, len(models))
         response["cdfvd_results"] = cdfvd_results
-        response["cdfvd_save_error"] = str(cdfvd_save_e)
         
-        # Still collect legacy artifacts on CD-FVD save failure
+        # Save CD-FVD results to file
+        try:
+            cdfvd_json_path = os.path.join(stage_dir, "cdfvd_results.json")
+            os.makedirs(os.path.dirname(cdfvd_json_path), exist_ok=True)
+            with open(cdfvd_json_path, "w") as f:
+                json.dump(cdfvd_results, f, indent=2)
+            logger.info("[%s] CD-FVD results saved to: %s", rid, cdfvd_json_path)
+            
+            # Return CD-FVD artifacts along with any legacy artifacts
+            cdfvd_artifacts = [
+                {
+                    "name": "cdfvd_results.json",
+                    "path": cdfvd_json_path,
+                    "json": cdfvd_results
+                }
+            ]
+            
+            # Also collect legacy artifacts (FID, IS, FVD results)
+            try:
+                legacy_arts = _collect_artifacts(APP_ROOT, proc.stdout or "")
+                response["artifacts"] = cdfvd_artifacts + legacy_arts
+                logger.info("[%s] ALL artifacts collected: %d total (CD-FVD + legacy)", rid, len(response["artifacts"]))
+            except Exception as e:
+                response["artifacts"] = cdfvd_artifacts
+                response["artifact_error"] = str(e)
+                logger.warning("[%s] Legacy artifact collection error: %s", rid, e)
+                
+        except Exception as cdfvd_save_e:
+            logger.error("[%s] Failed to save CD-FVD results: %s", rid, cdfvd_save_e)
+            response["cdfvd_results"] = cdfvd_results
+            response["cdfvd_save_error"] = str(cdfvd_save_e)
+            
+            # Still collect legacy artifacts on CD-FVD save failure
+            try:
+                arts = _collect_artifacts(APP_ROOT, proc.stdout or "")
+                response["artifacts"] = arts
+                logger.info("[%s] Legacy artifacts collected: %d", rid, len(arts))
+            except Exception as e:
+                response["artifact_error"] = str(e)
+                logger.warning("[%s] Artifact collection error: %s", rid, e)
+    else:
+        # No CD-FVD computation - collect only legacy artifacts (AIGVE native metrics)
+        logger.info("[%s] Collecting AIGVE native artifacts only (FID, IS, FVD)", rid)
         try:
             arts = _collect_artifacts(APP_ROOT, proc.stdout or "")
             response["artifacts"] = arts
-            if arts:
-                logger.info("[%s] Legacy artifacts: %s", rid, ", ".join(a.get("name", "?") for a in arts))
-        except Exception as e2:
-            response["artifact_error"] = str(e2)
-            logger.warning("[%s] Legacy artifact collection error: %s", rid, e2)
+            logger.info("[%s] AIGVE native artifacts collected: %d", rid, len(arts))
+        except Exception as e:
+            response["artifact_error"] = str(e)
+            logger.warning("[%s] Artifact collection error: %s", rid, e)
     
     # Final validation: ensure ALL required metrics were computed
     logger.info("[%s] Final processing validation", rid)
     total_duration = (time.perf_counter() - t0) * 1000.0
     
+{{ ... }}
     # Check legacy metrics (from script)
     legacy_metrics = ["fid", "is", "fvd"]
     legacy_success = script_success and proc and proc.returncode == 0
     
-    # Check CD-FVD metrics
-    cdfvd_success_count = sum(1 for model in models if "error" not in cdfvd_results.get(model, {}))
+    # Check CD-FVD metrics (only if CD-FVD was requested)
+    cdfvd_success_count = 0
+    if use_cdfvd:
+        cdfvd_success_count = sum(1 for model in models if "error" not in cdfvd_results.get(model, {}))
     
     processing_summary = {
         "total_duration_ms": total_duration,
