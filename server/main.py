@@ -1768,7 +1768,6 @@ def run_upload(
     logger.info("[%s] Final processing validation", rid)
     total_duration = (time.perf_counter() - t0) * 1000.0
     
-{{ ... }}
     # Check legacy metrics (from script)
     legacy_metrics = ["fid", "is", "fvd"]
     legacy_success = script_success and proc and proc.returncode == 0
@@ -1784,7 +1783,7 @@ def run_upload(
         "legacy_metrics_attempted": legacy_metrics,
         "cdfvd_models_successful": cdfvd_success_count,
         "cdfvd_models_total": len(models),
-        "videos_processed": len(valid_videos)
+        "videos_processed": len(saved_files)
     }
     
     response["processing_summary"] = processing_summary
