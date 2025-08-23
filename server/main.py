@@ -533,17 +533,47 @@ def _compute_cdfvd(upload_dir: str, generated_suffixes: str, model: str = "video
     Returns:
         Dict with FVD scores and metadata. If compute_all_flavors=True, includes 'flavors' dict.
     """
+    import time
+    start_time = time.time()
+    
+    print(f"\n" + "="*80, flush=True)
+    print(f"🚀 MANDATORY CD-FVD METRICS COMPUTATION STARTING", flush=True)
+    print(f"⏰ Start time: {time.strftime('%Y-%m-%d %H:%M:%S')}", flush=True)
+    print(f"="*80, flush=True)
+    print(f"📂 FUNCTION INPUTS:", flush=True)
+    print(f"   🎬 Upload directory: {upload_dir}", flush=True)
+    print(f"   🤖 Generated suffixes: {generated_suffixes}", flush=True)
+    print(f"   🔧 Model: {model}", flush=True)
+    print(f"   📐 Resolution: {resolution}", flush=True)
+    print(f"   🎞️  Sequence length: {sequence_length}", flush=True)
+    print(f"   ⏱️  Max seconds: {max_seconds}", flush=True)
+    print(f"   🎭 FPS: {fps}", flush=True)
+    print(f"   🔄 Compute all flavors: {compute_all_flavors}", flush=True)
+    
+    print(f"\n📦 IMPORTING CD-FVD COMPONENTS...", flush=True)
+    import_start = time.time()
+    
     logger.info("[CD-FVD] Starting FVD computation with model=%s, resolution=%d, seq_len=%d", 
                 model, resolution, sequence_length)
     logger.debug("[CD-FVD] Parameters: upload_dir=%s, suffixes=%s, max_seconds=%s, fps=%s", 
                 upload_dir, generated_suffixes, max_seconds, fps)
     
+    print(f"   ⏳ Checking CD-FVD package availability...", flush=True)
     if not cdfvd_available:
+        print(f"   ❌ CD-FVD package not available!", flush=True)
         logger.error("[CD-FVD] cd-fvd package is not installed")
         raise RuntimeError("cd-fvd package is not installed. Run: pip install cd-fvd")
+    else:
+        print(f"   ✅ CD-FVD package imported successfully", flush=True)
+    
+    import_time = time.time() - import_start
+    print(f"   🎉 All imports completed in {import_time:.2f}s", flush=True)
     
     # Parse suffixes and build a robust checker for synthetic naming
+    print(f"\n🔍 PARSING GENERATED SUFFIXES...", flush=True)
     suffixes = [s.strip() for s in generated_suffixes.split(',') if s.strip()]
+    print(f"   📝 Raw suffixes input: '{generated_suffixes}'", flush=True)
+    print(f"   🔧 Parsed suffixes: {suffixes}", flush=True)
     logger.debug("[CD-FVD] Parsed suffixes for synthetic detection: %s", suffixes)
     
     def _is_synthetic_name(name: str) -> bool:
@@ -556,66 +586,96 @@ def _compute_cdfvd(upload_dir: str, generated_suffixes: str, model: str = "video
                 return True
         return False
     
+    print(f"\n📂 ANALYZING VIDEO DIRECTORY...", flush=True)
     logger.info("[CD-FVD] Analyzing video directory: %s", upload_dir)
-    print(f"[CD-FVD Debug] Looking for videos in: {upload_dir}")
-    print(f"[CD-FVD Debug] Suffixes to identify synthetic videos: {suffixes}")
+    print(f"   🔍 Looking for videos in: {upload_dir}", flush=True)
+    print(f"   🤖 Suffixes to identify synthetic videos: {suffixes}", flush=True)
     
     # Check if directory exists and list contents
+    print(f"   ⏳ Validating directory existence...", flush=True)
     upload_path = Path(upload_dir)
     if not upload_path.exists():
+        print(f"   ❌ Upload directory does not exist: {upload_dir}", flush=True)
         logger.error("[CD-FVD] Upload directory does not exist: %s", upload_dir)
         raise RuntimeError(f"Upload directory does not exist: {upload_dir}")
+    else:
+        print(f"   ✅ Upload directory exists: {upload_dir}", flush=True)
     
+    print(f"   📋 Scanning directory contents...", flush=True)
     try:
+        scan_start = time.time()
         all_files = list(upload_path.glob("*"))
+        scan_time = time.time() - scan_start
+        print(f"   📁 Found {len(all_files)} total files in {scan_time:.3f}s", flush=True)
         logger.info("[CD-FVD] Found %d total files in directory", len(all_files))
         logger.debug("[CD-FVD] Directory contents: %s", [f.name for f in all_files])
-        print(f"[CD-FVD Debug] Files in directory: {[f.name for f in all_files]}")
+        print(f"   📄 Files in directory: {[f.name for f in all_files]}", flush=True)
     except Exception as e:
+        print(f"   ❌ Failed to list directory contents: {e}", flush=True)
         logger.error("[CD-FVD] Failed to list directory contents: %s", e)
         raise RuntimeError(f"Failed to access upload directory: {e}")
     
     # Organize videos into real and fake
+    print(f"\n📹 ORGANIZING VIDEOS INTO REAL AND FAKE...", flush=True)
     real_videos = []
     fake_videos = []
     
     # Check all video formats
+    print(f"   🔍 Searching for video files...", flush=True)
     video_extensions = ["*.mp4", "*.mov", "*.avi", "*.mkv", "*.webm", "*.m4v"]
     all_videos = []
     for ext in video_extensions:
+        ext_start = time.time()
         videos = list(Path(upload_dir).glob(ext))
+        ext_time = time.time() - ext_start
         all_videos.extend(videos)
         if videos:
-            print(f"[CD-FVD Debug] Found {len(videos)} {ext} files")
+            print(f"   📁 Found {len(videos)} {ext} files in {ext_time:.3f}s", flush=True)
     
-    print(f"[CD-FVD Debug] Total videos found: {len(all_videos)}")
+    print(f"   🎬 Total videos found: {len(all_videos)}", flush=True)
     
-    for video_file in all_videos:
+    print(f"   🔄 Classifying videos as real or synthetic...", flush=True)
+    for i, video_file in enumerate(all_videos):
         video_name = video_file.stem
         is_synthetic = _is_synthetic_name(video_name)
+        file_size = os.path.getsize(video_file) if video_file.exists() else 0
 
-        print(f"[CD-FVD Debug] Processing: {video_file.name}, stem={video_name}, is_synthetic={is_synthetic}")
+        print(f"   📊 Processing video {i+1}/{len(all_videos)}: {video_file.name}", flush=True)
+        print(f"      📝 Stem: {video_name}", flush=True)
+        print(f"      🤖 Is synthetic: {is_synthetic}", flush=True)
+        print(f"      📏 File size: {file_size:,} bytes ({file_size/1024/1024:.1f} MB)", flush=True)
 
         if is_synthetic:
             fake_videos.append(str(video_file))
-            print(f"[CD-FVD Debug] Added to fake_videos: {video_file.name}")
+            print(f"      ➡️  Added to fake_videos: {video_file.name}", flush=True)
         else:
             # For real videos, we add them regardless of whether they have synthetic counterpart
             # The pairing will be handled by CD-FVD itself
             real_videos.append(str(video_file))
-            print(f"[CD-FVD Debug] Added to real_videos: {video_file.name}")
+            print(f"      ➡️  Added to real_videos: {video_file.name}", flush=True)
+    
+    print(f"\n📊 VIDEO CLASSIFICATION SUMMARY:", flush=True)
+    print(f"   🎬 Real videos: {len(real_videos)}", flush=True)
+    print(f"   🤖 Synthetic videos: {len(fake_videos)}", flush=True)
     
     if not real_videos or not fake_videos:
+        print(f"   ❌ Insufficient videos for FVD computation!", flush=True)
+        print(f"      Need at least 1 real and 1 synthetic video", flush=True)
         raise ValueError(f"Insufficient videos for FVD computation. Found {len(real_videos)} real and {len(fake_videos)} fake videos")
+    else:
+        print(f"   ✅ Sufficient videos for computation", flush=True)
     
     logger.info("[CD-FVD] Found %d real videos and %d fake videos", len(real_videos), len(fake_videos))
-    
     # Create temporary directories for organized videos
+    print(f"\n📁 CREATING TEMPORARY DIRECTORIES...", flush=True)
     with tempfile.TemporaryDirectory() as temp_dir:
-        real_dir = Path(temp_dir) / "real"
-        fake_dir = Path(temp_dir) / "fake"
+        print(f"   📂 Temporary directory: {temp_dir}", flush=True)
+        real_dir = Path(temp_dir) / "real_videos"
+        fake_dir = Path(temp_dir) / "fake_videos"
         real_dir.mkdir(exist_ok=True)
         fake_dir.mkdir(exist_ok=True)
+        print(f"   ✅ Created real videos directory: {real_dir}", flush=True)
+        print(f"   ✅ Created fake videos directory: {fake_dir}", flush=True)
         
         # Helper: trim or copy videos according to max_seconds
         def _trim_or_copy(src: str, dst: Path) -> None:
@@ -687,36 +747,66 @@ def _compute_cdfvd(upload_dir: str, generated_suffixes: str, model: str = "video
                     print(f"[CD-FVD Copy Error] {e2}")
 
         # Copy/trim videos to temporary directories
+        print(f"\n🎬 PROCESSING REAL VIDEOS...", flush=True)
         for i, video_path in enumerate(real_videos):
             dest = real_dir / f"video_{i:04d}{Path(video_path).suffix}"
+            print(f"   ⏳ Processing real video {i+1}/{len(real_videos)}: {Path(video_path).name}", flush=True)
+            process_start = time.time()
             _trim_or_copy(video_path, dest)
+            process_time = time.time() - process_start
+            print(f"   ✅ Real video {i+1} processed in {process_time:.2f}s -> {dest.name}", flush=True)
 
+        print(f"\n🤖 PROCESSING SYNTHETIC VIDEOS...", flush=True)
         for i, video_path in enumerate(fake_videos):
             dest = fake_dir / f"video_{i:04d}{Path(video_path).suffix}"
+            print(f"   ⏳ Processing synthetic video {i+1}/{len(fake_videos)}: {Path(video_path).name}", flush=True)
+            process_start = time.time()
             _trim_or_copy(video_path, dest)
+            process_time = time.time() - process_start
+            print(f"   ✅ Synthetic video {i+1} processed in {process_time:.2f}s -> {dest.name}", flush=True)
         
         if compute_all_flavors:
+            print(f"\n🧮 COMPUTING ALL CD-FVD FLAVORS...", flush=True)
             # Only i3d for now - videomae temporarily removed for testing  
             fast_configs = [
                 ('i3d', 224, 16),        # Use larger kernel size that works with i3d
                 # ('videomae', 112, 8),    # Reliable fallback model - temporarily commented out
             ]
             
+            print(f"   📋 Available model configurations:", flush=True)
+            for i, (model_name, res, seq_len) in enumerate(fast_configs):
+                print(f"      {i+1}. {model_name} (res={res}, seq_len={seq_len})", flush=True)
+            
             logger.info("[CD-FVD] Computing %d fast FVD flavors (optimized for speed)", len(fast_configs))
             
             flavors = {}
             total_combinations = len(fast_configs)
+            print(f"   🎯 Total combinations to compute: {total_combinations}", flush=True)
             logger.info("[CD-FVD] Computing all %d FVD flavors", total_combinations)
             
-            for model_name, res, seq_len in fast_configs:
+            for config_idx, (model_name, res, seq_len) in enumerate(fast_configs):
                 flavor_key = f"{model_name}_res{res}_len{seq_len}"
+                print(f"\n🔧 COMPUTING FLAVOR {config_idx+1}/{total_combinations}: {flavor_key}", flush=True)
+                flavor_start = time.time()
+                
+                print(f"   📊 Configuration details:", flush=True)
+                print(f"      🤖 Model: {model_name}", flush=True)
+                print(f"      📐 Resolution: {res}x{res}", flush=True)
+                print(f"      🎞️  Sequence length: {seq_len} frames", flush=True)
+                
                 logger.info("[CD-FVD] Computing flavor: %s", flavor_key)
                 
                 try:
                     # Initialize evaluator for this configuration
+                    print(f"   ⏳ Initializing {model_name} evaluator...", flush=True)
+                    init_start = time.time()
                     evaluator = fvd.cdfvd(model_name, ckpt_path=None, device='cuda')
+                    init_time = time.time() - init_start
+                    print(f"   ✅ {model_name} evaluator initialized in {init_time:.2f}s", flush=True)
                     
                     # Load and compute real video statistics using directory path
+                    print(f"   🎬 Loading real videos from {real_dir}...", flush=True)
+                    real_load_start = time.time()
                     real_videos = evaluator.load_videos(
                         str(real_dir), 
                         data_type='video_folder',
@@ -724,9 +814,18 @@ def _compute_cdfvd(upload_dir: str, generated_suffixes: str, model: str = "video
                         sequence_length=seq_len,
                         sample_every_n_frames=1
                     )
+                    real_load_time = time.time() - real_load_start
+                    print(f"   ✅ Loaded {len(real_videos)} real videos in {real_load_time:.2f}s", flush=True)
+                    
+                    print(f"   🧮 Computing real video statistics...", flush=True)
+                    real_stats_start = time.time()
                     evaluator.compute_real_stats(real_videos)
+                    real_stats_time = time.time() - real_stats_start
+                    print(f"   ✅ Real video statistics computed in {real_stats_time:.2f}s", flush=True)
                     
                     # Load and compute fake video statistics using directory path
+                    print(f"   🤖 Loading synthetic videos from {fake_dir}...", flush=True)
+                    fake_load_start = time.time()
                     fake_videos = evaluator.load_videos(
                         str(fake_dir), 
                         data_type='video_folder',
@@ -734,10 +833,22 @@ def _compute_cdfvd(upload_dir: str, generated_suffixes: str, model: str = "video
                         sequence_length=seq_len,
                         sample_every_n_frames=1
                     )
+                    fake_load_time = time.time() - fake_load_start
+                    print(f"   ✅ Loaded {len(fake_videos)} synthetic videos in {fake_load_time:.2f}s", flush=True)
+                    
+                    print(f"   🧮 Computing synthetic video statistics...", flush=True)
+                    fake_stats_start = time.time()
                     evaluator.compute_fake_stats(fake_videos)
+                    fake_stats_time = time.time() - fake_stats_start
+                    print(f"   ✅ Synthetic video statistics computed in {fake_stats_time:.2f}s", flush=True)
                     
                     # Compute FVD score from statistics
+                    print(f"   🎯 Computing FVD score from statistics...", flush=True)
+                    fvd_compute_start = time.time()
                     fvd_score = evaluator.compute_fvd_from_stats()
+                    fvd_compute_time = time.time() - fvd_compute_start
+                    
+                    flavor_total_time = time.time() - flavor_start
                     
                     flavors[flavor_key] = {
                         "fvd_score": float(fvd_score),
@@ -745,35 +856,91 @@ def _compute_cdfvd(upload_dir: str, generated_suffixes: str, model: str = "video
                         "resolution": res,
                         "sequence_length": seq_len,
                         "num_real_videos": len(real_videos),
-                        "num_fake_videos": len(fake_videos)
+                        "num_fake_videos": len(fake_videos),
+                        "computation_time": flavor_total_time
                     }
                     
+                    print(f"   🎉 FVD computation completed in {fvd_compute_time:.2f}s", flush=True)
+                    print(f"   📊 FLAVOR RESULTS:", flush=True)
+                    print(f"      🏆 FVD Score: {fvd_score:.6f}", flush=True)
+                    print(f"      ⏱️  Total time: {flavor_total_time:.2f}s", flush=True)
+                    print(f"      🎬 Real videos processed: {len(real_videos)}", flush=True)
+                    print(f"      🤖 Synthetic videos processed: {len(fake_videos)}", flush=True)
+                    
                     logger.info("[CD-FVD] %s: %.4f", flavor_key, fvd_score)
-                    print(f"[CD-FVD RESULT] ✅ {model_name.upper()} COMPLETED: FVD Score = {fvd_score:.4f}")
+                    print(f"[CONSOLE OUTPUT] ✅ {model_name.upper()} CD-FVD COMPUTED: {fvd_score:.6f}", flush=True)
                     logger.info("[CD-FVD] ✅ COMPLETED: %s model finished successfully!", model_name.upper())
                     
                     # Clear stats for next iteration
+                    print(f"   🧹 Clearing statistics for next iteration...", flush=True)
                     evaluator.empty_real_stats()
                     evaluator.empty_fake_stats()
                     
                 except Exception as e:
+                    flavor_error_time = time.time() - flavor_start
+                    print(f"   ❌ FLAVOR COMPUTATION FAILED after {flavor_error_time:.2f}s", flush=True)
+                    print(f"      🚨 Error: {str(e)}", flush=True)
                     logger.error("[CD-FVD] Failed to compute %s: %s", flavor_key, e)
-                    print(f"[CD-FVD RESULT] ❌ {model_name.upper()} FAILED: {str(e)}")
-                    flavors[flavor_key] = {"error": str(e)}
+                    print(f"[CONSOLE OUTPUT] ❌ {model_name.upper()} CD-FVD FAILED: {str(e)}", flush=True)
+                    flavors[flavor_key] = {"error": str(e), "computation_time": flavor_error_time}
+            
+            # FINAL RESULTS DISPLAY FOR ALL FLAVORS
+            total_time = time.time() - start_time
+            print(f"\n" + "="*80, flush=True)
+            print(f"🏆 MANDATORY CD-FVD METRICS RESULTS SUMMARY", flush=True)
+            print(f"⏰ Completion time: {time.strftime('%Y-%m-%d %H:%M:%S')}", flush=True)
+            print(f"="*80, flush=True)
+            print(f"📊 FLAVOR SCORES:", flush=True)
+            
+            successful_flavors = 0
+            failed_flavors = 0
+            
+            for flavor_key, flavor_data in flavors.items():
+                if "error" in flavor_data:
+                    failed_flavors += 1
+                    print(f"   ❌ {flavor_key}: FAILED - {flavor_data['error']}", flush=True)
+                else:
+                    successful_flavors += 1
+                    print(f"   🎯 {flavor_key}: {flavor_data['fvd_score']:.6f}", flush=True)
+            
+            print(f"📊 COMPUTATION SUMMARY:", flush=True)
+            print(f"   ✅ Successful flavors: {successful_flavors}", flush=True)
+            print(f"   ❌ Failed flavors: {failed_flavors}", flush=True)
+            print(f"   📊 Total flavors attempted: {len(flavors)}", flush=True)
+            print(f"   ⏱️  Total computation time: {total_time:.2f}s", flush=True)
+            print(f"🔧 SYSTEM INFO:", flush=True)
+            print(f"   🎬 Videos processed: {len(real_videos)} real, {len(fake_videos)} synthetic", flush=True)
+            print(f"   📂 Temporary directory: {temp_dir}", flush=True)
+            print(f"="*80, flush=True)
             
             result = {
                 "flavors": flavors,
                 "total_flavors": len(flavors),
-                "compute_all_flavors": True
+                "successful_flavors": successful_flavors,
+                "failed_flavors": failed_flavors,
+                "compute_all_flavors": True,
+                "total_computation_time": total_time
             }
             
         else:
             # Single flavor computation (legacy behavior)
+            print(f"\n🔧 COMPUTING SINGLE CD-FVD FLAVOR...", flush=True)
+            print(f"   🤖 Model: {model}", flush=True)
+            print(f"   📐 Resolution: {resolution}x{resolution}", flush=True)
+            print(f"   🎞️  Sequence length: {sequence_length} frames", flush=True)
+            
             logger.info("[CD-FVD] Computing single flavor with model='%s'", model)
+            
+            print(f"   ⏳ Initializing {model} evaluator...", flush=True)
+            init_start = time.time()
             evaluator = fvd.cdfvd(model, ckpt_path=None, device='cuda')
+            init_time = time.time() - init_start
+            print(f"   ✅ {model} evaluator initialized in {init_time:.2f}s", flush=True)
             
             # Load and compute real video statistics using directory path
+            print(f"   🎬 Loading real videos from {real_dir}...", flush=True)
             logger.info("[CD-FVD] Loading real video statistics from directory: %s", real_dir)
+            real_load_start = time.time()
             real_videos = evaluator.load_videos(
                 str(real_dir), 
                 data_type='video_folder',
@@ -781,10 +948,19 @@ def _compute_cdfvd(upload_dir: str, generated_suffixes: str, model: str = "video
                 sequence_length=sequence_length,
                 sample_every_n_frames=1
             )
+            real_load_time = time.time() - real_load_start
+            print(f"   ✅ Loaded {len(real_videos)} real videos in {real_load_time:.2f}s", flush=True)
+            
+            print(f"   🧮 Computing real video statistics...", flush=True)
+            real_stats_start = time.time()
             evaluator.compute_real_stats(real_videos)
+            real_stats_time = time.time() - real_stats_start
+            print(f"   ✅ Real video statistics computed in {real_stats_time:.2f}s", flush=True)
             
             # Load and compute fake video statistics using directory path
+            print(f"   🤖 Loading synthetic videos from {fake_dir}...", flush=True)
             logger.info("[CD-FVD] Loading fake video statistics from directory: %s", fake_dir)
+            fake_load_start = time.time()
             fake_videos = evaluator.load_videos(
                 str(fake_dir), 
                 data_type='video_folder',
@@ -792,11 +968,47 @@ def _compute_cdfvd(upload_dir: str, generated_suffixes: str, model: str = "video
                 sequence_length=sequence_length,
                 sample_every_n_frames=1
             )
+            fake_load_time = time.time() - fake_load_start
+            print(f"   ✅ Loaded {len(fake_videos)} synthetic videos in {fake_load_time:.2f}s", flush=True)
+            
+            print(f"   🧮 Computing synthetic video statistics...", flush=True)
+            fake_stats_start = time.time()
             evaluator.compute_fake_stats(fake_videos)
+            fake_stats_time = time.time() - fake_stats_start
+            print(f"   ✅ Synthetic video statistics computed in {fake_stats_time:.2f}s", flush=True)
             
             # Compute FVD score from statistics
+            print(f"   🎯 Computing FVD score from statistics...", flush=True)
             logger.info("[CD-FVD] Computing FVD score...")
+            fvd_compute_start = time.time()
             fvd_score = evaluator.compute_fvd_from_stats()
+            fvd_compute_time = time.time() - fvd_compute_start
+            
+            total_time = time.time() - start_time
+            
+            print(f"   🎉 FVD computation completed in {fvd_compute_time:.2f}s", flush=True)
+            print(f"\n" + "="*80, flush=True)
+            print(f"🏆 MANDATORY CD-FVD SINGLE FLAVOR RESULTS", flush=True)
+            print(f"⏰ Completion time: {time.strftime('%Y-%m-%d %H:%M:%S')}", flush=True)
+            print(f"="*80, flush=True)
+            print(f"📊 METRIC SCORE:", flush=True)
+            print(f"   🎯 {model.upper()} FVD Score: {fvd_score:.6f}", flush=True)
+            print(f"📊 TIMING BREAKDOWN:", flush=True)
+            print(f"   ⏱️  Initialization: {init_time:.2f}s", flush=True)
+            print(f"   ⏱️  Real video loading: {real_load_time:.2f}s", flush=True)
+            print(f"   ⏱️  Real stats computation: {real_stats_time:.2f}s", flush=True)
+            print(f"   ⏱️  Synthetic video loading: {fake_load_time:.2f}s", flush=True)
+            print(f"   ⏱️  Synthetic stats computation: {fake_stats_time:.2f}s", flush=True)
+            print(f"   ⏱️  FVD score computation: {fvd_compute_time:.2f}s", flush=True)
+            print(f"   ⏱️  Total time: {total_time:.2f}s", flush=True)
+            print(f"🔧 SYSTEM INFO:", flush=True)
+            print(f"   🎬 Real videos processed: {len(real_videos)}", flush=True)
+            print(f"   🤖 Synthetic videos processed: {len(fake_videos)}", flush=True)
+            print(f"   📐 Resolution used: {resolution}x{resolution}", flush=True)
+            print(f"   🎞️  Sequence length: {sequence_length} frames", flush=True)
+            print(f"="*80, flush=True)
+            
+            print(f"[CONSOLE OUTPUT] ✅ {model.upper()} CD-FVD COMPUTED: {fvd_score:.6f}", flush=True)
             
             result = {
                 "fvd_score": float(fvd_score),
@@ -805,7 +1017,8 @@ def _compute_cdfvd(upload_dir: str, generated_suffixes: str, model: str = "video
                 "model": model,
                 "resolution": resolution,
                 "sequence_length": sequence_length,
-                "compute_all_flavors": False
+                "compute_all_flavors": False,
+                "total_computation_time": total_time
             }
         # Attach length info if requested
         try:
@@ -819,10 +1032,14 @@ def _compute_cdfvd(upload_dir: str, generated_suffixes: str, model: str = "video
         except Exception:
             pass
         
+        # Add final summary logging
         if compute_all_flavors:
-            logger.info("[CD-FVD] Computed %d FVD flavors successfully", len(result["flavors"]))
+            successful = result.get("successful_flavors", 0)
+            total = result.get("total_flavors", 0)
+            logger.info("[CD-FVD] Computed %d/%d FVD flavors successfully", successful, total)
         else:
-            logger.info("[CD-FVD] FVD Score: %.4f", fvd_score)
+            logger.info("[CD-FVD] Single flavor FVD Score: %.6f", result["fvd_score"])
+        
         return result
 
 
