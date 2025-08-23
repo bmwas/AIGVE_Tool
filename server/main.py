@@ -804,98 +804,43 @@ def _compute_cdfvd(upload_dir: str, generated_suffixes: str, model: str = "video
                     init_time = time.time() - init_start
                     print(f"   ✅ {model_name} evaluator initialized in {init_time:.2f}s", flush=True)
                     
-                    # OPTIMIZED BATCH PROCESSING FOR CD-FVD i3d
-                    # Determine optimal batch size based on GPU memory and video count
-                    total_videos = len([f for f in real_dir.iterdir() if f.is_file() and f.suffix.lower() in ['.mp4', '.avi', '.mov', '.mkv']]) + \
-                                   len([f for f in fake_dir.iterdir() if f.is_file() and f.suffix.lower() in ['.mp4', '.avi', '.mov', '.mkv']])
-                    
-                    # Dynamic batch size: larger batches for more videos, but cap for memory safety
-                    if total_videos <= 10:
-                        batch_size = min(4, total_videos)  # Small datasets: smaller batches
-                    elif total_videos <= 50:
-                        batch_size = 8  # Medium datasets: moderate batches
-                    else:
-                        batch_size = 16  # Large datasets: bigger batches for efficiency
-                    
-                    print(f"   🚀 OPTIMIZED BATCH PROCESSING: batch_size={batch_size} (total_videos={total_videos})", flush=True)
-                    print(f"   ⚡ Using accelerated batch processing for {model_name} model", flush=True)
-                    
-                    # Load and compute real video statistics with batching
-                    print(f"   🎬 Loading real videos from {real_dir} with batch processing...", flush=True)
+                    # Load and compute real video statistics using directory path
+                    print(f"   🎬 Loading real videos from {real_dir}...", flush=True)
                     real_load_start = time.time()
-                    
-                    # Get list of real video files for batch processing
-                    real_video_files = [f for f in real_dir.iterdir() if f.is_file() and f.suffix.lower() in ['.mp4', '.avi', '.mov', '.mkv']]
-                    print(f"   📁 Found {len(real_video_files)} real video files for processing", flush=True)
-                    
-                    # Process real videos in optimized batches
-                    real_batch_count = 0
-                    for i in range(0, len(real_video_files), batch_size):
-                        batch_files = real_video_files[i:i+batch_size]
-                        real_batch_count += 1
-                        batch_start = time.time()
-                        print(f"   🔄 Processing real video batch {real_batch_count}/{(len(real_video_files) + batch_size - 1) // batch_size} ({len(batch_files)} videos)...", flush=True)
-                        
-                        # Convert file paths to strings for cd-fvd
-                        batch_paths = [str(f) for f in batch_files]
-                        batch_videos = evaluator.load_videos(
-                            batch_paths,
-                            data_type='video_list',  # Process list of video files
-                            resolution=res, 
-                            sequence_length=seq_len,
-                            sample_every_n_frames=1
-                        )
-                        
-                        # Compute statistics for this batch
-                        evaluator.compute_real_stats(batch_videos)
-                        batch_time = time.time() - batch_start
-                        print(f"   ✅ Real batch {real_batch_count} processed in {batch_time:.2f}s ({len(batch_files)} videos)", flush=True)
-                    
+                    real_videos = evaluator.load_videos(
+                        str(real_dir), 
+                        data_type='video_folder',
+                        resolution=res, 
+                        sequence_length=seq_len,
+                        sample_every_n_frames=1
+                    )
                     real_load_time = time.time() - real_load_start
-                    print(f"   🏆 All real videos processed in {real_load_time:.2f}s using {real_batch_count} batches", flush=True)
+                    print(f"   ✅ Loaded {len(real_videos)} real videos in {real_load_time:.2f}s", flush=True)
                     
-                    # Load and compute fake video statistics with batching
-                    print(f"   🤖 Loading synthetic videos from {fake_dir} with batch processing...", flush=True)
+                    print(f"   🧮 Computing real video statistics...", flush=True)
+                    real_stats_start = time.time()
+                    evaluator.compute_real_stats(real_videos)
+                    real_stats_time = time.time() - real_stats_start
+                    print(f"   ✅ Real video statistics computed in {real_stats_time:.2f}s", flush=True)
+                    
+                    # Load and compute fake video statistics using directory path
+                    print(f"   🤖 Loading synthetic videos from {fake_dir}...", flush=True)
                     fake_load_start = time.time()
-                    
-                    # Get list of fake video files for batch processing
-                    fake_video_files = [f for f in fake_dir.iterdir() if f.is_file() and f.suffix.lower() in ['.mp4', '.avi', '.mov', '.mkv']]
-                    print(f"   📁 Found {len(fake_video_files)} synthetic video files for processing", flush=True)
-                    
-                    # Process fake videos in optimized batches
-                    fake_batch_count = 0
-                    for i in range(0, len(fake_video_files), batch_size):
-                        batch_files = fake_video_files[i:i+batch_size]
-                        fake_batch_count += 1
-                        batch_start = time.time()
-                        print(f"   🔄 Processing synthetic video batch {fake_batch_count}/{(len(fake_video_files) + batch_size - 1) // batch_size} ({len(batch_files)} videos)...", flush=True)
-                        
-                        # Convert file paths to strings for cd-fvd
-                        batch_paths = [str(f) for f in batch_files]
-                        batch_videos = evaluator.load_videos(
-                            batch_paths,
-                            data_type='video_list',  # Process list of video files
-                            resolution=res, 
-                            sequence_length=seq_len,
-                            sample_every_n_frames=1
-                        )
-                        
-                        # Compute statistics for this batch
-                        evaluator.compute_fake_stats(batch_videos)
-                        batch_time = time.time() - batch_start
-                        print(f"   ✅ Synthetic batch {fake_batch_count} processed in {batch_time:.2f}s ({len(batch_files)} videos)", flush=True)
-                    
+                    fake_videos = evaluator.load_videos(
+                        str(fake_dir), 
+                        data_type='video_folder',
+                        resolution=res, 
+                        sequence_length=seq_len,
+                        sample_every_n_frames=1
+                    )
                     fake_load_time = time.time() - fake_load_start
-                    print(f"   🏆 All synthetic videos processed in {fake_load_time:.2f}s using {fake_batch_count} batches", flush=True)
+                    print(f"   ✅ Loaded {len(fake_videos)} synthetic videos in {fake_load_time:.2f}s", flush=True)
                     
-                    # Update stats for result display
-                    total_real_videos = len(real_video_files)
-                    total_fake_videos = len(fake_video_files)
-                    print(f"   📊 BATCH PROCESSING SUMMARY:", flush=True)
-                    print(f"      🎬 Real videos: {total_real_videos} (batches: {real_batch_count})", flush=True)
-                    print(f"      🤖 Synthetic videos: {total_fake_videos} (batches: {fake_batch_count})", flush=True)
-                    print(f"      ⚡ Batch size: {batch_size} videos per batch", flush=True)
-                    print(f"      ⏱️  Total loading time: {real_load_time + fake_load_time:.2f}s", flush=True)
+                    print(f"   🧮 Computing synthetic video statistics...", flush=True)
+                    fake_stats_start = time.time()
+                    evaluator.compute_fake_stats(fake_videos)
+                    fake_stats_time = time.time() - fake_stats_start
+                    print(f"   ✅ Synthetic video statistics computed in {fake_stats_time:.2f}s", flush=True)
                     
                     # Compute FVD score from statistics
                     print(f"   🎯 Computing FVD score from statistics...", flush=True)
@@ -910,21 +855,17 @@ def _compute_cdfvd(upload_dir: str, generated_suffixes: str, model: str = "video
                         "model": model_name,
                         "resolution": res,
                         "sequence_length": seq_len,
-                        "num_real_videos": total_real_videos,
-                        "num_fake_videos": total_fake_videos,
-                        "computation_time": flavor_total_time,
-                        "batch_size": batch_size,
-                        "real_batches": real_batch_count,
-                        "fake_batches": fake_batch_count
+                        "num_real_videos": len(real_videos),
+                        "num_fake_videos": len(fake_videos),
+                        "computation_time": flavor_total_time
                     }
                     
                     print(f"   🎉 FVD computation completed in {fvd_compute_time:.2f}s", flush=True)
                     print(f"   📊 FLAVOR RESULTS:", flush=True)
                     print(f"      🏆 FVD Score: {fvd_score:.6f}", flush=True)
                     print(f"      ⏱️  Total time: {flavor_total_time:.2f}s", flush=True)
-                    print(f"      🎬 Real videos processed: {total_real_videos} (batches: {real_batch_count})", flush=True)
-                    print(f"      🤖 Synthetic videos processed: {total_fake_videos} (batches: {fake_batch_count})", flush=True)
-                    print(f"      ⚡ Batch size used: {batch_size} videos per batch", flush=True)
+                    print(f"      🎬 Real videos processed: {len(real_videos)}", flush=True)
+                    print(f"      🤖 Synthetic videos processed: {len(fake_videos)}", flush=True)
                     
                     logger.info("[CD-FVD] %s: %.4f", flavor_key, fvd_score)
                     print(f"[CONSOLE OUTPUT] ✅ {model_name.upper()} CD-FVD COMPUTED: {fvd_score:.6f}", flush=True)
@@ -1147,15 +1088,15 @@ def _collect_artifacts(base_dir: str, stdout: str) -> List[dict]:
                 
                 # Print results to console for key metrics - MANDATORY OUTPUT
                 if name == "fid_results.json" and isinstance(content, dict):
-                    fid_score = content.get('fid_score', content.get('FID', 'N/A'))
+                    fid_score = content.get('FID_Mean_Score', content.get('fid_score', content.get('FID', 'N/A')))
                     print(f"[METRICS RESULT] ✅ FID COMPLETED: Score = {fid_score}", flush=True)
                     print(f"[CONSOLE OUTPUT] FID = {fid_score}", flush=True)
                 elif name == "is_results.json" and isinstance(content, dict):
-                    is_score = content.get('is_score', content.get('IS', 'N/A'))
+                    is_score = content.get('IS_Mean_Score', content.get('is_score', content.get('IS', 'N/A')))
                     print(f"[METRICS RESULT] ✅ IS COMPLETED: Score = {is_score}", flush=True)
                     print(f"[CONSOLE OUTPUT] IS = {is_score}", flush=True)
                 elif name == "fvd_results.json" and isinstance(content, dict):
-                    fvd_score = content.get('fvd_score', content.get('FVD', 'N/A'))
+                    fvd_score = content.get('FVD_Mean_Score', content.get('fvd_score', content.get('FVD', 'N/A')))
                     print(f"[METRICS RESULT] ✅ FVD COMPLETED: Score = {fvd_score}", flush=True)
                     print(f"[CONSOLE OUTPUT] FVD = {fvd_score}", flush=True)
                     
