@@ -209,26 +209,113 @@ def _compute_aigve_metrics(video_dir: str, annotation_file: str, max_len: int = 
     Compute AIGVE FID, IS, and FVD metrics directly - NO TRY-EXCEPT BLOCKS.
     This function MUST compute all metrics and print results to console.
     """
-    print(f"\n" + "="*60)
-    print(f"MANDATORY AIGVE METRICS COMPUTATION STARTING")
-    print(f"="*60)
+    import time
+    start_time = time.time()
+    
+    print(f"\n" + "="*80, flush=True)
+    print(f"🚀 MANDATORY AIGVE METRICS COMPUTATION STARTING", flush=True)
+    print(f"⏰ Start time: {time.strftime('%Y-%m-%d %H:%M:%S')}", flush=True)
+    print(f"="*80, flush=True)
+    
+    print(f"📂 FUNCTION INPUTS:", flush=True)
+    print(f"   🎬 Video directory: {video_dir}", flush=True)
+    print(f"   📋 Annotation file: {annotation_file}", flush=True)
+    print(f"   🎞️  Max frames: {max_len}", flush=True)
+    print(f"   🖥️  Use CPU: {use_cpu}", flush=True)
+    print(f"   🤖 FVD model: {fvd_model or 'default'}", flush=True)
     
     # Import AIGVE components - must succeed
+    print(f"\n📦 IMPORTING AIGVE COMPONENTS...", flush=True)
+    import_start = time.time()
+    
+    print(f"   ⏳ Importing FidDataset...", flush=True)
     from aigve.datasets.fid_dataset import FidDataset
+    print(f"   ✅ FidDataset imported successfully", flush=True)
+    
+    print(f"   ⏳ Importing FIDScore...", flush=True)
     from aigve.metrics.video_quality_assessment.distribution_based.fid.fid_metric import FIDScore
+    print(f"   ✅ FIDScore imported successfully", flush=True)
+    
+    print(f"   ⏳ Importing ISScore...", flush=True)
     from aigve.metrics.video_quality_assessment.distribution_based.is_score.is_metric import ISScore
+    print(f"   ✅ ISScore imported successfully", flush=True)
+    
+    print(f"   ⏳ Importing FVDScore...", flush=True)
     from aigve.metrics.video_quality_assessment.distribution_based.fvd.fvd_metric import FVDScore
+    print(f"   ✅ FVDScore imported successfully", flush=True)
+    
+    import_time = time.time() - import_start
+    print(f"   🎉 All imports completed in {import_time:.2f}s", flush=True)
     
     # Determine device
+    print(f"\n🖥️ DEVICE DETECTION:", flush=True)
+    print(f"   ⏳ Checking CUDA availability...", flush=True)
     device_available = torch.cuda.is_available()
-    use_gpu = not use_cpu and device_available
+    print(f"   🔍 CUDA available: {device_available}", flush=True)
     
-    print(f"[AIGVE METRICS] Video directory: {video_dir}")
-    print(f"[AIGVE METRICS] Annotation file: {annotation_file}")
-    print(f"[AIGVE METRICS] Device: {'cuda' if use_gpu else 'cpu'}")
-    print(f"[AIGVE METRICS] Max frames: {max_len}")
+    if device_available:
+        print(f"   🔍 CUDA device count: {torch.cuda.device_count()}", flush=True)
+        print(f"   🔍 Current CUDA device: {torch.cuda.current_device()}", flush=True)
+        print(f"   🔍 CUDA device name: {torch.cuda.get_device_name()}", flush=True)
+    
+    use_gpu = not use_cpu and device_available
+    final_device = 'cuda' if use_gpu else 'cpu'
+    print(f"   🎯 Final device selection: {final_device}", flush=True)
+    
+    print(f"\n📊 CONFIGURATION SUMMARY:", flush=True)
+    print(f"   🎬 Video directory: {video_dir}", flush=True)
+    print(f"   📋 Annotation file: {annotation_file}", flush=True)
+    print(f"   🖥️  Device: {final_device}", flush=True)
+    print(f"   🎞️  Max frames: {max_len}", flush=True)
     
     # Build dataset - must succeed
+    print(f"\n📊 BUILDING DATASET...", flush=True)
+    dataset_start = time.time()
+    print(f"   ⏳ Creating FidDataset with parameters:", flush=True)
+    print(f"      🎬 video_dir: {video_dir}", flush=True)
+    print(f"      📋 prompt_dir: {annotation_file}", flush=True)
+    print(f"      🎞️  max_len: {max_len}", flush=True)
+    print(f"      📏 if_pad: False", flush=True)
+    
+    # Check if files exist before creating dataset
+    print(f"   🔍 Validating input files...", flush=True)
+    if not os.path.exists(video_dir):
+        print(f"   ❌ Video directory does not exist: {video_dir}", flush=True)
+        raise FileNotFoundError(f"Video directory not found: {video_dir}")
+    else:
+        print(f"   ✅ Video directory exists: {video_dir}", flush=True)
+        
+    if not os.path.exists(annotation_file):
+        print(f"   ❌ Annotation file does not exist: {annotation_file}", flush=True)
+        raise FileNotFoundError(f"Annotation file not found: {annotation_file}")
+    else:
+        print(f"   ✅ Annotation file exists: {annotation_file}", flush=True)
+    
+    # List video files in directory
+    print(f"   📂 Scanning video directory contents...", flush=True)
+    video_extensions = ['.mp4', '.mov', '.avi', '.mkv', '.webm', '.m4v']
+    all_files = os.listdir(video_dir)
+    video_files = [f for f in all_files if any(f.lower().endswith(ext) for ext in video_extensions)]
+    print(f"   📁 Total files in directory: {len(all_files)}", flush=True)
+    print(f"   🎬 Video files found: {len(video_files)}", flush=True)
+    for i, vf in enumerate(video_files):
+        print(f"      {i+1}. {vf}", flush=True)
+    
+    # Check annotation file content
+    print(f"   📋 Reading annotation file...", flush=True)
+    with open(annotation_file, 'r') as f:
+        annotation_data = json.load(f)
+        
+    print(f"   📊 Annotation structure:", flush=True)
+    print(f"      📏 Length: {annotation_data.get('metainfo', {}).get('length', 'unknown')}", flush=True)
+    print(f"      📋 Data list size: {len(annotation_data.get('data_list', []))}", flush=True)
+    
+    for i, item in enumerate(annotation_data.get('data_list', [])[:3]):  # Show first 3 items
+        print(f"      📑 Item {i+1}:", flush=True)
+        print(f"         🎬 GT video: {item.get('video_path_gt', 'unknown')}", flush=True)
+        print(f"         🤖 Generated video: {item.get('video_path_pd', 'unknown')}", flush=True)
+    
+    print(f"   ⏳ Instantiating FidDataset...", flush=True)
     dataset = FidDataset(
         video_dir=str(video_dir),
         prompt_dir=str(annotation_file),
@@ -236,73 +323,194 @@ def _compute_aigve_metrics(video_dir: str, annotation_file: str, max_len: int = 
         if_pad=False
     )
     
-    print(f"[AIGVE METRICS] Dataset loaded: {len(dataset)} samples")
+    dataset_time = time.time() - dataset_start
+    print(f"   ✅ FidDataset created successfully in {dataset_time:.2f}s", flush=True)
+    print(f"   📊 Dataset contains {len(dataset)} samples", flush=True)
+    
+    # Test dataset access
+    print(f"   🧪 Testing dataset access...", flush=True)
+    if len(dataset) > 0:
+        print(f"   ⏳ Loading first sample for validation...", flush=True)
+        try:
+            sample_start = time.time()
+            gt_tensor, gen_tensor, gt_name, gen_name = dataset[0]
+            sample_time = time.time() - sample_start
+            print(f"   ✅ First sample loaded successfully in {sample_time:.2f}s", flush=True)
+            print(f"      🎬 GT tensor shape: {gt_tensor.shape if hasattr(gt_tensor, 'shape') else type(gt_tensor)}", flush=True)
+            print(f"      🤖 Gen tensor shape: {gen_tensor.shape if hasattr(gen_tensor, 'shape') else type(gen_tensor)}", flush=True)
+            print(f"      📝 GT name: {gt_name}", flush=True)
+            print(f"      📝 Gen name: {gen_name}", flush=True)
+        except Exception as e:
+            print(f"   ❌ Failed to load first sample: {e}", flush=True)
+            raise
+    else:
+        print(f"   ⚠️  Dataset is empty!", flush=True)
+        raise ValueError("Dataset contains no samples")
     
     results = {}
     
-    # Helper to iterate dataset samples
+    # Helper to iterate dataset samples with detailed logging
     def iter_samples():
+        print(f"   🔄 Starting dataset iteration...", flush=True)
         for idx in range(len(dataset)):
+            sample_start = time.time()
+            print(f"      ⏳ Loading sample {idx+1}/{len(dataset)}...", flush=True)
             gt_tensor, gen_tensor, gt_name, gen_name = dataset[idx]
+            sample_time = time.time() - sample_start
+            print(f"      ✅ Sample {idx+1} loaded in {sample_time:.3f}s: {gt_name} -> {gen_name}", flush=True)
             yield gt_tensor, gen_tensor, gt_name, gen_name
+        print(f"   🏁 Dataset iteration completed", flush=True)
     
     # COMPUTE FID - NO TRY-EXCEPT
-    print(f"\n[AIGVE METRICS] Computing FID...")
+    print(f"\n🧮 COMPUTING FID METRIC...", flush=True)
+    fid_start = time.time()
+    print(f"   ⏳ Initializing FIDScore metric...", flush=True)
+    print(f"      🖥️  Using GPU: {use_gpu}", flush=True)
+    print(f"      🎯 Device: {final_device}", flush=True)
+    
     fid_metric = FIDScore(is_gpu=use_gpu)
+    print(f"   ✅ FIDScore initialized successfully", flush=True)
     
+    print(f"   🔄 Processing samples for FID computation...", flush=True)
+    sample_count = 0
     for gt_tensor, gen_tensor, gt_name, gen_name in iter_samples():
+        sample_count += 1
+        print(f"      📊 Processing FID sample {sample_count}: {gt_name} vs {gen_name}", flush=True)
         data_samples = ((gt_tensor,), (gen_tensor,), (gt_name,), (gen_name,))
+        print(f"         🔧 Calling fid_metric.process()...", flush=True)
+        process_start = time.time()
         fid_metric.process(data_batch={}, data_samples=data_samples)
+        process_time = time.time() - process_start
+        print(f"         ✅ Sample processed in {process_time:.3f}s", flush=True)
     
+    print(f"   🎯 Computing final FID metrics from {sample_count} samples...", flush=True)
+    compute_start = time.time()
     fid_summary = fid_metric.compute_metrics([])
+    compute_time = time.time() - compute_start
+    print(f"   🎉 FID computation completed in {compute_time:.3f}s", flush=True)
+    
     fid_score = fid_summary.get('FID', fid_summary.get('fid_score', 'UNKNOWN'))
     results['fid'] = {'score': fid_score, 'summary': fid_summary}
     
-    print(f"[CONSOLE OUTPUT] ✅ FID COMPUTED: {fid_score}")
+    fid_total_time = time.time() - fid_start
+    print(f"   📊 FID RESULTS:", flush=True)
+    print(f"      🏆 FID Score: {fid_score}", flush=True)
+    print(f"      ⏱️  Total time: {fid_total_time:.2f}s", flush=True)
+    print(f"      📋 Full summary: {fid_summary}", flush=True)
+    print(f"[CONSOLE OUTPUT] ✅ FID COMPUTED: {fid_score}", flush=True)
     
     # COMPUTE IS - NO TRY-EXCEPT
-    print(f"\n[AIGVE METRICS] Computing IS...")
+    print(f"\n🧮 COMPUTING IS METRIC...", flush=True)
+    is_start = time.time()
+    print(f"   ⏳ Initializing ISScore metric...", flush=True)
+    print(f"      🖥️  Using GPU: {use_gpu}", flush=True)
+    print(f"      🎯 Device: {final_device}", flush=True)
+    
     is_metric = ISScore(is_gpu=use_gpu)
+    print(f"   ✅ ISScore initialized successfully", flush=True)
     
+    print(f"   🔄 Processing samples for IS computation...", flush=True)
+    sample_count = 0
     for _, gen_tensor, _, gen_name in iter_samples():
+        sample_count += 1
+        print(f"      📊 Processing IS sample {sample_count}: {gen_name} (generated only)", flush=True)
         data_samples = ((), (gen_tensor,), (), (gen_name,))
+        print(f"         🔧 Calling is_metric.process()...", flush=True)
+        process_start = time.time()
         is_metric.process(data_batch={}, data_samples=data_samples)
+        process_time = time.time() - process_start
+        print(f"         ✅ Sample processed in {process_time:.3f}s", flush=True)
     
+    print(f"   🎯 Computing final IS metrics from {sample_count} samples...", flush=True)
+    compute_start = time.time()
     is_summary = is_metric.compute_metrics([])
+    compute_time = time.time() - compute_start
+    print(f"   🎉 IS computation completed in {compute_time:.3f}s", flush=True)
+    
     is_score = is_summary.get('IS', is_summary.get('is_score', 'UNKNOWN'))
     results['is'] = {'score': is_score, 'summary': is_summary}
     
-    print(f"[CONSOLE OUTPUT] ✅ IS COMPUTED: {is_score}")
+    is_total_time = time.time() - is_start
+    print(f"   📊 IS RESULTS:", flush=True)
+    print(f"      🏆 IS Score: {is_score}", flush=True)
+    print(f"      ⏱️  Total time: {is_total_time:.2f}s", flush=True)
+    print(f"      📋 Full summary: {is_summary}", flush=True)
+    print(f"[CONSOLE OUTPUT] ✅ IS COMPUTED: {is_score}", flush=True)
     
     # COMPUTE FVD - NO TRY-EXCEPT
-    print(f"\n[AIGVE METRICS] Computing FVD...")
+    print(f"\n🧮 COMPUTING FVD METRIC...", flush=True)
+    fvd_start = time.time()
+    print(f"   ⏳ Determining FVD model path...", flush=True)
     
     if fvd_model:
         model_path = Path(fvd_model).expanduser().resolve()
+        print(f"      📁 Using custom FVD model: {fvd_model}", flush=True)
     else:
         model_path = Path(APP_ROOT) / 'aigve/metrics/video_quality_assessment/distribution_based/fvd/model_rgb.pth'
+        print(f"      📁 Using default FVD model: {model_path}", flush=True)
     
-    print(f"[AIGVE METRICS] FVD model: {model_path}")
+    print(f"   🔍 Checking FVD model file...", flush=True)
+    if model_path.exists():
+        model_size = os.path.getsize(model_path)
+        print(f"   ✅ FVD model file exists: {model_path} ({model_size:,} bytes)", flush=True)
+    else:
+        print(f"   ⚠️  FVD model file not found: {model_path} (will try to proceed)", flush=True)
+    
+    print(f"   ⏳ Initializing FVDScore metric...", flush=True)
+    print(f"      🖥️  Using GPU: {use_gpu}", flush=True)
+    print(f"      🎯 Device: {final_device}", flush=True)
+    print(f"      📁 Model path: {model_path}", flush=True)
+    
     fvd_metric = FVDScore(model_path=str(model_path), is_gpu=use_gpu)
+    print(f"   ✅ FVDScore initialized successfully", flush=True)
     
+    print(f"   🔄 Processing samples for FVD computation...", flush=True)
+    sample_count = 0
     for gt_tensor, gen_tensor, gt_name, gen_name in iter_samples():
+        sample_count += 1
+        print(f"      📊 Processing FVD sample {sample_count}: {gt_name} vs {gen_name}", flush=True)
         data_samples = ((gt_tensor,), (gen_tensor,), (gt_name,), (gen_name,))
+        print(f"         🔧 Calling fvd_metric.process()...", flush=True)
+        process_start = time.time()
         fvd_metric.process(data_batch={}, data_samples=data_samples)
+        process_time = time.time() - process_start
+        print(f"         ✅ Sample processed in {process_time:.3f}s", flush=True)
     
+    print(f"   🎯 Computing final FVD metrics from {sample_count} samples...", flush=True)
+    compute_start = time.time()
     fvd_summary = fvd_metric.compute_metrics([])
+    compute_time = time.time() - compute_start
+    print(f"   🎉 FVD computation completed in {compute_time:.3f}s", flush=True)
+    
     fvd_score = fvd_summary.get('FVD', fvd_summary.get('fvd_score', 'UNKNOWN'))
     results['fvd'] = {'score': fvd_score, 'summary': fvd_summary}
     
-    print(f"[CONSOLE OUTPUT] ✅ FVD COMPUTED: {fvd_score}")
+    fvd_total_time = time.time() - fvd_start
+    print(f"   📊 FVD RESULTS:", flush=True)
+    print(f"      🏆 FVD Score: {fvd_score}", flush=True)
+    print(f"      ⏱️  Total time: {fvd_total_time:.2f}s", flush=True)
+    print(f"      📋 Full summary: {fvd_summary}", flush=True)
+    print(f"[CONSOLE OUTPUT] ✅ FVD COMPUTED: {fvd_score}", flush=True)
     
     # FINAL RESULTS DISPLAY
-    print(f"\n" + "="*60)
-    print(f"MANDATORY AIGVE METRICS RESULTS:")
-    print(f"="*60)
-    print(f"FID Score: {results['fid']['score']}")
-    print(f"IS Score:  {results['is']['score']}")  
-    print(f"FVD Score: {results['fvd']['score']}")
-    print(f"="*60)
+    total_time = time.time() - start_time
+    print(f"\n" + "="*80, flush=True)
+    print(f"🏆 MANDATORY AIGVE METRICS RESULTS SUMMARY", flush=True)
+    print(f"⏰ Completion time: {time.strftime('%Y-%m-%d %H:%M:%S')}", flush=True)
+    print(f"="*80, flush=True)
+    print(f"📊 METRIC SCORES:", flush=True)
+    print(f"   🎯 FID Score:  {results['fid']['score']}", flush=True)
+    print(f"   🎯 IS Score:   {results['is']['score']}", flush=True)  
+    print(f"   🎯 FVD Score:  {results['fvd']['score']}", flush=True)
+    print(f"📈 TIMING BREAKDOWN:", flush=True)
+    print(f"   ⏱️  FID time:   {fid_total_time:.2f}s", flush=True)
+    print(f"   ⏱️  IS time:    {is_total_time:.2f}s", flush=True)
+    print(f"   ⏱️  FVD time:   {fvd_total_time:.2f}s", flush=True)
+    print(f"   ⏱️  Total time: {total_time:.2f}s", flush=True)
+    print(f"🖥️ SYSTEM INFO:", flush=True)
+    print(f"   🎯 Device used: {final_device}", flush=True)
+    print(f"   📊 Samples processed: {len(dataset)}", flush=True)
+    print(f"="*80, flush=True)
     
     return results
 
@@ -664,16 +872,16 @@ def _collect_artifacts(base_dir: str, stdout: str) -> List[dict]:
                 # Print results to console for key metrics - MANDATORY OUTPUT
                 if name == "fid_results.json" and isinstance(content, dict):
                     fid_score = content.get('fid_score', content.get('FID', 'N/A'))
-                    print(f"[METRICS RESULT] ✅ FID COMPLETED: Score = {fid_score}")
-                    print(f"[CONSOLE OUTPUT] FID = {fid_score}")
+                    print(f"[METRICS RESULT] ✅ FID COMPLETED: Score = {fid_score}", flush=True)
+                    print(f"[CONSOLE OUTPUT] FID = {fid_score}", flush=True)
                 elif name == "is_results.json" and isinstance(content, dict):
                     is_score = content.get('is_score', content.get('IS', 'N/A'))
-                    print(f"[METRICS RESULT] ✅ IS COMPLETED: Score = {is_score}")
-                    print(f"[CONSOLE OUTPUT] IS = {is_score}")
+                    print(f"[METRICS RESULT] ✅ IS COMPLETED: Score = {is_score}", flush=True)
+                    print(f"[CONSOLE OUTPUT] IS = {is_score}", flush=True)
                 elif name == "fvd_results.json" and isinstance(content, dict):
                     fvd_score = content.get('fvd_score', content.get('FVD', 'N/A'))
-                    print(f"[METRICS RESULT] ✅ FVD COMPLETED: Score = {fvd_score}")
-                    print(f"[CONSOLE OUTPUT] FVD = {fvd_score}")
+                    print(f"[METRICS RESULT] ✅ FVD COMPLETED: Score = {fvd_score}", flush=True)
+                    print(f"[CONSOLE OUTPUT] FVD = {fvd_score}", flush=True)
                     
             except Exception as e:
                 logger.warning("[Artifacts] Failed to load JSON from %s: %s", name, e)

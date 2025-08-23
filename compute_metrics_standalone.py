@@ -9,17 +9,46 @@ import sys
 import os
 from pathlib import Path
 import json
-import torch
 
 # Add project root to path
 project_root = Path(__file__).resolve().parent
 sys.path.insert(0, str(project_root))
 
-# Import AIGVE metrics
-from aigve.datasets.fid_dataset import FidDataset
-from aigve.metrics.video_quality_assessment.distribution_based.fid.fid_metric import FIDScore
-from aigve.metrics.video_quality_assessment.distribution_based.is_score.is_metric import ISScore
-from aigve.metrics.video_quality_assessment.distribution_based.fvd.fvd_metric import FVDScore
+def check_dependencies():
+    """Check if required dependencies are available."""
+    missing = []
+    
+    try:
+        import torch
+    except ImportError:
+        missing.append("torch")
+        
+    try:
+        import mmengine
+    except ImportError:
+        missing.append("mmengine")
+        
+    try:
+        from aigve.datasets.fid_dataset import FidDataset
+    except ImportError:
+        missing.append("aigve.datasets")
+        
+    if missing:
+        print("❌ MISSING DEPENDENCIES:")
+        for dep in missing:
+            print(f"   - {dep}")
+        print("\n💡 SOLUTION: Run this script in Docker environment:")
+        print("   docker run --gpus all -p 2200:2200 your-image python compute_metrics_standalone.py --help")
+        return False
+    return True
+
+# Only import AIGVE components if dependencies are available
+if check_dependencies():
+    import torch
+    from aigve.datasets.fid_dataset import FidDataset
+    from aigve.metrics.video_quality_assessment.distribution_based.fid.fid_metric import FIDScore
+    from aigve.metrics.video_quality_assessment.distribution_based.is_score.is_metric import ISScore
+    from aigve.metrics.video_quality_assessment.distribution_based.fvd.fvd_metric import FVDScore
 
 
 def compute_all_metrics(video_dir: str, annotation_file: str, max_len: int = 64, 
@@ -166,8 +195,8 @@ def main():
     import argparse
     
     parser = argparse.ArgumentParser(description="Compute FID, IS, and FVD metrics")
-    parser.add_argument("--video-dir", required=True, help="Directory containing videos")
-    parser.add_argument("--annotation-file", required=True, help="JSON annotation file")
+    parser.add_argument("--video-dir", help="Directory containing videos")
+    parser.add_argument("--annotation-file", help="JSON annotation file")
     parser.add_argument("--max-len", type=int, default=64, help="Maximum frames per video")
     parser.add_argument("--use-cpu", action="store_true", help="Force CPU usage")
     parser.add_argument("--fvd-model", help="Path to FVD model checkpoint")
@@ -175,17 +204,29 @@ def main():
     
     args = parser.parse_args()
     
-    # Validate inputs
-    if not os.path.exists(args.video_dir):
+    # Check dependencies first
+    if not check_dependencies():
+        print("\n🐳 This script requires AIGVE dependencies that are installed in Docker.")
+        print("   Use the Docker container to run metrics computation.")
+        sys.exit(1)
+    
+    # Validate inputs if provided
+    if args.video_dir and not os.path.exists(args.video_dir):
         print(f"ERROR: Video directory does not exist: {args.video_dir}")
         sys.exit(1)
         
-    if not os.path.exists(args.annotation_file):
+    if args.annotation_file and not os.path.exists(args.annotation_file):
         print(f"ERROR: Annotation file does not exist: {args.annotation_file}")
+        sys.exit(1)
+    
+    if not args.video_dir or not args.annotation_file:
+        print("ERROR: Both --video-dir and --annotation-file are required")
         sys.exit(1)
     
     # Compute metrics
     print(f"Starting metric computation...")
+    sys.stdout.flush()  # Force output
+    
     results = compute_all_metrics(
         video_dir=args.video_dir,
         annotation_file=args.annotation_file,
@@ -201,6 +242,7 @@ def main():
         print(f"Results saved to: {args.output_json}")
     
     print(f"\nMetric computation completed successfully!")
+    sys.stdout.flush()  # Force output
 
 
 if __name__ == "__main__":
