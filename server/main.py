@@ -769,7 +769,7 @@ def _compute_cdfvd(upload_dir: str, generated_suffixes: str, model: str = "video
             print(f"\n🧮 COMPUTING ALL CD-FVD FLAVORS...", flush=True)
             # Conservative configurations - larger dims to handle cd-fvd internal downsampling
             fast_configs = [
-                ('i3d', 224, 32),        # Conservative: 224x224 resolution, 32 frames - accounts for internal pooling
+                ('i3d', 224, 8),        # Conservative: 224x224 resolution, 32 frames - accounts for internal pooling
                 # ('videomae', 224, 32), # Reliable fallback model - temporarily commented out
             ]
             
