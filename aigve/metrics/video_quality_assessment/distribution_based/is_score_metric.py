@@ -12,7 +12,8 @@ from mmengine.registry import METRICS
 
 
 
-@METRICS.register_module()
+# Register with force=True to be idempotent if imported via multiple paths
+@METRICS.register_module(force=True)
 class ISScore(BaseMetric):
     """
     Inception Score (IS) implementation.

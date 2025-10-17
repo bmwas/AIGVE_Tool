@@ -12,7 +12,8 @@ from mmengine.registry import METRICS
 from typing import Dict, Sequence
 
 
-@METRICS.register_module()
+# Register with force=True to be idempotent if imported via multiple paths
+@METRICS.register_module(force=True)
 class FVDScore(BaseMetric):
     """
     Fréchet Video Distance (FVD) computation using I3D model.

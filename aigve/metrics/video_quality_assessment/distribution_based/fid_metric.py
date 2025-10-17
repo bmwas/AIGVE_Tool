@@ -12,7 +12,8 @@ from typing import Dict, Sequence
 import json, os
 
 
-@METRICS.register_module()
+# Register with force=True to be idempotent if imported via multiple paths
+@METRICS.register_module(force=True)
 class FIDScore(BaseMetric):
 
     def __init__(self, 
