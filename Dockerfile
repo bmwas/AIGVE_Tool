@@ -227,7 +227,7 @@ ENV CDFVD_MODEL_DIR=/app/models/cdfvd/third_party
 USER root
 RUN mkdir -p /app/uploads /app/.cache /app/.local && \
     chmod 777 /app/uploads /app/.cache /app/.local && \
-    chown -R 1000:1000 /app/.local && \
+    chown -R 1000:1000 /app /app/.local /app/uploads /app/.cache && \
     chmod +x /app/entrypoint.sh
 
 # SWITCH TO USER 1000 AND STAY THERE - install everything as normal user

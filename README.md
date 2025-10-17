@@ -936,46 +936,92 @@ Pass the script flags directly to the container. If arguments are provided and t
 
 **Problem**: `PermissionError: [Errno 13] Permission denied: '/app/uploads/...'`
 
-This occurs when running AIGVE in docker-compose with `user: "${UID:-1000}:${GID:-1000}"` because the `/app/uploads` directory is created as root during build but the container runs as a non-root user.
+This occurs when running AIGVE in docker-compose with volume mounts because the host `./uploads` directory may be owned by root, but the container runs as user 1000.
 
-#### ⚡ Quick Fixes
+#### ⚡ Quick Fix (30 seconds)
 
-**Option 1: Volume Mount (Recommended)**
-Add to your docker-compose.yml aigve service:
-```yaml
-volumes:
-  - ./data:/app/data:rw
-  - ./results:/app/results:rw
-  - ./uploads:/app/uploads:rw  # Add this line
+```bash
+# Stop container
+docker-compose stop aigve
+
+# Fix host directory ownership
+sudo chown ${UID:-1000}:${GID:-1000} ./uploads
+sudo chmod 755 ./uploads
+
+# Restart
+docker-compose start aigve
+
+# Verify
+docker-compose logs aigve | grep "Uploads directory is writable"
 ```
 
-Then create the local directory:
+#### 🛡️ Automated Solution (Recommended)
+
+**Before EVERY deployment**, run the pre-startup script:
+
 ```bash
-mkdir -p uploads
-sudo chown ${UID:-1000}:${GID:-1000} uploads
+# Checks/creates all required directories with correct ownership
+bash docker-compose-pre-start.sh
+
+# Then start normally
 docker-compose up -d --force-recreate aigve
 ```
 
-**Option 2: Runtime Fix (Immediate)**
-```bash
-docker-compose exec aigve mkdir -p /app/uploads
-docker-compose exec aigve chown -R 1000:1000 /app/uploads
+This script:
+- ✅ Creates all volume mount directories if missing
+- ✅ Sets correct ownership (${UID}:${GID})
+- ✅ Verifies write permissions
+- ✅ Shows clear fix commands if issues found
+
+#### 📚 Comprehensive Documentation
+
+For detailed solutions specific to your setup:
+- **QUICK_FIX.md** - 30-second immediate fix
+- **DOCKER_COMPOSE_SETUP.md** - Complete docker-compose guide with troubleshooting
+- **DOCKER_PERMISSIONS_FIX.md** - All permission scenarios and solutions
+
+#### 🔍 Understanding the Issue
+
+**Root Cause**: Volume mounts (`./uploads:/app/uploads:rw`) override container permissions with host directory ownership.
+
+**What Happens**:
+1. `docker-compose up` runs
+2. `./uploads` doesn't exist on host
+3. Docker auto-creates it (as root)
+4. Container runs as user 1000
+5. ❌ User 1000 can't write to root-owned directory
+
+**What My Fixes Do**:
+- ✅ Enhanced Dockerfile: Sets proper ownership inside image
+- ✅ Enhanced entrypoint.sh: Detects issues at startup and shows fix commands
+- ✅ Enhanced server/main.py: Logs diagnostic info on API startup
+- ✅ Pre-startup script: Automated directory creation and ownership fix
+- ✅ Runtime fix script: `fix_docker_permissions.sh` for running containers
+
+#### 📋 Prevention Checklist
+
+When using docker-compose:
+- [ ] Always include volume mount: `- ./uploads:/app/uploads:rw`
+- [ ] Run pre-startup script before first deployment
+- [ ] Verify logs show "Uploads directory is writable"
+- [ ] Test with simple upload before production
+
+#### 🎯 Your Docker Compose Configuration
+
+If your docker-compose.yml includes:
+```yaml
+volumes:
+  - ./uploads:/app/uploads:rw
+user: "${UID:-1000}:${GID:-1000}"
 ```
 
-**Option 3: Rebuild Image**
-The Dockerfile has been updated to handle this. Rebuild:
+Then you just need to ensure `./uploads` exists with correct ownership:
 ```bash
-docker-compose build aigve --no-cache
-docker-compose up -d aigve
+mkdir -p uploads
+sudo chown ${UID:-1000}:${GID:-1000} uploads
 ```
 
-#### Root Cause
-The container runs as `user: 1000:1000` but `/app/uploads` was created as root during Docker build. Non-root users cannot create subdirectories in root-owned directories.
-
-#### Prevention
-When using docker-compose with non-root users, always use volume mounts for writable directories:
-- ✅ `./uploads:/app/uploads:rw` - User can write
-- ❌ Container-only paths - Permission denied
+**See DOCKER_COMPOSE_SETUP.md for your specific setup guide.**
 
 ### REST API Reference (server/main.py)
 

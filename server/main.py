@@ -47,6 +47,28 @@ logger.setLevel(os.getenv("AIGVE_LOG_LEVEL", "INFO").upper())
 logger.propagate = False
 
 
+@app.on_event("startup")
+async def startup_event():
+    """Ensure required directories exist at startup"""
+    uploads_dir = os.path.join(APP_ROOT, "uploads")
+    try:
+        os.makedirs(uploads_dir, mode=0o755, exist_ok=True)
+        logger.info("Uploads directory ready: %s", uploads_dir)
+        
+        # Test write permissions
+        test_file = os.path.join(uploads_dir, ".write_test")
+        try:
+            Path(test_file).touch()
+            os.remove(test_file)
+            logger.info("Uploads directory is writable")
+        except Exception as e:
+            logger.error("Uploads directory is NOT writable: %s", e)
+            logger.error("Container user: uid=%d, gid=%d", os.getuid(), os.getgid())
+            logger.error("Directory permissions: %s", oct(os.stat(uploads_dir).st_mode)[-3:])
+    except Exception as e:
+        logger.error("Failed to create uploads directory: %s", e)
+
+
 @app.middleware("http")
 async def _log_requests(request: Request, call_next):
     rid = str(uuid.uuid4())[:8]
