@@ -11,7 +11,8 @@ from mmengine.evaluator import BaseMetric
 from core.registry import METRICS
 from utils import add_git_submodule, submodule_exists
 
-@METRICS.register_module()
+# Register with force=True to avoid duplicate registration on multiple imports
+@METRICS.register_module(force=True)
 class GstVqa(BaseMetric):
     """GstVQA metric modified for the toy dataset. (Supporting 2944-dim features)."""
 

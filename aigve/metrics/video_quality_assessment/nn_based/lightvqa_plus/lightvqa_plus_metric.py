@@ -12,7 +12,8 @@ from core.registry import METRICS
 from typing import Dict
 from utils import add_git_submodule, submodule_exists
 
-@METRICS.register_module()
+# Register with force=True to avoid duplicate registration on multiple imports
+@METRICS.register_module(force=True)
 class LightVQAPlus(BaseMetric):
     """LightVQA+ metric for evaluating video quality."""
     
