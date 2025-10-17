@@ -31,6 +31,37 @@ except ImportError:
     fvd = None  # type: ignore
     cdfvd_available = False
 
+# Cache for AIGVE metric imports to prevent duplicate registry registration
+_aigve_metrics_cache = {}
+
+def _import_aigve_metrics():
+    """
+    Import AIGVE metrics once and cache them to prevent duplicate registry registration.
+    mmengine's registry decorators run at import time, so we must only import once.
+    """
+    if _aigve_metrics_cache:
+        return _aigve_metrics_cache
+    
+    # Note: logger may not be initialized yet, so use print for bootstrap
+    print("[INFO] Importing AIGVE metrics for the first time...", flush=True)
+    
+    try:
+        from aigve.datasets.fid_dataset import FidDataset
+        from aigve.metrics.video_quality_assessment.distribution_based.fid_metric import FIDScore
+        from aigve.metrics.video_quality_assessment.distribution_based.is_score_metric import ISScore
+        from aigve.metrics.video_quality_assessment.distribution_based.fvd.fvd_metric import FVDScore
+        
+        _aigve_metrics_cache['FidDataset'] = FidDataset
+        _aigve_metrics_cache['FIDScore'] = FIDScore
+        _aigve_metrics_cache['ISScore'] = ISScore
+        _aigve_metrics_cache['FVDScore'] = FVDScore
+        
+        print("[INFO] AIGVE metrics imported and cached successfully", flush=True)
+        return _aigve_metrics_cache
+    except Exception as e:
+        print(f"[ERROR] Failed to import AIGVE metrics: {e}", flush=True)
+        raise
+
 APP_ROOT = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
 SCRIPT_PATH = os.path.join(APP_ROOT, "scripts", "prepare_annotations.py")
 
@@ -246,28 +277,18 @@ def _compute_aigve_metrics(video_dir: str, annotation_file: str, max_len: int = 
     print(f"   🖥️  Use CPU: {use_cpu}", flush=True)
     print(f"   🤖 FVD model: {fvd_model or 'default'}", flush=True)
     
-    # Import AIGVE components - must succeed
-    print(f"\n📦 IMPORTING AIGVE COMPONENTS...", flush=True)
+    # Get cached AIGVE components (imports only once to prevent duplicate registry registration)
+    print(f"\n📦 LOADING AIGVE COMPONENTS (cached)...", flush=True)
     import_start = time.time()
     
-    print(f"   ⏳ Importing FidDataset...", flush=True)
-    from aigve.datasets.fid_dataset import FidDataset
-    print(f"   ✅ FidDataset imported successfully", flush=True)
-    
-    print(f"   ⏳ Importing FIDScore...", flush=True)
-    from aigve.metrics.video_quality_assessment.distribution_based.fid_metric import FIDScore
-    print(f"   ✅ FIDScore imported successfully", flush=True)
-    
-    print(f"   ⏳ Importing ISScore...", flush=True)
-    from aigve.metrics.video_quality_assessment.distribution_based.is_score_metric import ISScore
-    print(f"   ✅ ISScore imported successfully", flush=True)
-    
-    print(f"   ⏳ Importing FVDScore...", flush=True)
-    from aigve.metrics.video_quality_assessment.distribution_based.fvd.fvd_metric import FVDScore
-    print(f"   ✅ FVDScore imported successfully", flush=True)
+    metrics = _import_aigve_metrics()
+    FidDataset = metrics['FidDataset']
+    FIDScore = metrics['FIDScore']
+    ISScore = metrics['ISScore']
+    FVDScore = metrics['FVDScore']
     
     import_time = time.time() - import_start
-    print(f"   🎉 All imports completed in {import_time:.2f}s", flush=True)
+    print(f"   ✅ All components loaded in {import_time:.4f}s", flush=True)
     
     # Determine device
     print(f"\n🖥️ DEVICE DETECTION:", flush=True)
