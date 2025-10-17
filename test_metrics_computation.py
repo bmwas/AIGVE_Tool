@@ -63,13 +63,10 @@ def test_imports():
         from aigve.datasets.fid_dataset import FidDataset
         print("[TEST] ✅ FidDataset imported successfully")
         
-        from aigve.metrics.video_quality_assessment.distribution_based.fid.fid_metric import FIDScore
+        # Import from the package level to avoid duplicate registration
+        from aigve.metrics.video_quality_assessment import FIDScore, ISScore, FVDScore
         print("[TEST] ✅ FIDScore imported successfully")
-        
-        from aigve.metrics.video_quality_assessment.distribution_based.is_score.is_metric import ISScore
         print("[TEST] ✅ ISScore imported successfully")
-        
-        from aigve.metrics.video_quality_assessment.distribution_based.fvd.fvd_metric import FVDScore
         print("[TEST] ✅ FVDScore imported successfully")
         
         return True

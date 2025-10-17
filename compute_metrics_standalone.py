@@ -46,9 +46,8 @@ def check_dependencies():
 if check_dependencies():
     import torch
     from aigve.datasets.fid_dataset import FidDataset
-    from aigve.metrics.video_quality_assessment.distribution_based.fid.fid_metric import FIDScore
-    from aigve.metrics.video_quality_assessment.distribution_based.is_score.is_metric import ISScore
-    from aigve.metrics.video_quality_assessment.distribution_based.fvd.fvd_metric import FVDScore
+    # Import from the package level to avoid duplicate registration
+    from aigve.metrics.video_quality_assessment import FIDScore, ISScore, FVDScore
 
 
 def compute_all_metrics(video_dir: str, annotation_file: str, max_len: int = 64, 

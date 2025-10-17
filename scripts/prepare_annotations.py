@@ -293,9 +293,8 @@ def run_reference_metrics(video_dir: Path,
         sys.modules.setdefault("metrics", _metrics)
     # Lazy imports to avoid importing heavy modules unless needed
     from aigve.datasets.fid_dataset import FidDataset
-    from aigve.metrics.video_quality_assessment.distribution_based.fid_metric import FIDScore
-    from aigve.metrics.video_quality_assessment.distribution_based.is_score_metric import ISScore
-    from aigve.metrics.video_quality_assessment.distribution_based.fvd.fvd_metric import FVDScore
+    # Import from the package level to avoid duplicate registration
+    from aigve.metrics.video_quality_assessment import FIDScore, ISScore, FVDScore
     import torch
 
     device_ok = torch.cuda.is_available()

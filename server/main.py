@@ -47,9 +47,8 @@ def _import_aigve_metrics():
     
     try:
         from aigve.datasets.fid_dataset import FidDataset
-        from aigve.metrics.video_quality_assessment.distribution_based.fid_metric import FIDScore
-        from aigve.metrics.video_quality_assessment.distribution_based.is_score_metric import ISScore
-        from aigve.metrics.video_quality_assessment.distribution_based.fvd.fvd_metric import FVDScore
+        # Import from the top-level packages to avoid duplicate registration
+        from aigve.metrics.video_quality_assessment import FIDScore, ISScore, FVDScore
         
         _aigve_metrics_cache['FidDataset'] = FidDataset
         _aigve_metrics_cache['FIDScore'] = FIDScore
