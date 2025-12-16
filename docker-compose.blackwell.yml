@@ -1,0 +1,47 @@
+# Docker Compose configuration for AIGVE Blackwell GPU image
+# This is a parallel configuration to use with Dockerfile.blackwell
+# Optimized for RTX 6000 96GB Blackwell GPU
+
+version: '3.8'
+
+services:
+  aigve-blackwell:
+    image: aigve-blackwell:latest
+    build:
+      context: .
+      dockerfile: Dockerfile.blackwell
+      args:
+        BASE_IMAGE: nvidia/cuda:12.4.0-devel-ubuntu22.04
+    container_name: aigve-blackwell
+    ports:
+      - "2200:2200"
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+      - PORT=2200
+      - REQUIRE_GPU=1
+      - CUDA_HOME=/usr/local/cuda
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    volumes:
+      - ./data:/app/data:rw
+      - ./results:/app/results:rw
+      - ./out:/app/out:rw
+      - ./grid_runs:/app/grid_runs:rw
+      - .:/app/host:rw
+      - ./uploads:/app/uploads:rw  # Critical for upload functionality
+    user: "${UID:-1000}:${GID:-1000}"
+    restart: unless-stopped
+    networks:
+      - multistatic-network
+
+networks:
+  multistatic-network:
+    external: true
+    # If the network doesn't exist, remove 'external: true' and docker-compose will create it
+
