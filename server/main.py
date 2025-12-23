@@ -1336,6 +1336,30 @@ def run_upload(
     """
     rid = getattr(getattr(request, "state", object()), "rid", "-")
     t0 = time.perf_counter()
+    
+    print(f"\n{'='*80}", flush=True)
+    print(f"[SERVER] /run_upload ENDPOINT CALLED", flush=True)
+    print(f"{'='*80}", flush=True)
+    print(f"[SERVER] Request ID: {rid}", flush=True)
+    print(f"[SERVER] Files received: {len(videos or [])} video(s)", flush=True)
+    
+    if videos:
+        for i, v in enumerate(videos):
+            print(f"   [{i+1}] Filename: {v.filename}", flush=True)
+            print(f"       Content-Type: {v.content_type}", flush=True)
+    
+    print(f"\n[SERVER] Request parameters:", flush=True)
+    print(f"   generated_suffixes: '{generated_suffixes}'", flush=True)
+    print(f"   categories: '{categories}'", flush=True)
+    print(f"   metrics: '{metrics}'", flush=True)
+    print(f"   compute: {compute}", flush=True)
+    print(f"   max_len: {max_len}", flush=True)
+    print(f"   max_seconds: {max_seconds}", flush=True)
+    print(f"   fps: {fps}", flush=True)
+    print(f"   use_cpu: {use_cpu}", flush=True)
+    print(f"   cdfvd_all_flavors: {cdfvd_all_flavors}", flush=True)
+    print(f"{'='*80}\n", flush=True)
+    
     logger.info(
         "[%s] /run_upload received %d file(s); generated_suffixes=%s categories=%s metrics=%s compute=%s",
         rid,
@@ -1409,24 +1433,41 @@ def run_upload(
         )
 
     # Validate naming convention for real vs generated videos
+    print(f"\n{'='*60}", flush=True)
+    print(f"[SERVER] VIDEO CLASSIFICATION", flush=True)
+    print(f"{'='*60}", flush=True)
+    
     suffixes = [s.strip().lower() for s in generated_suffixes.split(',') if s.strip()]
-    logger.debug("[%s] Generated video suffixes for validation: %s", rid, suffixes)
+    print(f"[SERVER] Generated suffixes to match: {suffixes}", flush=True)
+    print(f"[SERVER] Valid videos uploaded: {valid_videos}", flush=True)
+    logger.info("[%s] Generated video suffixes for validation: %s", rid, suffixes)
     
     def _is_generated_video(filename: str) -> bool:
         base = filename.lower()
         for suffix in suffixes:
             if suffix in base:
+                print(f"[SERVER] '{filename}' contains suffix '{suffix}' → GENERATED", flush=True)
                 return True
+        print(f"[SERVER] '{filename}' does NOT contain any suffix → REFERENCE (real)", flush=True)
         return False
     
     real_videos = [f for f in valid_videos if not _is_generated_video(f)]
     generated_videos = [f for f in valid_videos if _is_generated_video(f)]
     
+    print(f"\n[SERVER] Classification result:", flush=True)
+    print(f"   Reference (real) videos: {real_videos}", flush=True)
+    print(f"   Generated videos: {generated_videos}", flush=True)
     logger.info("[%s] Video classification: %d real, %d generated", rid, len(real_videos), len(generated_videos))
     logger.debug("[%s] Real videos: %s", rid, real_videos)
     logger.debug("[%s] Generated videos: %s", rid, generated_videos)
     
     if len(real_videos) != 1 or len(generated_videos) != 1:
+        print(f"\n[SERVER ERROR] Invalid video pair!", flush=True)
+        print(f"   Expected: 1 real + 1 generated", flush=True)
+        print(f"   Got: {len(real_videos)} real + {len(generated_videos)} generated", flush=True)
+        print(f"   Suffixes checked: {suffixes}", flush=True)
+        print(f"   Tip: Generated video filename must contain one of: {', '.join(suffixes)}", flush=True)
+        print(f"{'='*60}\n", flush=True)
         logger.error("[%s] Invalid video pair: need exactly 1 real and 1 generated video", rid)
         raise HTTPException(
             status_code=422,
@@ -1437,9 +1478,16 @@ def run_upload(
                 "real_videos": real_videos,
                 "generated_videos": generated_videos,
                 "generated_suffixes": suffixes,
-                "naming_requirement": "Generated video filename must contain one of the suffixes: " + ", ".join(suffixes)
+                "naming_requirement": "Generated video filename must contain one of the suffixes: " + ", ".join(suffixes),
+                "debug_info": {
+                    "all_uploaded_files": valid_videos,
+                    "suffix_check_details": f"Checking if filenames contain any of: {suffixes}"
+                }
             }
         )
+    
+    print(f"[SERVER] ✅ Video pair validated successfully", flush=True)
+    print(f"{'='*60}\n", flush=True)
 
     # Determine stage dataset dir
     if stage_dataset:

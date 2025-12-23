@@ -35,7 +35,10 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
+import shutil
 import sys
+import tempfile
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
@@ -248,13 +251,39 @@ def run_distribution_metrics_upload(
         if len(files_param) != 2:
             raise ValueError(f"Server requires exactly 2 videos, but {len(files_param)} valid files remain after filtering.")
 
-        print(f"[upload] Sending {len(files_param)} files (server requires exactly 2):")
+        print(f"\n{'='*60}", flush=True)
+        print(f"[UPLOAD] Sending {len(files_param)} files to server", flush=True)
+        print(f"{'='*60}", flush=True)
         for _, (fname, _, _) in files_param:
-            print(" -", fname)
-        print(f"[upload] ALL metrics will be computed: FID, IS, FVD (legacy) + CD-FVD (8 flavors)")
-        print(f"[upload] Generated suffixes for pairing: {generated_suffixes}")
+            print(f"   📁 {fname}", flush=True)
+        print(f"\n[UPLOAD] Configuration:", flush=True)
+        print(f"   URL: {url}", flush=True)
+        print(f"   Generated suffixes: '{generated_suffixes}'", flush=True)
+        print(f"   Categories: {categories}", flush=True)
+        print(f"   Max seconds: {max_seconds}", flush=True)
+        print(f"   FPS: {fps}", flush=True)
+        print(f"   CD-FVD all flavors: {cdfvd_all_flavors}", flush=True)
+        print(f"\n[UPLOAD] Form data being sent:", flush=True)
+        for key, value in form_data.items():
+            print(f"   {key}: {value}", flush=True)
+        print(f"\n[UPLOAD] Sending request (timeout: 7200s)...", flush=True)
 
         r = requests.post(url, data=form_data, files=files_param, timeout=7200)
+        
+        print(f"[UPLOAD] Response status code: {r.status_code}", flush=True)
+        
+        if r.status_code != 200:
+            print(f"\n{'='*60}", flush=True)
+            print(f"[ERROR] Server returned error: {r.status_code}", flush=True)
+            print(f"{'='*60}", flush=True)
+            try:
+                error_detail = r.json()
+                print(f"[ERROR] Response JSON:", flush=True)
+                print(json.dumps(error_detail, indent=2), flush=True)
+            except Exception:
+                print(f"[ERROR] Response text: {r.text[:1000]}", flush=True)
+            print(f"{'='*60}\n", flush=True)
+        
         r.raise_for_status()
         return r.json()
     finally:
@@ -359,56 +388,105 @@ def main(argv: list[str] | None = None) -> int:
     base_url = args.base_url
 
     # Handle explicit --reference-video and --generated-video (recommended method)
+    # This creates properly named temp files for server-side pairing
+    temp_dir_to_cleanup = None
+    
     if args.reference_video or args.generated_video:
+        print(f"\n{'='*60}", flush=True)
+        print(f"📹 EXPLICIT VIDEO PAIR MODE", flush=True)
+        print(f"{'='*60}", flush=True)
+        
         if not args.reference_video:
             print("[ERROR] --reference-video is required when using --generated-video", flush=True)
+            print("[DEBUG] args.reference_video = None", flush=True)
+            print("[DEBUG] args.generated_video =", args.generated_video, flush=True)
             sys.exit(1)
         if not args.generated_video:
             print("[ERROR] --generated-video is required when using --reference-video", flush=True)
+            print("[DEBUG] args.reference_video =", args.reference_video, flush=True)
+            print("[DEBUG] args.generated_video = None", flush=True)
             sys.exit(1)
+        
+        # Log full paths
+        print(f"\n[INPUT] Reference video path: {args.reference_video}", flush=True)
+        print(f"[INPUT] Generated video path: {args.generated_video}", flush=True)
         
         # Validate files exist
         if not os.path.exists(args.reference_video):
             print(f"[ERROR] Reference video not found: {args.reference_video}", flush=True)
+            print(f"[DEBUG] os.path.exists() returned False", flush=True)
+            print(f"[DEBUG] Current working directory: {os.getcwd()}", flush=True)
             sys.exit(1)
         if not os.path.exists(args.generated_video):
             print(f"[ERROR] Generated video not found: {args.generated_video}", flush=True)
+            print(f"[DEBUG] os.path.exists() returned False", flush=True)
+            print(f"[DEBUG] Current working directory: {os.getcwd()}", flush=True)
             sys.exit(1)
         
-        print(f"\n📹 Video pair specified explicitly:", flush=True)
-        print(f"   Reference:  {os.path.basename(args.reference_video)}", flush=True)
-        print(f"   Generated:  {os.path.basename(args.generated_video)}", flush=True)
+        # Log file sizes
+        ref_size = os.path.getsize(args.reference_video)
+        gen_size = os.path.getsize(args.generated_video)
+        print(f"\n[VALIDATE] Reference video exists: ✅", flush=True)
+        print(f"           Size: {ref_size / 1024 / 1024:.2f} MB", flush=True)
+        print(f"[VALIDATE] Generated video exists: ✅", flush=True)
+        print(f"           Size: {gen_size / 1024 / 1024:.2f} MB", flush=True)
         
-        # Convert to upload_files format (reference first, then generated)
-        args.upload_files = [args.reference_video, args.generated_video]
+        # Create temp directory with properly named files for server-side pairing
+        # Server expects: basename.mp4 (ref) and basename_generated.mp4 (gen)
+        print(f"\n[PAIRING] Creating properly named temp files for server...", flush=True)
+        print(f"[PAIRING] Server requires: <basename>.mp4 + <basename>_generated.mp4", flush=True)
         
-        # Auto-set generated_suffixes to match the generated video filename
-        # Use a unique marker that's in generated but not in reference
-        ref_name = os.path.basename(args.reference_video).lower()
-        gen_name = os.path.basename(args.generated_video).lower()
-        gen_stem = os.path.splitext(gen_name)[0]
+        temp_dir = tempfile.mkdtemp(prefix="aigve_upload_")
+        temp_dir_to_cleanup = temp_dir
+        print(f"[PAIRING] Temp directory: {temp_dir}", flush=True)
         
-        # Find a unique part of the generated filename
-        import re
-        parts = re.split(r'[_\-\s\.]+', gen_stem)
-        unique_suffix = None
-        for part in parts:
-            if len(part) >= 2 and part not in ref_name:
-                unique_suffix = part
-                break
+        # Get reference video base name (without extension)
+        ref_basename = os.path.splitext(os.path.basename(args.reference_video))[0]
+        ref_ext = os.path.splitext(args.reference_video)[1]
+        gen_ext = os.path.splitext(args.generated_video)[1]
         
-        if unique_suffix:
-            args.generated_suffixes = unique_suffix
-            print(f"   Auto-suffix: '{unique_suffix}' (identifies generated video)", flush=True)
+        print(f"[PAIRING] Reference basename: '{ref_basename}'", flush=True)
+        print(f"[PAIRING] Reference extension: '{ref_ext}'", flush=True)
+        print(f"[PAIRING] Generated extension: '{gen_ext}'", flush=True)
+        
+        # Create properly named copies
+        ref_temp = os.path.join(temp_dir, f"{ref_basename}{ref_ext}")
+        gen_temp = os.path.join(temp_dir, f"{ref_basename}_generated{gen_ext}")
+        
+        print(f"\n[PAIRING] Creating paired files:", flush=True)
+        print(f"          Reference: {os.path.basename(ref_temp)}", flush=True)
+        print(f"          Generated: {os.path.basename(gen_temp)}", flush=True)
+        
+        print(f"\n[COPY] Copying reference video...", flush=True)
+        shutil.copy2(args.reference_video, ref_temp)
+        print(f"[COPY] ✅ Reference copied: {ref_temp}", flush=True)
+        
+        print(f"[COPY] Copying generated video...", flush=True)
+        shutil.copy2(args.generated_video, gen_temp)
+        print(f"[COPY] ✅ Generated copied: {gen_temp}", flush=True)
+        
+        # Verify copies
+        if os.path.exists(ref_temp) and os.path.exists(gen_temp):
+            print(f"\n[VERIFY] Both temp files created successfully ✅", flush=True)
+            print(f"         Reference: {os.path.getsize(ref_temp)} bytes", flush=True)
+            print(f"         Generated: {os.path.getsize(gen_temp)} bytes", flush=True)
         else:
-            # Fallback: use entire generated stem
-            args.generated_suffixes = gen_stem
-            print(f"   Auto-suffix: '{gen_stem}' (full filename)", flush=True)
+            print(f"[ERROR] Failed to create temp files!", flush=True)
+            sys.exit(1)
+        
+        # Use temp files for upload
+        args.upload_files = [ref_temp, gen_temp]
+        args.generated_suffixes = "generated"
+        
+        print(f"\n[CONFIG] Upload files set to: {[os.path.basename(f) for f in args.upload_files]}", flush=True)
+        print(f"[CONFIG] Generated suffix set to: '{args.generated_suffixes}'", flush=True)
         
         # Enable auto-detect by default when using explicit video pair
         if args.fps is None and args.max_seconds is None:
             args.auto_detect = True
-            print(f"   Auto-detect: enabled (FPS and duration from reference)", flush=True)
+            print(f"[CONFIG] Auto-detect enabled (FPS and duration from reference)", flush=True)
+        
+        print(f"{'='*60}\n", flush=True)
 
     # 1) Health
     print(f"\n[1/3] Checking health at {base_url}/healthz ...", flush=True)
@@ -513,7 +591,6 @@ def main(argv: list[str] | None = None) -> int:
         
         # Split second video name into parts and find one NOT in first video name
         # Try splitting by common delimiters
-        import re
         parts = re.split(r'[_\-\s\.]+', second_stem)
         
         unique_suffix = None
@@ -722,6 +799,14 @@ def main(argv: list[str] | None = None) -> int:
             print(f"\n[artifacts] CD-FVD results saved to {cdfvd_path}")
     except Exception as e:
         print(f"[artifacts] Error while saving artifacts: {e}", flush=True)
+
+    # Cleanup temp directory if we created one
+    if temp_dir_to_cleanup and os.path.exists(temp_dir_to_cleanup):
+        try:
+            shutil.rmtree(temp_dir_to_cleanup)
+            print(f"[cleanup] Removed temp directory", flush=True)
+        except Exception as e:
+            print(f"[cleanup] Failed to remove temp directory: {e}", flush=True)
 
     rc = int(result.get("returncode", 0) or 0)
     return rc
