@@ -7,6 +7,7 @@ import torch
 import numpy as np
 from torch.utils.data import Dataset
 from torchvision import transforms
+import torch.nn.functional as F
 from PIL import Image
 import torch.nn as nn
 from functools import lru_cache
@@ -27,6 +28,7 @@ class FidDataset(Dataset):
     For each sample, this dataset:
         - Loads both the ground-truth (real) and generated (predicted) videos.
         - Converts each video into a tensor of shape [T, C, H, W] using OpenCV.
+        - **Resizes the generated video to match the reference video's resolution.**
         - Optionally pads or truncates videos to a fixed number of frames.
 
     Args:
@@ -34,15 +36,17 @@ class FidDataset(Dataset):
         prompt_dir (str): Path to JSON file that lists ground-truth and generated video filenames.
         max_len (int): Maximum number of frames to load per video. Default: 500.
         if_pad (bool): Whether to pad videos to exactly `max_len` frames. If False, videos can have variable lengths.
+        match_resolution (bool): If True, resize generated video to match reference resolution. Default: True.
     """
 
-    def __init__(self, video_dir, prompt_dir, max_len=500, if_pad=False):
+    def __init__(self, video_dir, prompt_dir, max_len=500, if_pad=False, match_resolution=True):
         super(FidDataset, self).__init__()
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.video_dir = video_dir
         self.prompt_dir = prompt_dir
         self.max_len = max_len
         self.if_pad = if_pad
+        self.match_resolution = match_resolution
 
         self.gt_video_names, self.gen_video_names = self._read_video_names()
 
@@ -53,6 +57,34 @@ class FidDataset(Dataset):
             gt_video_names = [item['video_path_gt'].strip() for item in read_data["data_list"]]
             gen_video_names = [item['video_path_pd'].strip() for item in read_data["data_list"]]
         return gt_video_names, gen_video_names
+    
+    def _resize_video_tensor(self, video_tensor: torch.Tensor, target_h: int, target_w: int) -> torch.Tensor:
+        """
+        Resize a video tensor to target resolution.
+        
+        Args:
+            video_tensor (torch.Tensor): Video tensor of shape [T, C, H, W].
+            target_h (int): Target height.
+            target_w (int): Target width.
+            
+        Returns:
+            torch.Tensor: Resized video tensor of shape [T, C, target_h, target_w].
+        """
+        # video_tensor shape: [T, C, H, W]
+        T, C, H, W = video_tensor.shape
+        
+        if H == target_h and W == target_w:
+            return video_tensor
+        
+        # Use bilinear interpolation for resizing
+        # F.interpolate expects [N, C, H, W], so we treat T as batch dimension
+        resized = F.interpolate(
+            video_tensor, 
+            size=(target_h, target_w), 
+            mode='bilinear', 
+            align_corners=False
+        )
+        return resized
     
     def _load_video_tensor(self, video_path: str) -> torch.Tensor:
         """Load a video and return its tensor of shape [T, C, H, W]."""
@@ -94,7 +126,7 @@ class FidDataset(Dataset):
         Returns:
             Tuple[torch.Tensor, torch.Tensor, str, str]: 
                 - Ground-truth (Real) video tensor of shape [T, C, H, W].
-                - Generated video tensor of shape [T, C, H, W].
+                - Generated video tensor of shape [T, C, H, W] (resized to match GT if match_resolution=True).
                 - Ground-truth video name.
                 - Generated video name.
         """
@@ -105,6 +137,15 @@ class FidDataset(Dataset):
 
         gt_video_tensor = self._load_video_tensor(gt_video_path)
         gen_video_tensor = self._load_video_tensor(gen_video_path)
+        
+        # Resize generated video to match reference video resolution if needed
+        if self.match_resolution:
+            _, _, gt_h, gt_w = gt_video_tensor.shape
+            _, _, gen_h, gen_w = gen_video_tensor.shape
+            
+            if gt_h != gen_h or gt_w != gen_w:
+                print(f"[FID] Resizing generated video from {gen_h}x{gen_w} to {gt_h}x{gt_w} to match reference")
+                gen_video_tensor = self._resize_video_tensor(gen_video_tensor, gt_h, gt_w)
 
         return gt_video_tensor, gen_video_tensor, gt_video_name, gen_video_name
    
