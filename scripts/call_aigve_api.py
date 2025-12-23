@@ -295,6 +295,7 @@ def run_distribution_metrics_upload(
 
 
 def save_artifacts_locally(result: Dict[str, Any], save_dir: str) -> list[str]:
+    """Save artifacts locally and return list of saved file paths."""
     artifacts = result.get("artifacts") or []
     if not artifacts:
         print("[artifacts] No artifacts returned by server.", flush=True)
@@ -312,14 +313,18 @@ def save_artifacts_locally(result: Dict[str, Any], save_dir: str) -> list[str]:
         
         if isinstance(art.get("json"), (dict, list)):
             content = json.dumps(art["json"], indent=2)
-            print(f"[artifacts] Found json field for {name}, content preview: {content[:200] if content else 'EMPTY'}", flush=True)
+            print(f"[artifacts] Found json field for {name}", flush=True)
         elif isinstance(art.get("text"), str):
             content = art["text"]
             print(f"[artifacts] Found text field for {name}", flush=True)
+        elif isinstance(art.get("content"), (dict, list)):
+            # Handle content field when it's a parsed JSON object (dict/list)
+            content = json.dumps(art["content"], indent=2)
+            print(f"[artifacts] Found content field (JSON) for {name}", flush=True)
         elif isinstance(art.get("content"), str):
-            # Handle content field (for CD-FVD results)
+            # Handle content field when it's a string
             content = art["content"]
-            print(f"[artifacts] Found content field for {name}, length={len(content)}", flush=True)
+            print(f"[artifacts] Found content field (string) for {name}, length={len(content)}", flush=True)
         # Skip if no readable content
         if content is None:
             print(f"[artifacts] Skipping {name} - no readable content found", flush=True)
@@ -335,6 +340,106 @@ def save_artifacts_locally(result: Dict[str, Any], save_dir: str) -> list[str]:
         for p in saved:
             print(" -", p)
     return saved
+
+
+def extract_and_print_metrics(result: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Extract metric scores from artifacts and result data, print them prominently.
+    Returns a dict of metric_name -> score for easy access.
+    """
+    metrics_summary: Dict[str, Any] = {}
+    artifacts = result.get("artifacts") or []
+    
+    print("\n" + "=" * 60, flush=True)
+    print("📊 METRIC RESULTS", flush=True)
+    print("=" * 60, flush=True)
+    
+    # Define metric file mappings
+    metric_files = {
+        "fid_results.json": ("FID", "FID_Mean_Score"),
+        "is_results.json": ("IS", "IS_Mean_Score"),
+        "fvd_results.json": ("FVD", "FVD_Mean_Score"),
+    }
+    
+    found_any = False
+    
+    # Extract from artifacts
+    for art in artifacts:
+        name = art.get("name", "")
+        if name in metric_files:
+            metric_label, score_key = metric_files[name]
+            # Content can be dict/list (parsed JSON) or the "json" field
+            content = art.get("content") or art.get("json")
+            if isinstance(content, dict):
+                score = content.get(score_key)
+                if score is not None:
+                    metrics_summary[metric_label] = score
+                    found_any = True
+                    # Format nicely
+                    if isinstance(score, float):
+                        if abs(score) > 1e6 or abs(score) < 1e-3:
+                            score_str = f"{score:.6e}"
+                        else:
+                            score_str = f"{score:.4f}"
+                    else:
+                        score_str = str(score)
+                    print(f"   {metric_label}: {score_str}", flush=True)
+    
+    # Also check for CD-FVD results
+    if "cdfvd_results" in result:
+        cdfvd = result["cdfvd_results"]
+        if isinstance(cdfvd, dict):
+            print("\n   CD-FVD Results:", flush=True)
+            for model, model_data in cdfvd.items():
+                if isinstance(model_data, dict):
+                    if "error" in model_data:
+                        print(f"      {model}: ERROR - {model_data['error']}", flush=True)
+                    elif "flavors" in model_data:
+                        # New all-flavors format
+                        for flavor_key, flavor_data in model_data["flavors"].items():
+                            if "error" in flavor_data:
+                                print(f"      {model}/{flavor_key}: ERROR - {flavor_data['error']}", flush=True)
+                            else:
+                                fvd_score = flavor_data.get("fvd_score", "N/A")
+                                metrics_summary[f"CD-FVD_{model}_{flavor_key}"] = fvd_score
+                                found_any = True
+                                print(f"      {model}/{flavor_key}: {fvd_score}", flush=True)
+                    elif "fvd_score" in model_data:
+                        # Single score format
+                        fvd_score = model_data["fvd_score"]
+                        metrics_summary[f"CD-FVD_{model}"] = fvd_score
+                        found_any = True
+                        print(f"      {model}: {fvd_score}", flush=True)
+    
+    if not found_any:
+        print("   ⚠️  No metric scores extracted from artifacts", flush=True)
+        print("   Check server logs for computation details", flush=True)
+        
+        # Try to extract from stdout as fallback
+        stdout = result.get("stdout", "")
+        if stdout:
+            import re
+            # Look for patterns like "FID mean score: X" or "FVD Score: X"
+            patterns = [
+                (r'FID mean score:\s*([-\d.eE+]+)', 'FID'),
+                (r'IS mean score:\s*([-\d.eE+]+)', 'IS'),
+                (r'FVD mean score:\s*([-\d.eE+]+)', 'FVD'),
+            ]
+            print("\n   Extracted from stdout:", flush=True)
+            for pattern, label in patterns:
+                match = re.search(pattern, stdout)
+                if match:
+                    try:
+                        score = float(match.group(1))
+                        metrics_summary[label] = score
+                        print(f"      {label}: {score}", flush=True)
+                        found_any = True
+                    except ValueError:
+                        pass
+    
+    print("=" * 60, flush=True)
+    
+    return metrics_summary
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -680,103 +785,10 @@ def main(argv: list[str] | None = None) -> int:
     if stderr:
         print("\nstderr (last 40 lines):\n" + tail(stderr, 40))
 
-    # Print ALL metric results
-    print("\n--- ALL METRICS RESULTS ---")
-    
-    # Legacy metrics summary
-    artifacts = result.get("artifacts", [])
-    legacy_metrics_found = []
-    for art in artifacts:
-        name = art.get("name", "")
-        if name in ["fid_results.json", "is_results.json", "fvd_results.json"]:
-            legacy_metrics_found.append(name.replace("_results.json", "").upper())
-    
-    if legacy_metrics_found:
-        print(f"Legacy metrics computed: {', '.join(legacy_metrics_found)}")
-    else:
-        print("Legacy metrics: No results found (check script execution)")
-    
-    # CD-FVD results (all flavors or legacy models)
-    if "cdfvd_results" in result:
-        print("\n--- CD-FVD Results ---")
-        cdfvd_results = result["cdfvd_results"]
-        
-        # Check if this is the new all-flavors format
-        if isinstance(cdfvd_results, dict) and any("flavors" in res for res in cdfvd_results.values() if isinstance(res, dict)):
-            # New all-flavors format: each model contains a "flavors" dict
-            successful_flavors = 0
-            total_flavors = 0
-            
-            for model, model_result in cdfvd_results.items():
-                if "error" in model_result:
-                    print(f"\n{model.upper()} Model: ❌ ERROR - {model_result['error']}")
-                    continue
-                    
-                flavors = model_result.get("flavors", {})
-                if not flavors:
-                    continue
-                    
-                print(f"\n{model.upper()} Model - All Flavors:")
-                for flavor_key, flavor_result in flavors.items():
-                    total_flavors += 1
-                    if "error" in flavor_result:
-                        print(f"  {flavor_key}: ❌ ERROR - {flavor_result['error']}")
-                    else:
-                        successful_flavors += 1
-                        fvd_score = flavor_result.get('fvd_score', 'N/A')
-                        print(f"  {flavor_key}: ✅ {fvd_score}")
-            
-            print(f"\nCD-FVD Summary: {successful_flavors}/{total_flavors} flavors successful")
-            
-        elif isinstance(cdfvd_results, dict) and "flavors" in cdfvd_results:
-            # Single all-flavors result format
-            flavors = cdfvd_results["flavors"]
-            successful_flavors = 0
-            total_flavors = len(flavors)
-            
-            print("All FVD Flavors:")
-            for flavor_key, flavor_result in flavors.items():
-                if "error" in flavor_result:
-                    print(f"  {flavor_key}: ❌ ERROR - {flavor_result['error']}")
-                else:
-                    successful_flavors += 1
-                    fvd_score = flavor_result.get('fvd_score', 'N/A')
-                    model = flavor_result.get('model', '')
-                    res = flavor_result.get('resolution', '')
-                    seq = flavor_result.get('sequence_length', '')
-                    print(f"  {flavor_key}: ✅ {fvd_score} (model={model}, res={res}, seq={seq})")
-            
-            print(f"\nCD-FVD Summary: {successful_flavors}/{total_flavors} flavors successful")
-            
-        else:
-            # Legacy format: individual model results
-            successful_models = 0
-            total_models = len(cdfvd_results)
-            
-            for model, cdfvd_res in cdfvd_results.items():
-                if "error" in cdfvd_res:
-                    print(f"\n{model.upper()} Model: ❌ ERROR - {cdfvd_res['error']}")
-                    if "attempts" in cdfvd_res:
-                        print(f"  Failed after {cdfvd_res['attempts']} attempts")
-                else:
-                    successful_models += 1
-                    print(f"\n{model.upper()} Model: ✅ SUCCESS")
-                    print(f"  FVD Score: {cdfvd_res.get('fvd_score', 'N/A')}")
-                    print(f"  Real Videos: {cdfvd_res.get('num_real_videos', 'N/A')}")
-                    print(f"  Fake Videos: {cdfvd_res.get('num_fake_videos', 'N/A')}")
-                    # If server returned length metadata, show it
-                    if "max_seconds" in cdfvd_res:
-                        ms = cdfvd_res.get("max_seconds")
-                        fps_v = cdfvd_res.get("fps")
-                        max_len = cdfvd_res.get("max_len")
-                        if fps_v is not None and max_len is not None:
-                            print(f"  Clip: {ms} s at {fps_v} fps (~{max_len} frames)")
-                        else:
-                            print(f"  Clip: {ms} s")
-            
-            print(f"\nCD-FVD Summary: {successful_models}/{total_models} models successful")
-    elif "cdfvd_error" in result:
-        print(f"\n❌ CD-FVD Error: {result['cdfvd_error']}")
+    # ========================================
+    # EXTRACT AND PRINT ALL METRIC RESULTS
+    # ========================================
+    metrics_summary = extract_and_print_metrics(result)
     
     # Processing summary if available
     if "processing_summary" in result:
