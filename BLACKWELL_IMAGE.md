@@ -60,13 +60,13 @@ docker-compose -f docker-compose.blackwell.yml down
 #### Basic Run
 
 ```bash
-docker run --gpus all -p 2200:2200 aigve-blackwell:latest
+docker run --gpus '"device=0"' -p 2200:2200 aigve-blackwell:latest
 ```
 
 #### With Volume Mounts
 
 ```bash
-docker run --gpus all \
+docker run --gpus '"device=0"' \
     -p 2200:2200 \
     -v $(pwd)/data:/app/data \
     -v $(pwd)/results:/app/results \
@@ -77,7 +77,7 @@ docker run --gpus all \
 #### Interactive Shell
 
 ```bash
-docker run --gpus all -it --entrypoint /bin/bash aigve-blackwell:latest
+docker run --gpus '"device=0"' -it --entrypoint /bin/bash aigve-blackwell:latest
 ```
 
 ## Verifying CUDA and PyTorch
@@ -115,7 +115,7 @@ You should see:
 If `torch.cuda.is_available()` returns `False`:
 
 1. Verify NVIDIA drivers are installed: `nvidia-smi`
-2. Ensure Docker has GPU access: `docker run --rm --gpus all nvidia/cuda:12.4.0-base-ubuntu22.04 nvidia-smi`
+2. Ensure Docker has GPU access: `docker run --rm --gpus '"device=0"' nvidia/cuda:12.4.0-base-ubuntu22.04 nvidia-smi`
 3. Check that the NVIDIA Container Toolkit is installed
 
 ### Build Failures

@@ -123,14 +123,14 @@ If running with `docker run`:
 
 ```bash
 # Option A: Let container use built-in user (recommended)
-docker run --rm --gpus all -p 2200:2200 \
+docker run --rm --gpus '"device=1"' -p 2200:2200 \
   -v "$PWD/data":/app/data \
   -v "$PWD/results":/app/results \
   -v "$PWD/uploads":/app/uploads \
   ghcr.io/bmwas/aigve:latest
 
 # Option B: Run as root (not recommended for production)
-docker run --rm --gpus all -p 2200:2200 \
+docker run --rm --gpus '"device=1"' -p 2200:2200 \
   --user root \
   -v "$PWD/data":/app/data \
   -v "$PWD/results":/app/results \

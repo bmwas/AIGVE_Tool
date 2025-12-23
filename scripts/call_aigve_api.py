@@ -14,7 +14,7 @@ Assumptions
 - Your host folder ./data is mounted into the container at /app/data.
   Example container run (GPU):
     docker run -d --name aigve --restart unless-stopped \
-      --gpus all -p 2200:2200 \
+      --gpus '"device=1"' -p 2200:2200 \
       -v "$PWD/data":/app/data -v "$PWD/out":/app/out \
       ghcr.io/bmwas/aigve:latest
 

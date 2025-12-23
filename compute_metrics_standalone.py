@@ -38,7 +38,7 @@ def check_dependencies():
         for dep in missing:
             print(f"   - {dep}")
         print("\n💡 SOLUTION: Run this script in Docker environment:")
-        print("   docker run --gpus all -p 2200:2200 your-image python compute_metrics_standalone.py --help")
+        print("   docker run --gpus '\"device=1\"' -p 2200:2200 your-image python compute_metrics_standalone.py --help")
         return False
     return True
 

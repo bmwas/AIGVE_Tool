@@ -59,7 +59,7 @@ python3 -c "import torch; print(f'PyTorch: {torch.__version__}, CUDA available: 
 if [[ "$REQUIRE_GPU" == "1" ]]; then
   if ! python3 -c "import torch; assert torch.cuda.is_available(), 'CUDA not available'"; then
     echo "[FATAL] GPU required but CUDA not available" >&2
-    echo "        Ensure you run with: docker run --gpus all ..." >&2
+    echo "        Ensure you run with: docker run --gpus '\"device=1\"' ..." >&2
     nvidia-smi -L || echo "nvidia-smi not available" >&2
     exit 1
   fi

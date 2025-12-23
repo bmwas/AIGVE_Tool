@@ -22,7 +22,7 @@ docker-compose -f docker-compose.blackwell.yml logs -f
 ## Run with Docker
 
 ```bash
-docker run --gpus all -p 2200:2200 \
+docker run --gpus '"device=0"' -p 2200:2200 \
     -v $(pwd)/data:/app/data \
     -v $(pwd)/uploads:/app/uploads \
     aigve-blackwell:latest

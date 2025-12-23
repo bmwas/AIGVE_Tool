@@ -452,7 +452,7 @@ This project ships with a Dockerized, conda-based environment that supports both
 
 ### Prerequisites
 - Docker installed
-- For GPU support: NVIDIA driver + NVIDIA Container Toolkit (host) and `--gpus all` at runtime
+- For GPU support: NVIDIA driver + NVIDIA Container Toolkit (host) and `--gpus '"device=1"'` at runtime (use device=0 or all for other GPU configurations)
 
 ### Build the image
 - GPU (default and required):
@@ -463,7 +463,7 @@ This project ships with a Dockerized, conda-based environment that supports both
 ### Run the API server (default, port 2200)
 - GPU (required):
   ```bash
-  docker run --rm --gpus all -p 2200:2200 \
+  docker run --rm --gpus '"device=1"' -p 2200:2200 \
     -v "$PWD/data":/app/data -v "$PWD/out":/app/out \
     ghcr.io/bmwas/aigve:latest
   # Open docs: http://localhost:2200/docs
@@ -474,7 +474,7 @@ This project ships with a Dockerized, conda-based environment that supports both
   ```
 - Extra Uvicorn options (workers, log level):
   ```bash
-  docker run --rm --gpus all -p 2200:2200 ghcr.io/bmwas/aigve:latest api --workers 2 --log-level info
+  docker run --rm --gpus '"device=1"' -p 2200:2200 ghcr.io/bmwas/aigve:latest api --workers 2 --log-level info
   ```
 
 - GPU requirement behavior:
@@ -482,7 +482,7 @@ This project ships with a Dockerized, conda-based environment that supports both
   - To bypass for debugging (not recommended): set `-e REQUIRE_GPU=0` when running the container.
   Notes:
   - The container logs print a CUDA check JSON at startup (from `torch`), e.g. `{ "cuda_available": true, ... }`.
-  - If CUDA is not available (e.g., missing `--gpus all` or drivers/toolkit), the container exits with a fatal message unless you explicitly set `REQUIRE_GPU=0`.
+  - If CUDA is not available (e.g., missing `--gpus '"device=1"'` or drivers/toolkit), the container exits with a fatal message unless you explicitly set `REQUIRE_GPU=0`.
 
 ### Call the API
 - __Health__
@@ -527,7 +527,7 @@ Use the included Python client to call the REST API and run distribution-based m
 - Start the API container (GPU):
   ```bash
   docker run -d --name aigve --restart unless-stopped \
-    --gpus all -p 2200:2200 \
+    --gpus '"device=1"' -p 2200:2200 \
     -v "$PWD/data":/app/data -v "$PWD/out":/app/out \
     ghcr.io/bmwas/aigve:latest
   # Docs: http://localhost:2200/docs
@@ -918,7 +918,7 @@ Pass the script flags directly to the container. If arguments are provided and t
 
 - Example (GPU):
   ```bash
-  docker run --rm --gpus all \
+  docker run --rm --gpus '"device=1"' \
     -v "$PWD/data":/app/data -v "$PWD/out":/app/out \
     ghcr.io/bmwas/aigve:latest \
       --input-dir /app/data \
