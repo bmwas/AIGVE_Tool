@@ -534,7 +534,14 @@ def main():
     # Optionally run metrics
     if args.compute:
         # Merge categories and explicit metrics into one CSV, then expand
-        combined_spec = ",".join(v for v in [args.categories, args.metrics] if v)
+        # BUT: if --categories is provided, ignore the default --metrics "all"
+        # to avoid accidentally adding distribution_based metrics
+        metrics_arg = args.metrics
+        if args.categories and metrics_arg == "all":
+            # User specified categories but didn't explicitly set --metrics
+            # Don't add the default "all" (which expands to distribution_based)
+            metrics_arg = ""
+        combined_spec = ",".join(v for v in [args.categories, metrics_arg] if v)
         metrics_list = _parse_metrics_list(combined_spec)
         if not metrics_list:
             print("[INFO] --compute set but no metrics selected; skipping evaluation.")
