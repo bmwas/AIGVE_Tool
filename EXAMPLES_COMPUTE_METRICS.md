@@ -15,44 +15,52 @@ docker run -d --name aigve --restart unless-stopped \
     -v "$PWD/data":/app/data -v "$PWD/out":/app/out \
     ghcr.io/bmwas/aigve:latest
 
-# 2. Upload your two videos directly and compute all metrics
+# 2. Compute metrics with explicit video paths (RECOMMENDED!)
 python scripts/call_aigve_api.py \
-    --upload-files ./reference_video.mp4 ./generated_video.mp4 \
-    --max-seconds 8 \
-    --fps 25 \
+    --reference-video ./my_real_video.mp4 \
+    --generated-video ./my_ai_generated_video.mp4 \
     --categories distribution_based
 ```
 
-**⭐ NEW: Auto-detect FPS and duration from reference video!**
-
-```bash
-# Automatically use the reference video's FPS and full duration
-# IMPORTANT: The FIRST video is always the reference video!
-python scripts/call_aigve_api.py \
-    --upload-files ./reference_video.mp4 ./generated_video.mp4 \
-    --auto-detect \
-    --categories distribution_based
-```
-
-This will:
-- ✅ **First video = reference video** (always!)
-- ✅ Detect FPS from the reference video automatically
-- ✅ Use the full duration of the reference video
-- ✅ No need to specify `--max-seconds` or `--fps` manually!
+**That's it!** This will automatically:
+- ✅ Detect FPS from the reference video
+- ✅ Use the full duration of the reference video  
+- ✅ Handle naming/pairing automatically
+- ✅ Compute all metrics (FID, IS, FVD, CD-FVD)
 
 **Output example:**
 ```
-[auto-detect] First video is treated as reference: reference_video.mp4
-[auto-detect] Reading video properties from: reference_video.mp4
+📹 Video pair specified explicitly:
+   Reference:  my_real_video.mp4
+   Generated:  my_ai_generated_video.mp4
+   Auto-suffix: 'generated' (identifies generated video)
+   Auto-detect: enabled (FPS and duration from reference)
+
 [auto-detect] ✅ Detected properties:
               FPS: 30.00
               Duration: 12.50 seconds
               Total frames: 375
-[auto-detect] Using detected FPS: 30.00
-[auto-detect] Using full video duration: 12.50 seconds (375 frames)
 ```
 
-**Important:** The generated video filename should contain "synthetic" or "generated" (or use `--generated-suffixes` to customize).
+### Short form (using aliases):
+
+```bash
+python scripts/call_aigve_api.py \
+    --ref ./reference.mp4 \
+    --gen ./generated.mp4 \
+    --categories distribution_based
+```
+
+### Limit duration (optional):
+
+```bash
+# Use only first 5 seconds of the video
+python scripts/call_aigve_api.py \
+    --reference-video ./reference.mp4 \
+    --generated-video ./generated.mp4 \
+    --max-seconds 5 \
+    --categories distribution_based
+```
 
 ### Using curl (Direct API Call)
 
@@ -253,41 +261,38 @@ docker run -d --name aigve --restart unless-stopped \
 
 ### Step 2: Compute Metrics via API
 
-#### Option A: Upload Videos Directly (⭐ RECOMMENDED for individual videos)
+#### Option A: Explicit Video Pair (⭐ RECOMMENDED)
 
-**This is perfect when you have just a reference video and a generated video!**
-
-```bash
-# Upload 2 videos directly (reference + generated) and compute all metrics
-python scripts/call_aigve_api.py \
-    --upload-files ./reference_video.mp4 ./generated_video.mp4 \
-    --max-seconds 8 \
-    --fps 25 \
-    --categories distribution_based
-```
-
-**⭐ Auto-detect from reference video (NEW!):**
+**This is the simplest and most intuitive method!**
 
 ```bash
-# FIRST video = reference video (auto-detect FPS and duration from it)
+# Specify reference and generated videos explicitly
 python scripts/call_aigve_api.py \
-    --upload-files ./reference_video.mp4 ./generated_video.mp4 \
-    --auto-detect \
+    --reference-video ./my_real_video.mp4 \
+    --generated-video ./my_ai_video.mp4 \
     --categories distribution_based
 ```
 
 This automatically:
-- Uses the **first video** as the reference
-- Detects FPS from the reference video
-- Uses the full duration of the reference video
-- No manual specification needed!
+- ✅ Detects FPS from the reference video
+- ✅ Uses the full duration of the reference video
+- ✅ Handles pairing without needing special filenames
+- ✅ No manual specification needed!
 
-**Limit duration while auto-detecting FPS:**
+**Short form using aliases:**
 ```bash
-# Auto-detect FPS, but limit to first 10 seconds
 python scripts/call_aigve_api.py \
-    --upload-files ./reference_video.mp4 ./generated_video.mp4 \
-    --auto-detect \
+    --ref ./real.mp4 \
+    --gen ./output.mp4 \
+    --categories distribution_based
+```
+
+**Limit duration:**
+```bash
+# Use only first 10 seconds
+python scripts/call_aigve_api.py \
+    --ref ./real.mp4 \
+    --gen ./output.mp4 \
     --max-seconds 10 \
     --categories distribution_based
 ```
@@ -368,19 +373,18 @@ docker run -d --name aigve --restart unless-stopped \
     -v "$PWD/data":/app/data -v "$PWD/out":/app/out \
     ghcr.io/bmwas/aigve:latest
 
-# Upload videos directly - FIRST video is the reference!
-# Auto-detect FPS and use full video duration
+# Compute metrics (auto-detects FPS and duration from reference video)
 python scripts/call_aigve_api.py \
-    --upload-files ./reference.mp4 ./generated.mp4 \
-    --auto-detect \
+    --reference-video ./my_real_video.mp4 \
+    --generated-video ./my_ai_video.mp4 \
     --categories distribution_based
 ```
 
-**Or manually specify FPS and duration:**
+**Or with short aliases:**
 ```bash
 python scripts/call_aigve_api.py \
-    --upload-files ./reference.mp4 ./generated.mp4 \
-    --max-seconds 8 --fps 25 \
+    --ref ./real.mp4 \
+    --gen ./generated.mp4 \
     --categories distribution_based
 ```
 

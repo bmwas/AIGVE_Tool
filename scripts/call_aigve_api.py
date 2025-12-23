@@ -328,13 +328,20 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--no-help", action="store_true", help="Skip calling /help before /run")
     ap.add_argument("--save-dir", default="./results", help="Directory to save returned result files locally")
     ap.add_argument("--local", action="store_true", help="Use local host defaults (./data, ./out/staged)")
-    # Upload mode options
+    # Upload mode options - EXPLICIT video pair (recommended)
+    ap.add_argument("--reference-video", "--ref", default=None,
+                    help="Path to the reference (real/ground-truth) video file")
+    ap.add_argument("--generated-video", "--gen", default=None,
+                    help="Path to the generated (synthetic/AI-generated) video file")
+    # Legacy upload options (still supported)
     ap.add_argument("--upload-dir", default=None,
-                    help="Upload mode: directory of local videos to send to the server via /run_upload")
+                    help="[Legacy] Upload mode: directory of local videos to send to the server")
     ap.add_argument("--upload-files", nargs="+", default=None,
-                    help="Upload mode: explicit list of local video files to send via /run_upload")
+                    help="[Legacy] Upload mode: explicit list of local video files (use --reference-video and --generated-video instead)")
     ap.add_argument("--generated-suffixes", default="synthetic,generated",
                     help="Suffix tokens for pairing (used by server script). Default: synthetic,generated")
+    ap.add_argument("--second-is-generated", action="store_true",
+                    help="[Legacy] Treat the SECOND video as generated. Use --reference-video and --generated-video instead.")
     ap.add_argument("--categories", default="distribution_based",
                     help="Metric categories CSV (e.g., distribution_based,nn_based_video). Default: distribution_based")
     ap.add_argument("--metrics", default="",
@@ -351,8 +358,60 @@ def main(argv: list[str] | None = None) -> int:
 
     base_url = args.base_url
 
+    # Handle explicit --reference-video and --generated-video (recommended method)
+    if args.reference_video or args.generated_video:
+        if not args.reference_video:
+            print("[ERROR] --reference-video is required when using --generated-video", flush=True)
+            sys.exit(1)
+        if not args.generated_video:
+            print("[ERROR] --generated-video is required when using --reference-video", flush=True)
+            sys.exit(1)
+        
+        # Validate files exist
+        if not os.path.exists(args.reference_video):
+            print(f"[ERROR] Reference video not found: {args.reference_video}", flush=True)
+            sys.exit(1)
+        if not os.path.exists(args.generated_video):
+            print(f"[ERROR] Generated video not found: {args.generated_video}", flush=True)
+            sys.exit(1)
+        
+        print(f"\n📹 Video pair specified explicitly:", flush=True)
+        print(f"   Reference:  {os.path.basename(args.reference_video)}", flush=True)
+        print(f"   Generated:  {os.path.basename(args.generated_video)}", flush=True)
+        
+        # Convert to upload_files format (reference first, then generated)
+        args.upload_files = [args.reference_video, args.generated_video]
+        
+        # Auto-set generated_suffixes to match the generated video filename
+        # Use a unique marker that's in generated but not in reference
+        ref_name = os.path.basename(args.reference_video).lower()
+        gen_name = os.path.basename(args.generated_video).lower()
+        gen_stem = os.path.splitext(gen_name)[0]
+        
+        # Find a unique part of the generated filename
+        import re
+        parts = re.split(r'[_\-\s\.]+', gen_stem)
+        unique_suffix = None
+        for part in parts:
+            if len(part) >= 2 and part not in ref_name:
+                unique_suffix = part
+                break
+        
+        if unique_suffix:
+            args.generated_suffixes = unique_suffix
+            print(f"   Auto-suffix: '{unique_suffix}' (identifies generated video)", flush=True)
+        else:
+            # Fallback: use entire generated stem
+            args.generated_suffixes = gen_stem
+            print(f"   Auto-suffix: '{gen_stem}' (full filename)", flush=True)
+        
+        # Enable auto-detect by default when using explicit video pair
+        if args.fps is None and args.max_seconds is None:
+            args.auto_detect = True
+            print(f"   Auto-detect: enabled (FPS and duration from reference)", flush=True)
+
     # 1) Health
-    print(f"[1/3] Checking health at {base_url}/healthz ...", flush=True)
+    print(f"\n[1/3] Checking health at {base_url}/healthz ...", flush=True)
     health = check_health(base_url)
     print(json.dumps(health, indent=2))
 
@@ -438,6 +497,40 @@ def main(argv: list[str] | None = None) -> int:
         args.fps = 25.0
     if args.max_seconds is None:
         args.max_seconds = 8.0
+
+    # Handle --second-is-generated: auto-detect a unique suffix from second video
+    if args.second_is_generated and args.upload_files and len(args.upload_files) >= 2:
+        first_video = os.path.basename(args.upload_files[0]).lower()
+        second_video = os.path.basename(args.upload_files[1]).lower()
+        
+        # Remove extension for comparison
+        first_stem = os.path.splitext(first_video)[0]
+        second_stem = os.path.splitext(second_video)[0]
+        
+        print(f"\n[second-is-generated] Finding unique identifier for second video...", flush=True)
+        print(f"   Reference (1st): {os.path.basename(args.upload_files[0])}", flush=True)
+        print(f"   Generated (2nd): {os.path.basename(args.upload_files[1])}", flush=True)
+        
+        # Split second video name into parts and find one NOT in first video name
+        # Try splitting by common delimiters
+        import re
+        parts = re.split(r'[_\-\s\.]+', second_stem)
+        
+        unique_suffix = None
+        for part in parts:
+            if len(part) >= 3 and part not in first_stem:  # At least 3 chars to be meaningful
+                unique_suffix = part
+                break
+        
+        if unique_suffix:
+            args.generated_suffixes = unique_suffix
+            print(f"   ✅ Auto-detected unique suffix: '{unique_suffix}'", flush=True)
+            print(f"   Using --generated-suffixes {unique_suffix}", flush=True)
+        else:
+            # Fallback: use the entire second filename stem
+            args.generated_suffixes = second_stem
+            print(f"   ⚠️  Could not find unique part, using full filename: '{second_stem}'", flush=True)
+            print(f"   Using --generated-suffixes {second_stem}", flush=True)
 
     # 2) Help (optional)
     if not args.no_help:
