@@ -77,9 +77,168 @@ logger.setLevel(os.getenv("AIGVE_LOG_LEVEL", "INFO").upper())
 logger.propagate = False
 
 
+def _ensure_model_checkpoints():
+    """
+    Download model checkpoints for NN-based metrics at startup.
+    This ensures SimpleVQA and LightVQA+ are ALWAYS available.
+    """
+    import urllib.request
+    
+    print("\n" + "="*80, flush=True)
+    print("🔧 CHECKING/DOWNLOADING MODEL CHECKPOINTS", flush=True)
+    print("="*80, flush=True)
+    
+    # Model paths
+    simplevqa_path = Path(APP_ROOT) / "aigve/metrics/video_quality_assessment/nn_based/simplevqa/SimpleVQA/ckpts/UGC_BVQA_model.pth"
+    lightvqa_model_path = Path(APP_ROOT) / "aigve/metrics/video_quality_assessment/nn_based/lightvqa_plus/Light_VQA_plus/ckpts/last2_SI+TI_epoch_19_SRCC_0.925264.pth"
+    lightvqa_swin_path = Path(APP_ROOT) / "aigve/metrics/video_quality_assessment/nn_based/lightvqa_plus/Light_VQA_plus/swin_small_patch4_window7_224.pth"
+    
+    results = {}
+    
+    # 1. SimpleVQA - Download from Google Drive using gdown
+    print(f"\n📦 [1/3] Checking SimpleVQA model...", flush=True)
+    if simplevqa_path.exists():
+        size_mb = simplevqa_path.stat().st_size / (1024 * 1024)
+        print(f"   ✅ SimpleVQA model found: {simplevqa_path.name} ({size_mb:.1f} MB)", flush=True)
+        results["SimpleVQA"] = True
+    else:
+        print(f"   📥 SimpleVQA model NOT found, attempting auto-download...", flush=True)
+        simplevqa_path.parent.mkdir(parents=True, exist_ok=True)
+        
+        try:
+            import gdown
+            google_drive_id = "137XJdq3reNMJ9tkBNqKUYTY_dTlcwXc3"
+            url = f"https://drive.google.com/uc?id={google_drive_id}"
+            print(f"   📥 Downloading from Google Drive (ID: {google_drive_id})...", flush=True)
+            gdown.download(url, str(simplevqa_path), quiet=False)
+            
+            if simplevqa_path.exists():
+                size_mb = simplevqa_path.stat().st_size / (1024 * 1024)
+                print(f"   ✅ SimpleVQA downloaded successfully ({size_mb:.1f} MB)", flush=True)
+                results["SimpleVQA"] = True
+            else:
+                print(f"   ❌ SimpleVQA download FAILED - file not created", flush=True)
+                results["SimpleVQA"] = False
+        except ImportError:
+            print(f"   ⚠️  gdown not installed. Installing...", flush=True)
+            try:
+                subprocess.run([sys.executable, "-m", "pip", "install", "gdown"], check=True, capture_output=True)
+                import gdown
+                google_drive_id = "137XJdq3reNMJ9tkBNqKUYTY_dTlcwXc3"
+                url = f"https://drive.google.com/uc?id={google_drive_id}"
+                gdown.download(url, str(simplevqa_path), quiet=False)
+                if simplevqa_path.exists():
+                    print(f"   ✅ SimpleVQA downloaded successfully", flush=True)
+                    results["SimpleVQA"] = True
+                else:
+                    results["SimpleVQA"] = False
+            except Exception as e:
+                print(f"   ❌ Failed to install gdown or download: {e}", flush=True)
+                results["SimpleVQA"] = False
+        except Exception as e:
+            print(f"   ❌ SimpleVQA download error: {e}", flush=True)
+            results["SimpleVQA"] = False
+    
+    # 2. LightVQA+ Swin weights - Download from GitHub releases
+    print(f"\n📦 [2/3] Checking LightVQA+ Swin weights...", flush=True)
+    if lightvqa_swin_path.exists():
+        size_mb = lightvqa_swin_path.stat().st_size / (1024 * 1024)
+        print(f"   ✅ Swin weights found: {lightvqa_swin_path.name} ({size_mb:.1f} MB)", flush=True)
+        results["LightVQA+_Swin"] = True
+    else:
+        print(f"   📥 Swin weights NOT found, downloading from GitHub...", flush=True)
+        lightvqa_swin_path.parent.mkdir(parents=True, exist_ok=True)
+        
+        swin_url = "https://github.com/SwinTransformer/storage/releases/download/v1.0.0/swin_small_patch4_window7_224.pth"
+        try:
+            print(f"   📥 Downloading: {swin_url}", flush=True)
+            urllib.request.urlretrieve(swin_url, str(lightvqa_swin_path))
+            if lightvqa_swin_path.exists():
+                size_mb = lightvqa_swin_path.stat().st_size / (1024 * 1024)
+                print(f"   ✅ Swin weights downloaded successfully ({size_mb:.1f} MB)", flush=True)
+                results["LightVQA+_Swin"] = True
+            else:
+                print(f"   ❌ Swin download FAILED", flush=True)
+                results["LightVQA+_Swin"] = False
+        except Exception as e:
+            print(f"   ❌ Swin download error: {e}", flush=True)
+            results["LightVQA+_Swin"] = False
+    
+    # 3. LightVQA+ main model - Check and provide clear instructions
+    print(f"\n📦 [3/3] Checking LightVQA+ main model...", flush=True)
+    if lightvqa_model_path.exists():
+        size_mb = lightvqa_model_path.stat().st_size / (1024 * 1024)
+        print(f"   ✅ LightVQA+ model found: {lightvqa_model_path.name} ({size_mb:.1f} MB)", flush=True)
+        results["LightVQA+_Model"] = True
+    else:
+        print(f"   ⚠️  LightVQA+ model NOT found at: {lightvqa_model_path}", flush=True)
+        lightvqa_model_path.parent.mkdir(parents=True, exist_ok=True)
+        
+        # Try alternative download sources
+        # Check if there's a model in a common location
+        alt_locations = [
+            Path("/app/ckpts/last2_SI+TI_epoch_19_SRCC_0.925264.pth"),
+            Path(APP_ROOT) / "ckpts/last2_SI+TI_epoch_19_SRCC_0.925264.pth",
+            Path(APP_ROOT) / "models/lightvqa_plus.pth",
+        ]
+        
+        found_alt = False
+        for alt in alt_locations:
+            if alt.exists():
+                print(f"   📋 Found model at alternative location: {alt}", flush=True)
+                try:
+                    shutil.copy2(alt, lightvqa_model_path)
+                    print(f"   ✅ Copied to expected location", flush=True)
+                    found_alt = True
+                    results["LightVQA+_Model"] = True
+                    break
+                except Exception as e:
+                    print(f"   ⚠️  Failed to copy: {e}", flush=True)
+        
+        if not found_alt:
+            print(f"\n   ╔══════════════════════════════════════════════════════════════╗", flush=True)
+            print(f"   ║  ⚠️  LightVQA+ MODEL REQUIRES MANUAL DOWNLOAD                 ║", flush=True)
+            print(f"   ╠══════════════════════════════════════════════════════════════╣", flush=True)
+            print(f"   ║  Download from ONE of these sources:                         ║", flush=True)
+            print(f"   ║                                                              ║", flush=True)
+            print(f"   ║  1. JBOX: https://jbox.sjtu.edu.cn/l/S1bbm1                   ║", flush=True)
+            print(f"   ║  2. Baidu: https://pan.baidu.com/s/1JZMsibiVDDSQVdrRob1clw   ║", flush=True)
+            print(f"   ║     Password: ui9v                                           ║", flush=True)
+            print(f"   ║                                                              ║", flush=True)
+            print(f"   ║  Then place file at:                                         ║", flush=True)
+            print(f"   ║  {lightvqa_model_path}                                       ║", flush=True)
+            print(f"   ║                                                              ║", flush=True)
+            print(f"   ║  Or mount via Docker:                                        ║", flush=True)
+            print(f"   ║  -v /path/to/model.pth:{lightvqa_model_path}                 ║", flush=True)
+            print(f"   ╚══════════════════════════════════════════════════════════════╝", flush=True)
+            results["LightVQA+_Model"] = False
+    
+    # Summary
+    print(f"\n" + "-"*60, flush=True)
+    print(f"📋 MODEL CHECKPOINT SUMMARY", flush=True)
+    print(f"-"*60, flush=True)
+    
+    all_ready = True
+    for model, ready in results.items():
+        status = "✅ Ready" if ready else "❌ MISSING"
+        print(f"   {model}: {status}", flush=True)
+        if not ready:
+            all_ready = False
+    
+    if all_ready:
+        print(f"\n🎉 All model checkpoints ready for NN-based metrics!", flush=True)
+    else:
+        print(f"\n⚠️  Some models missing - NN-based metrics may fail!", flush=True)
+        print(f"   Run: python scripts/download_model_checkpoints.py --all", flush=True)
+    
+    print("="*80 + "\n", flush=True)
+    
+    return results
+
+
 @app.on_event("startup")
 async def startup_event():
-    """Ensure required directories exist at startup"""
+    """Ensure required directories exist and download models at startup"""
     uploads_dir = os.path.join(APP_ROOT, "uploads")
     try:
         os.makedirs(uploads_dir, mode=0o755, exist_ok=True)
@@ -97,6 +256,13 @@ async def startup_event():
             logger.error("Directory permissions: %s", oct(os.stat(uploads_dir).st_mode)[-3:])
     except Exception as e:
         logger.error("Failed to create uploads directory: %s", e)
+    
+    # Auto-download model checkpoints for NN-based metrics
+    try:
+        _ensure_model_checkpoints()
+    except Exception as e:
+        logger.error("Model checkpoint setup error (non-fatal): %s", e)
+        print(f"[STARTUP] ⚠️ Model checkpoint setup error: {e}", flush=True)
 
 
 @app.middleware("http")
@@ -193,8 +359,8 @@ class PrepareAnnotationsRequest(BaseModel):
     # Forward-compatibility: extra CLI args (list of tokens)
     extra_args: Optional[List[str]] = Field(None, description="Additional raw CLI tokens to pass through")
     
-    # CD-FVD specific option
-    use_cdfvd: Optional[bool] = Field(False, description="Use cd-fvd package for FVD computation instead of default")
+    # CD-FVD specific option - enabled by default for ALL metrics computation
+    use_cdfvd: Optional[bool] = Field(True, description="Compute CD-FVD metrics (I3D + VideoMAE) in addition to AIGVE native metrics")
     cdfvd_model: Optional[str] = Field("videomae", description="CD-FVD model to use: 'videomae' or 'i3d'")
     cdfvd_resolution: Optional[int] = Field(128, description="Resolution for CD-FVD video processing")
     cdfvd_sequence_length: Optional[int] = Field(16, description="Sequence length for CD-FVD video processing")
@@ -1323,8 +1489,8 @@ def run_upload(
     pad: bool = Form(False),
     # Device
     use_cpu: bool = Form(False),
-    # CD-FVD options
-    use_cdfvd: bool = Form(False),
+    # CD-FVD options - computed by default for ALL metrics
+    use_cdfvd: bool = Form(True),
     cdfvd_model: str = Form("videomae"),
     cdfvd_resolution: int = Form(128),
     cdfvd_sequence_length: int = Form(16),
@@ -1872,26 +2038,50 @@ def run_upload(
             logger.info("[%s] Skipping AIGVE native artifact collection (nn_based_video only requested)", rid)
             # Only collect NN-based metric results if they exist
             try:
-                # Look for NN-based metric result files
+                # Look for NN-based metric result files in multiple locations
                 nn_result_files = ["gstvqa_results.json", "simplevqa_results.json", "lightvqaplus_results.json"]
+                search_dirs = [APP_ROOT, stage_dir, upload_dir]
                 nn_arts = []
+                
+                print(f"\n[SERVER] Searching for NN-based metric results...", flush=True)
                 for result_file in nn_result_files:
-                    result_path = os.path.join(APP_ROOT, result_file)
-                    if os.path.exists(result_path):
-                        with open(result_path, 'r') as f:
-                            content = json.load(f)
-                        nn_arts.append({
-                            "name": result_file,
-                            "path": result_path,
-                            "content": content,
-                            "source": "nn_based_metrics"
-                        })
-                        logger.info("[%s] Found NN-based result: %s", rid, result_file)
+                    found = False
+                    for search_dir in search_dirs:
+                        result_path = os.path.join(search_dir, result_file)
+                        if os.path.exists(result_path):
+                            print(f"[SERVER]   ✅ Found {result_file} in {search_dir}", flush=True)
+                            with open(result_path, 'r') as f:
+                                content = json.load(f)
+                            nn_arts.append({
+                                "name": result_file,
+                                "path": result_path,
+                                "content": content,
+                                "source": "nn_based_metrics"
+                            })
+                            logger.info("[%s] Found NN-based result: %s at %s", rid, result_file, result_path)
+                            
+                            # Log the score
+                            score_keys = {
+                                "gstvqa_results.json": "GSTVQA_Mean_Score",
+                                "simplevqa_results.json": "SimpleVQA_Mean_Score",
+                                "lightvqaplus_results.json": "LightVQAPlus_Mean_Score"
+                            }
+                            if result_file in score_keys and score_keys[result_file] in content:
+                                score = content[score_keys[result_file]]
+                                print(f"[SERVER]      Score: {score}", flush=True)
+                            
+                            found = True
+                            break
+                    if not found:
+                        print(f"[SERVER]   ⚠️  {result_file} not found in any search directory", flush=True)
+                
                 response["artifacts"] = nn_arts
                 logger.info("[%s] NN-based artifacts collected: %d", rid, len(nn_arts))
+                print(f"[SERVER] Total NN-based artifacts: {len(nn_arts)}", flush=True)
             except Exception as e:
                 response["artifact_error"] = str(e)
                 logger.warning("[%s] NN artifact collection error: %s", rid, e)
+                print(f"[SERVER] ❌ NN artifact collection error: {e}", flush=True)
     
     # Final validation: ensure ALL required metrics were computed
     logger.info("[%s] Final processing validation", rid)
@@ -1917,8 +2107,66 @@ def run_upload(
     
     response["processing_summary"] = processing_summary
     
-    logger.info("[%s] Processing complete: script=%s, cd-fvd=%d/%d models, duration=%.1f ms", 
-                rid, legacy_success, cdfvd_success_count, len(models), total_duration)
+    # Print final comprehensive summary
+    print(f"\n{'='*80}", flush=True)
+    print(f"🏆 FINAL METRICS COMPUTATION SUMMARY", flush=True)
+    print(f"{'='*80}", flush=True)
+    print(f"⏰ Request ID: {rid}", flush=True)
+    print(f"⏱️  Total Duration: {total_duration:.1f} ms", flush=True)
+    print(f"\n📊 METRICS COMPUTED:", flush=True)
+    
+    # Collect all computed metrics for summary
+    all_computed_metrics = []
+    
+    # Distribution-based metrics
+    if should_compute_distribution:
+        print(f"\n   📈 Distribution-based (AIGVE Native):", flush=True)
+        dist_metrics = ["FID", "IS", "FVD"]
+        for m in dist_metrics:
+            print(f"      ✅ {m}", flush=True)
+            all_computed_metrics.append(m)
+    
+    # NN-based metrics (check artifacts)
+    artifacts = response.get("artifacts", [])
+    nn_metrics_found = []
+    for art in artifacts:
+        name = art.get("name", "")
+        if name == "gstvqa_results.json":
+            nn_metrics_found.append("GSTVQA")
+        elif name == "simplevqa_results.json":
+            nn_metrics_found.append("SimpleVQA")
+        elif name in ["lightvqaplus_results.json", "lightvqa_plus_results.json"]:
+            nn_metrics_found.append("LightVQA+")
+    
+    if nn_metrics_found:
+        print(f"\n   🧠 NN-based Video Quality:", flush=True)
+        for m in nn_metrics_found:
+            print(f"      ✅ {m}", flush=True)
+            all_computed_metrics.append(m)
+    
+    # CD-FVD metrics
+    if use_cdfvd and cdfvd_results:
+        print(f"\n   🎬 CD-FVD Package:", flush=True)
+        for model, model_data in cdfvd_results.items():
+            if isinstance(model_data, dict):
+                if "error" in model_data:
+                    print(f"      ❌ {model}: FAILED", flush=True)
+                elif "flavors" in model_data:
+                    for flavor_key, flavor_data in model_data["flavors"].items():
+                        if "error" not in flavor_data:
+                            score = flavor_data.get("fvd_score", "N/A")
+                            print(f"      ✅ {model}/{flavor_key}: {score}", flush=True)
+                            all_computed_metrics.append(f"CD-FVD_{model}")
+                elif "fvd_score" in model_data:
+                    score = model_data["fvd_score"]
+                    print(f"      ✅ {model}: {score}", flush=True)
+                    all_computed_metrics.append(f"CD-FVD_{model}")
+    
+    print(f"\n📋 TOTAL METRICS: {len(all_computed_metrics)}", flush=True)
+    print(f"{'='*80}\n", flush=True)
+    
+    logger.info("[%s] Processing complete: script=%s, cd-fvd=%d/%d models, total_metrics=%d, duration=%.1f ms", 
+                rid, legacy_success, cdfvd_success_count, len(models), len(all_computed_metrics), total_duration)
     return response
 
 @app.post("/run")

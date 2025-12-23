@@ -44,9 +44,69 @@ import argparse
 import json
 import os
 import shutil
+import subprocess
 import sys
+import urllib.request
 from pathlib import Path
 from typing import Dict, List, Tuple, Optional
+
+
+def _auto_download_model_checkpoint(model_name: str, target_path: Path, 
+                                      google_drive_id: str = None,
+                                      direct_url: str = None) -> bool:
+    """
+    Automatically download a model checkpoint if it doesn't exist.
+    Returns True if model is available after this call.
+    """
+    if target_path.exists():
+        size_mb = target_path.stat().st_size / (1024 * 1024)
+        print(f"[AUTO-DOWNLOAD] ✅ {model_name} already exists ({size_mb:.1f} MB)", flush=True)
+        return True
+    
+    print(f"[AUTO-DOWNLOAD] 📥 {model_name} not found, attempting download...", flush=True)
+    target_path.parent.mkdir(parents=True, exist_ok=True)
+    
+    # Try Google Drive first if ID provided
+    if google_drive_id:
+        try:
+            import gdown
+            url = f"https://drive.google.com/uc?id={google_drive_id}"
+            print(f"[AUTO-DOWNLOAD]    Downloading from Google Drive (ID: {google_drive_id})...", flush=True)
+            gdown.download(url, str(target_path), quiet=False)
+            if target_path.exists():
+                size_mb = target_path.stat().st_size / (1024 * 1024)
+                print(f"[AUTO-DOWNLOAD] ✅ Downloaded successfully ({size_mb:.1f} MB)", flush=True)
+                return True
+        except ImportError:
+            print(f"[AUTO-DOWNLOAD]    gdown not available, trying pip install...", flush=True)
+            try:
+                subprocess.run([sys.executable, "-m", "pip", "install", "-q", "gdown"], 
+                             check=True, capture_output=True)
+                import gdown
+                url = f"https://drive.google.com/uc?id={google_drive_id}"
+                gdown.download(url, str(target_path), quiet=False)
+                if target_path.exists():
+                    print(f"[AUTO-DOWNLOAD] ✅ Downloaded successfully", flush=True)
+                    return True
+            except Exception as e:
+                print(f"[AUTO-DOWNLOAD] ⚠️ gdown install/download failed: {e}", flush=True)
+        except Exception as e:
+            print(f"[AUTO-DOWNLOAD] ⚠️ Google Drive download failed: {e}", flush=True)
+    
+    # Try direct URL
+    if direct_url:
+        try:
+            print(f"[AUTO-DOWNLOAD]    Downloading from: {direct_url}", flush=True)
+            urllib.request.urlretrieve(direct_url, str(target_path))
+            if target_path.exists():
+                size_mb = target_path.stat().st_size / (1024 * 1024)
+                print(f"[AUTO-DOWNLOAD] ✅ Downloaded successfully ({size_mb:.1f} MB)", flush=True)
+                return True
+        except Exception as e:
+            print(f"[AUTO-DOWNLOAD] ⚠️ Direct download failed: {e}", flush=True)
+    
+    print(f"[AUTO-DOWNLOAD] ❌ {model_name} download FAILED - metric will be skipped", flush=True)
+    return False
 
 # Ensure project root (parent of this script) is on sys.path so 'aigve' package imports when run directly
 _THIS_DIR = Path(__file__).resolve().parent
@@ -384,8 +444,21 @@ def run_reference_metrics(video_dir: Path,
         simplevqa_default = (root_dir / 'aigve/metrics/video_quality_assessment/nn_based/simplevqa/'
                              'SimpleVQA/ckpts/UGC_BVQA_model.pth')
         simplevqa_path = Path(simplevqa_model).expanduser().resolve() if simplevqa_model else simplevqa_default
+        
+        # Auto-download SimpleVQA if not found
         if not simplevqa_path.exists():
-            print(f"[WARN] SimpleVQA model not found at {simplevqa_path}; skipping SimpleVQA.")
+            print(f"[Metrics] SimpleVQA model not found, attempting auto-download...", flush=True)
+            _auto_download_model_checkpoint(
+                "SimpleVQA (UGC_BVQA_model.pth)",
+                simplevqa_path,
+                google_drive_id="137XJdq3reNMJ9tkBNqKUYTY_dTlcwXc3"
+            )
+        
+        if not simplevqa_path.exists():
+            print(f"[ERROR] SimpleVQA model STILL not found after download attempt!", flush=True)
+            print(f"[ERROR] Expected path: {simplevqa_path}", flush=True)
+            print(f"[ERROR] Manual download: https://drive.google.com/file/d/137XJdq3reNMJ9tkBNqKUYTY_dTlcwXc3", flush=True)
+            print(f"[WARN] Skipping SimpleVQA metric.", flush=True)
         else:
             dataset = SimpleVQADataset(video_dir=str(video_dir),
                                        prompt_dir=str(prompt_json),
@@ -411,8 +484,24 @@ def run_reference_metrics(video_dir: Path,
                                  'Light_VQA_plus/swin_small_patch4_window7_224.pth')
         lvqa_model_path = Path(lightvqa_model).expanduser().resolve() if lightvqa_model else lightvqa_model_default
         lvqa_swin_path = Path(lightvqa_swin).expanduser().resolve() if lightvqa_swin else lightvqa_swin_default
+        
+        # Auto-download Swin weights if not found (these CAN be auto-downloaded)
+        if not lvqa_swin_path.exists():
+            print(f"[Metrics] LightVQA+ Swin weights not found, downloading...", flush=True)
+            _auto_download_model_checkpoint(
+                "LightVQA+ Swin weights",
+                lvqa_swin_path,
+                direct_url="https://github.com/SwinTransformer/storage/releases/download/v1.0.0/swin_small_patch4_window7_224.pth"
+            )
+        
+        # Check for main LightVQA+ model
         if not lvqa_model_path.exists():
-            print(f"[WARN] LightVQA+ model not found at {lvqa_model_path}; skipping LightVQA+.")
+            print(f"[ERROR] LightVQA+ model not found at {lvqa_model_path}", flush=True)
+            print(f"[ERROR] This model requires MANUAL download from:", flush=True)
+            print(f"[ERROR]   JBOX: https://jbox.sjtu.edu.cn/l/S1bbm1", flush=True)
+            print(f"[ERROR]   Baidu: https://pan.baidu.com/s/1JZMsibiVDDSQVdrRob1clw (password: ui9v)", flush=True)
+            print(f"[ERROR] Place the file at: {lvqa_model_path}", flush=True)
+            print(f"[WARN] Skipping LightVQA+ metric.", flush=True)
         else:
             dataset = LightVQAPlusDataset(video_dir=str(video_dir),
                                           prompt_dir=str(prompt_json),

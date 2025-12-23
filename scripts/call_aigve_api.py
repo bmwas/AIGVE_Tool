@@ -226,7 +226,8 @@ def run_distribution_metrics_upload(
         form_data["use_cpu"] = True
     if metrics:
         form_data["metrics"] = metrics
-    # CD-FVD is computed by default with all 8 flavors, but allow single-flavor mode
+    # CD-FVD is computed by default with all flavors (I3D + VideoMAE)
+    form_data["use_cdfvd"] = True  # Always compute CD-FVD for complete metrics
     form_data["cdfvd_resolution"] = cdfvd_resolution
     form_data["cdfvd_sequence_length"] = cdfvd_sequence_length
     form_data["cdfvd_all_flavors"] = cdfvd_all_flavors
@@ -355,67 +356,103 @@ def extract_and_print_metrics(result: Dict[str, Any]) -> Dict[str, Any]:
     print("=" * 60, flush=True)
     
     # Define metric file mappings (distribution-based + NN-based)
+    # Note: Key names must match exactly what the metric classes output
     metric_files = {
         # Distribution-based metrics
-        "fid_results.json": ("FID", "FID_Mean_Score"),
-        "is_results.json": ("IS", "IS_Mean_Score"),
-        "fvd_results.json": ("FVD", "FVD_Mean_Score"),
-        # NN-based video quality metrics
-        "gstvqa_results.json": ("GSTVQA", "GSTVQA_Mean_Score"),
-        "simplevqa_results.json": ("SimpleVQA", "SimpleVQA_Mean_Score"),
-        "lightvqa_plus_results.json": ("LightVQA+", "LightVQA_Plus_Mean_Score"),
-        "lightvqaplus_results.json": ("LightVQA+", "LightVQA_Plus_Mean_Score"),  # Alternative filename
+        "fid_results.json": ("FID", ["FID_Mean_Score", "fid_score", "FID"]),
+        "is_results.json": ("IS", ["IS_Mean_Score", "is_score", "IS"]),
+        "fvd_results.json": ("FVD", ["FVD_Mean_Score", "fvd_score", "FVD"]),
+        # NN-based video quality metrics (exact keys from aigve metric classes)
+        "gstvqa_results.json": ("GSTVQA", ["GSTVQA_Mean_Score", "gstvqa_score"]),
+        "simplevqa_results.json": ("SimpleVQA", ["SimpleVQA_Mean_Score", "simplevqa_score"]),
+        # LightVQA+ uses "LightVQAPlus_Mean_Score" (no underscore before Plus)
+        "lightvqa_plus_results.json": ("LightVQA+", ["LightVQAPlus_Mean_Score", "LightVQA_Plus_Mean_Score"]),
+        "lightvqaplus_results.json": ("LightVQA+", ["LightVQAPlus_Mean_Score", "LightVQA_Plus_Mean_Score"]),
     }
     
+    print(f"\n[DEBUG] Checking {len(artifacts)} artifacts for metric results...", flush=True)
+    
     found_any = False
+    found_metrics = []
+    missing_metrics = []
     
     # Extract from artifacts
     for art in artifacts:
         name = art.get("name", "")
+        print(f"[DEBUG]   Checking artifact: {name}", flush=True)
+        
         if name in metric_files:
-            metric_label, score_key = metric_files[name]
+            metric_label, score_keys = metric_files[name]
             # Content can be dict/list (parsed JSON) or the "json" field
             content = art.get("content") or art.get("json")
+            print(f"[DEBUG]     Content type: {type(content).__name__}", flush=True)
+            
             if isinstance(content, dict):
-                score = content.get(score_key)
+                # Try each possible key name
+                score = None
+                used_key = None
+                for key in score_keys:
+                    if key in content:
+                        score = content[key]
+                        used_key = key
+                        print(f"[DEBUG]     Found score with key '{key}': {score}", flush=True)
+                        break
+                
                 if score is not None:
                     metrics_summary[metric_label] = score
                     found_any = True
+                    found_metrics.append(metric_label)
                     # Format nicely
                     if isinstance(score, float):
-                        if abs(score) > 1e6 or abs(score) < 1e-3:
+                        if abs(score) > 1e6 or (abs(score) < 1e-3 and score != 0):
                             score_str = f"{score:.6e}"
                         else:
                             score_str = f"{score:.4f}"
                     else:
                         score_str = str(score)
-                    print(f"   {metric_label}: {score_str}", flush=True)
+                    print(f"   ✅ {metric_label}: {score_str}", flush=True)
+                else:
+                    print(f"[DEBUG]     No score found for {metric_label}, tried keys: {score_keys}", flush=True)
+                    print(f"[DEBUG]     Available keys in content: {list(content.keys())}", flush=True)
+                    missing_metrics.append(metric_label)
+            else:
+                print(f"[DEBUG]     Content is not a dict, skipping", flush=True)
     
     # Also check for CD-FVD results
+    print(f"\n[DEBUG] Checking for CD-FVD results in response...", flush=True)
     if "cdfvd_results" in result:
         cdfvd = result["cdfvd_results"]
+        print(f"[DEBUG]   Found cdfvd_results with {len(cdfvd) if isinstance(cdfvd, dict) else 0} models", flush=True)
         if isinstance(cdfvd, dict):
-            print("\n   CD-FVD Results:", flush=True)
+            print("\n   📹 CD-FVD Results:", flush=True)
             for model, model_data in cdfvd.items():
+                print(f"[DEBUG]     Processing model: {model}", flush=True)
                 if isinstance(model_data, dict):
                     if "error" in model_data:
-                        print(f"      {model}: ERROR - {model_data['error']}", flush=True)
+                        print(f"      ❌ {model}: ERROR - {model_data['error']}", flush=True)
                     elif "flavors" in model_data:
                         # New all-flavors format
+                        print(f"[DEBUG]       Model has {len(model_data['flavors'])} flavors", flush=True)
                         for flavor_key, flavor_data in model_data["flavors"].items():
                             if "error" in flavor_data:
-                                print(f"      {model}/{flavor_key}: ERROR - {flavor_data['error']}", flush=True)
+                                print(f"      ❌ {model}/{flavor_key}: ERROR - {flavor_data['error']}", flush=True)
                             else:
                                 fvd_score = flavor_data.get("fvd_score", "N/A")
                                 metrics_summary[f"CD-FVD_{model}_{flavor_key}"] = fvd_score
                                 found_any = True
-                                print(f"      {model}/{flavor_key}: {fvd_score}", flush=True)
+                                found_metrics.append(f"CD-FVD_{model}_{flavor_key}")
+                                print(f"      ✅ {model}/{flavor_key}: {fvd_score}", flush=True)
                     elif "fvd_score" in model_data:
                         # Single score format
                         fvd_score = model_data["fvd_score"]
                         metrics_summary[f"CD-FVD_{model}"] = fvd_score
                         found_any = True
-                        print(f"      {model}: {fvd_score}", flush=True)
+                        found_metrics.append(f"CD-FVD_{model}")
+                        print(f"      ✅ {model}: {fvd_score}", flush=True)
+                    else:
+                        print(f"[DEBUG]       Unknown model_data format: {list(model_data.keys())}", flush=True)
+    else:
+        print(f"[DEBUG]   No cdfvd_results in response", flush=True)
     
     if not found_any:
         print("   ⚠️  No metric scores extracted from artifacts", flush=True)
@@ -425,6 +462,7 @@ def extract_and_print_metrics(result: Dict[str, Any]) -> Dict[str, Any]:
         stdout = result.get("stdout", "")
         if stdout:
             import re
+            print(f"\n[DEBUG] Attempting to extract metrics from stdout ({len(stdout)} chars)...", flush=True)
             # Look for patterns like "FID mean score: X", "GSTVQA summary: {...}" etc.
             patterns = [
                 # Distribution-based metrics
@@ -437,9 +475,9 @@ def extract_and_print_metrics(result: Dict[str, Any]) -> Dict[str, Any]:
                 (r'SimpleVQA mean score:\s*([-\d.eE+]+)', 'SimpleVQA'),
                 (r"SimpleVQA summary:.*'SimpleVQA_Mean_Score':\s*([-\d.eE+]+)", 'SimpleVQA'),
                 (r'LightVQA\+ mean score:\s*([-\d.eE+]+)', 'LightVQA+'),
-                (r"LightVQA\+ summary:.*'LightVQA_Plus_Mean_Score':\s*([-\d.eE+]+)", 'LightVQA+'),
+                (r"LightVQA\+ summary:.*'LightVQAPlus_Mean_Score':\s*([-\d.eE+]+)", 'LightVQA+'),
             ]
-            print("\n   Extracted from stdout:", flush=True)
+            print("\n   📄 Extracted from stdout:", flush=True)
             extracted_labels = set()
             for pattern, label in patterns:
                 if label in extracted_labels:
@@ -449,11 +487,47 @@ def extract_and_print_metrics(result: Dict[str, Any]) -> Dict[str, Any]:
                     try:
                         score = float(match.group(1))
                         metrics_summary[label] = score
-                        print(f"      {label}: {score}", flush=True)
+                        print(f"      ✅ {label}: {score}", flush=True)
                         found_any = True
+                        found_metrics.append(label)
                         extracted_labels.add(label)
                     except ValueError:
                         pass
+    
+    # Final summary
+    print("\n" + "-" * 60, flush=True)
+    print("📋 METRICS EXTRACTION SUMMARY", flush=True)
+    print("-" * 60, flush=True)
+    
+    # List all expected metrics
+    all_expected = ["FID", "IS", "FVD", "GSTVQA", "SimpleVQA", "LightVQA+", "CD-FVD"]
+    
+    print(f"   ✅ Successfully extracted: {len(found_metrics)}", flush=True)
+    for m in found_metrics:
+        print(f"      • {m}", flush=True)
+    
+    if missing_metrics:
+        print(f"   ⚠️  Missing from artifacts: {len(missing_metrics)}", flush=True)
+        for m in missing_metrics:
+            print(f"      • {m}", flush=True)
+    
+    # Check which expected metrics weren't found
+    found_base_metrics = set()
+    for m in found_metrics:
+        # Extract base metric name (e.g., "CD-FVD_i3d_res224_len16" -> "CD-FVD")
+        if m.startswith("CD-FVD"):
+            found_base_metrics.add("CD-FVD")
+        else:
+            found_base_metrics.add(m)
+    
+    not_computed = [m for m in all_expected if m not in found_base_metrics]
+    if not_computed:
+        print(f"   ℹ️  Not computed:", flush=True)
+        for m in not_computed:
+            if m == "LightVQA+":
+                print(f"      • {m} (requires manual model download - optional)", flush=True)
+            else:
+                print(f"      • {m}", flush=True)
     
     print("=" * 60, flush=True)
     
@@ -496,6 +570,8 @@ def main(argv: list[str] | None = None) -> int:
                     help="[Legacy] Treat the SECOND video as generated. Use --reference-video and --generated-video instead.")
     ap.add_argument("--categories", default="distribution_based",
                     help="Metric categories CSV (e.g., distribution_based,nn_based_video). Default: distribution_based")
+    ap.add_argument("--all-metrics", action="store_true",
+                    help="Compute ALL metrics: distribution_based (FID/IS/FVD) + nn_based_video (GSTVQA/SimpleVQA/LightVQA+) + CD-FVD (I3D/VideoMAE)")
     ap.add_argument("--metrics", default="",
                     help="Specific metric names CSV (optional). Example: fid,is,fvd or lightvqa+")
     # CD-FVD options (CD-FVD computes all 8 flavors by default)
@@ -507,6 +583,16 @@ def main(argv: list[str] | None = None) -> int:
                     help="Compute only single CD-FVD flavor instead of all 8 combinations")
 
     args = ap.parse_args(argv)
+
+    # Handle --all-metrics flag: override categories to include all metric types
+    if args.all_metrics:
+        args.categories = "distribution_based,nn_based_video"
+        print(f"\n🎯 --all-metrics flag detected: Computing ALL metrics", flush=True)
+        print(f"   📊 Categories set to: {args.categories}", flush=True)
+        print(f"   🔧 Metrics included:", flush=True)
+        print(f"      - distribution_based: FID, IS, FVD (AIGVE native)", flush=True)
+        print(f"      - nn_based_video: GSTVQA, SimpleVQA, LightVQA+", flush=True)
+        print(f"      - CD-FVD: I3D + VideoMAE (automatic)", flush=True)
 
     base_url = args.base_url
 

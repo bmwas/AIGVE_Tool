@@ -15,18 +15,26 @@ docker run -d --name aigve --restart unless-stopped \
     -v "$PWD/data":/app/data -v "$PWD/out":/app/out \
     ghcr.io/bmwas/aigve:latest
 
-# 2. Compute metrics with explicit video paths (RECOMMENDED!)
+# 2. Compute ALL metrics with the new --all-metrics flag (RECOMMENDED!)
 python scripts/call_aigve_api.py \
     --reference-video ./my_real_video.mp4 \
     --generated-video ./my_ai_generated_video.mp4 \
-    --categories distribution_based
+    --all-metrics
 ```
 
 **That's it!** This will automatically:
 - ✅ Detect FPS from the reference video
 - ✅ Use the full duration of the reference video  
 - ✅ Handle naming/pairing automatically
-- ✅ Compute all metrics (FID, IS, FVD, CD-FVD)
+- ✅ Compute ALL metrics: FID, IS, FVD, GSTVQA, SimpleVQA, LightVQA+, CD-FVD (I3D + VideoMAE)
+
+**For distribution-based metrics only (faster):**
+```bash
+python scripts/call_aigve_api.py \
+    --reference-video ./my_real_video.mp4 \
+    --generated-video ./my_ai_generated_video.mp4 \
+    --categories distribution_based
+```
 
 **Output example:**
 ```

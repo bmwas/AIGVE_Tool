@@ -642,6 +642,8 @@ Behavior:
 
 Client parameter quick reference (scripts/call_aigve_api.py):
 - `--base-url` Base API URL (default: http://localhost:2200)
+- `--reference-video`, `--generated-video` **Recommended**: Explicit video pair input
+- `--all-metrics` **🔥 NEW**: Compute ALL metrics (distribution_based + nn_based_video + CD-FVD)
 - `--upload-dir`, `--upload-files` Upload mode to `POST /run_upload`; no server paths needed
 - `--input-dir`, `--stage-dataset` Server-path mode and where to build a staged dataset
 - `--max-seconds`, `--fps` Control evaluation duration; see cropping notes below for CD-FVD vs default pipeline
@@ -651,6 +653,15 @@ Client parameter quick reference (scripts/call_aigve_api.py):
 - `--cpu` Force CPU (server container enforces GPU by default; see note above)
 
 **🔥 Merged Ecosystem**: AIGVE native metrics + CD-FVD package computed automatically - no additional flags needed!
+
+**🎯 Quick Start - Compute ALL Metrics**:
+```bash
+python scripts/call_aigve_api.py \
+    --reference-video /path/to/reference.mp4 \
+    --generated-video /path/to/generated.mp4 \
+    --all-metrics
+```
+This computes: FID, IS, FVD (native), GSTVQA, SimpleVQA, LightVQA+, CD-FVD (I3D + VideoMAE).
 
 CD-FVD cropping behavior (max_seconds):
 - When `max_seconds > 0`, each real/fake video is trimmed before CD-FVD computation using ffmpeg.
