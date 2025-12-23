@@ -60,7 +60,7 @@ class FidDataset(Dataset):
     
     def _resize_video_tensor(self, video_tensor: torch.Tensor, target_h: int, target_w: int) -> torch.Tensor:
         """
-        Resize a video tensor to target resolution.
+        Resize a video tensor to target resolution in batches to save memory.
         
         Args:
             video_tensor (torch.Tensor): Video tensor of shape [T, C, H, W].
@@ -70,24 +70,38 @@ class FidDataset(Dataset):
         Returns:
             torch.Tensor: Resized video tensor of shape [T, C, target_h, target_w].
         """
-        # video_tensor shape: [T, C, H, W]
         T, C, H, W = video_tensor.shape
         
         if H == target_h and W == target_w:
             return video_tensor
         
-        # Use bilinear interpolation for resizing
-        # F.interpolate expects [N, C, H, W], so we treat T as batch dimension
-        resized = F.interpolate(
-            video_tensor, 
-            size=(target_h, target_w), 
-            mode='bilinear', 
-            align_corners=False
-        )
-        return resized
+        # Process in batches to save memory (16 frames at a time)
+        batch_size = 16
+        resized_frames = []
+        
+        for i in range(0, T, batch_size):
+            batch = video_tensor[i:i+batch_size]
+            resized_batch = F.interpolate(
+                batch, 
+                size=(target_h, target_w), 
+                mode='bilinear', 
+                align_corners=False
+            )
+            resized_frames.append(resized_batch)
+        
+        # Concatenate and free intermediate tensors
+        result = torch.cat(resized_frames, dim=0)
+        del resized_frames
+        return result
     
-    def _load_video_tensor(self, video_path: str) -> torch.Tensor:
-        """Load a video and return its tensor of shape [T, C, H, W]."""
+    def _load_video_tensor(self, video_path: str, target_size: tuple = None) -> torch.Tensor:
+        """
+        Load a video and return its tensor of shape [T, C, H, W].
+        
+        Args:
+            video_path: Path to video file.
+            target_size: Optional (H, W) tuple to resize frames during loading (more memory efficient).
+        """
         assert os.path.exists(video_path), f"Video file not found: {video_path}"
         cap = cv2.VideoCapture(video_path)
         input_frames = []
@@ -97,6 +111,13 @@ class FidDataset(Dataset):
             if not ret:
                 break
             frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            
+            # Resize during loading if target_size specified (more memory efficient)
+            if target_size is not None:
+                target_h, target_w = target_size
+                if frame.shape[0] != target_h or frame.shape[1] != target_w:
+                    frame = cv2.resize(frame, (target_w, target_h), interpolation=cv2.INTER_LINEAR)
+            
             input_frames.append(torch.tensor(frame).float())
             frame_count += 1
 
@@ -118,6 +139,16 @@ class FidDataset(Dataset):
         # Convert from [T, H, W, C] to [T, C, H, W]
         return video_tensor.permute(0, 3, 1, 2)
     
+    def _get_video_resolution(self, video_path: str) -> tuple:
+        """Get the resolution (H, W) of a video without loading all frames."""
+        cap = cv2.VideoCapture(video_path)
+        if not cap.isOpened():
+            raise RuntimeError(f"Cannot open video: {video_path}")
+        width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+        height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        cap.release()
+        return height, width
+    
     def __len__(self):
         return len(self.gt_video_names)
 
@@ -135,17 +166,24 @@ class FidDataset(Dataset):
         gen_video_name = self.gen_video_names[index]
         gen_video_path = os.path.join(self.video_dir, gen_video_name) 
 
-        gt_video_tensor = self._load_video_tensor(gt_video_path)
-        gen_video_tensor = self._load_video_tensor(gen_video_path)
-        
-        # Resize generated video to match reference video resolution if needed
+        # Memory-efficient approach: get reference resolution first, then resize generated during loading
         if self.match_resolution:
-            _, _, gt_h, gt_w = gt_video_tensor.shape
-            _, _, gen_h, gen_w = gen_video_tensor.shape
+            # Get reference video resolution without loading full video
+            gt_h, gt_w = self._get_video_resolution(gt_video_path)
+            gen_h, gen_w = self._get_video_resolution(gen_video_path)
             
+            # Load reference video
+            gt_video_tensor = self._load_video_tensor(gt_video_path)
+            
+            # Load generated video, resizing during load if needed (saves memory)
             if gt_h != gen_h or gt_w != gen_w:
-                print(f"[FID] Resizing generated video from {gen_h}x{gen_w} to {gt_h}x{gt_w} to match reference")
-                gen_video_tensor = self._resize_video_tensor(gen_video_tensor, gt_h, gt_w)
+                print(f"[FID] Resizing generated video from {gen_h}x{gen_w} to {gt_h}x{gt_w} during load")
+                gen_video_tensor = self._load_video_tensor(gen_video_path, target_size=(gt_h, gt_w))
+            else:
+                gen_video_tensor = self._load_video_tensor(gen_video_path)
+        else:
+            gt_video_tensor = self._load_video_tensor(gt_video_path)
+            gen_video_tensor = self._load_video_tensor(gen_video_path)
 
         return gt_video_tensor, gen_video_tensor, gt_video_name, gen_video_name
    

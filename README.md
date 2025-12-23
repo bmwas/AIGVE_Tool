@@ -450,9 +450,12 @@ Open the docs: http://localhost:2200/docs
 
 This project ships with a Dockerized, conda-based environment that supports both CLI and REST API usage.
 
+> 📚 **See [docker/README.md](docker/README.md) for comprehensive Docker documentation** including memory optimization, troubleshooting OOM errors, and docker-compose examples.
+
 ### Prerequisites
 - Docker installed
 - For GPU support: NVIDIA driver + NVIDIA Container Toolkit (host) and `--gpus '"device=1"'` at runtime (use device=0 or all for other GPU configurations)
+- For NN-based metrics: At least 16GB RAM allocated to Docker (use `--memory=16g`)
 
 ### Build the image
 - GPU (default and required):
@@ -461,13 +464,27 @@ This project ships with a Dockerized, conda-based environment that supports both
   ```
 
 ### Run the API server (default, port 2200)
-- GPU (required):
+
+- **Standard Run (Distribution Metrics - FID/IS/FVD)**:
   ```bash
   docker run --rm --gpus '"device=1"' -p 2200:2200 \
     -v "$PWD/data":/app/data -v "$PWD/out":/app/out \
     ghcr.io/bmwas/aigve:latest
   # Open docs: http://localhost:2200/docs
   ```
+
+- **Full Metrics Run (ALL metrics including NN-based)** - requires more memory:
+  ```bash
+  docker run --rm --gpus '"device=1"' \
+    --memory=16g --shm-size=4g \
+    -p 2200:2200 \
+    -v "$PWD/data":/app/data -v "$PWD/out":/app/out \
+    -v "$PWD/uploads":/app/uploads \
+    ghcr.io/bmwas/aigve:latest
+  # Open docs: http://localhost:2200/docs
+  ```
+  **Memory flags**: `--memory=16g` allocates 16GB RAM, `--shm-size=4g` for PyTorch workers.
+  Increase to `--memory=24g` if you still get OOM errors with NN-based metrics.
 - Custom port:
   ```bash
   docker run --rm -e PORT=9000 -p 9000:9000 ghcr.io/bmwas/aigve:latest
@@ -476,6 +493,39 @@ This project ships with a Dockerized, conda-based environment that supports both
   ```bash
   docker run --rm --gpus '"device=1"' -p 2200:2200 ghcr.io/bmwas/aigve:latest api --workers 2 --log-level info
   ```
+
+### ⚠️ Memory Requirements by Metric Category
+
+| Category | Metrics | Memory Required | Recommended Docker Flags |
+|----------|---------|-----------------|--------------------------|
+| `distribution_based` | FID, IS, FVD | ~4-8 GB | Default (no extra flags) |
+| `nn_based_video` | GSTVQA, SimpleVQA, LightVQA+ | ~12-16 GB | `--memory=16g --shm-size=4g` |
+| All metrics | All of the above | ~16-24 GB | `--memory=24g --shm-size=8g` |
+
+**If you encounter OOM errors (return code -9):**
+
+1. **Run categories separately** (recommended):
+   ```bash
+   # First: distribution metrics
+   python scripts/call_aigve_api.py --reference-video ref.mp4 --generated-video gen.mp4 \
+       --categories distribution_based
+
+   # Second: NN-based metrics  
+   python scripts/call_aigve_api.py --reference-video ref.mp4 --generated-video gen.mp4 \
+       --categories nn_based_video
+   ```
+
+2. **Reduce video duration**:
+   ```bash
+   python scripts/call_aigve_api.py --reference-video ref.mp4 --generated-video gen.mp4 \
+       --categories distribution_based,nn_based_video --max-seconds 5
+   ```
+
+3. **Increase Docker memory**:
+   ```bash
+   docker run --rm --gpus '"device=1"' --memory=24g --shm-size=8g -p 2200:2200 \
+       ghcr.io/bmwas/aigve:latest
+   ```
 
 - GPU requirement behavior:
   - By default, the container enforces GPU availability and exits if CUDA is not available.
@@ -524,7 +574,7 @@ Use the included Python client to call the REST API and run distribution-based m
   - The server container requires a GPU and will exit if CUDA is unavailable (unless you set `REQUIRE_GPU=0` for debugging).
   - The `--cpu` flag in the client is for legacy/local runs and is ignored/ineffective with the default GPU-enforcing container.
 
-- Start the API container (GPU):
+- Start the API container (GPU) - **Standard (distribution metrics)**:
   ```bash
   docker run -d --name aigve --restart unless-stopped \
     --gpus '"device=1"' -p 2200:2200 \
@@ -532,6 +582,19 @@ Use the included Python client to call the REST API and run distribution-based m
     ghcr.io/bmwas/aigve:latest
   # Docs: http://localhost:2200/docs
   ```
+
+- Start the API container (GPU) - **Full metrics (including NN-based)**:
+  ```bash
+  docker run -d --name aigve --restart unless-stopped \
+    --gpus '"device=1"' --memory=16g --shm-size=4g \
+    -p 2200:2200 \
+    -v "$PWD/data":/app/data -v "$PWD/out":/app/out \
+    -v "$PWD/uploads":/app/uploads \
+    ghcr.io/bmwas/aigve:latest
+  # Docs: http://localhost:2200/docs
+  ```
+  > **Note**: NN-based metrics (GSTVQA, SimpleVQA, LightVQA+) require more memory.
+  > If you get OOM errors, increase to `--memory=24g --shm-size=8g`.
 
 - Run the client (merged AIGVE + CD-FVD computation):
   ```bash
@@ -916,7 +979,7 @@ Notes:
 ### Run CLI via Docker (no API)
 Pass the script flags directly to the container. If arguments are provided and the first one is not `api`, the image runs the CLI instead of the API.
 
-- Example (GPU):
+- Example - **Distribution metrics (fast)**:
   ```bash
   docker run --rm --gpus '"device=1"' \
     -v "$PWD/data":/app/data -v "$PWD/out":/app/out \
@@ -924,6 +987,18 @@ Pass the script flags directly to the container. If arguments are provided and t
       --input-dir /app/data \
       --stage-dataset /app/out/staged \
       --compute --categories distribution_based \
+      --max-seconds 8 --fps 25
+  ```
+
+- Example - **All metrics (requires more memory)**:
+  ```bash
+  docker run --rm --gpus '"device=1"' \
+    --memory=16g --shm-size=4g \
+    -v "$PWD/data":/app/data -v "$PWD/out":/app/out \
+    ghcr.io/bmwas/aigve:latest \
+      --input-dir /app/data \
+      --stage-dataset /app/out/staged \
+      --compute --categories distribution_based,nn_based_video \
       --max-seconds 8 --fps 25
   ```
 
