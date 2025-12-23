@@ -354,11 +354,17 @@ def extract_and_print_metrics(result: Dict[str, Any]) -> Dict[str, Any]:
     print("📊 METRIC RESULTS", flush=True)
     print("=" * 60, flush=True)
     
-    # Define metric file mappings
+    # Define metric file mappings (distribution-based + NN-based)
     metric_files = {
+        # Distribution-based metrics
         "fid_results.json": ("FID", "FID_Mean_Score"),
         "is_results.json": ("IS", "IS_Mean_Score"),
         "fvd_results.json": ("FVD", "FVD_Mean_Score"),
+        # NN-based video quality metrics
+        "gstvqa_results.json": ("GSTVQA", "GSTVQA_Mean_Score"),
+        "simplevqa_results.json": ("SimpleVQA", "SimpleVQA_Mean_Score"),
+        "lightvqa_plus_results.json": ("LightVQA+", "LightVQA_Plus_Mean_Score"),
+        "lightvqaplus_results.json": ("LightVQA+", "LightVQA_Plus_Mean_Score"),  # Alternative filename
     }
     
     found_any = False
@@ -419,14 +425,25 @@ def extract_and_print_metrics(result: Dict[str, Any]) -> Dict[str, Any]:
         stdout = result.get("stdout", "")
         if stdout:
             import re
-            # Look for patterns like "FID mean score: X" or "FVD Score: X"
+            # Look for patterns like "FID mean score: X", "GSTVQA summary: {...}" etc.
             patterns = [
+                # Distribution-based metrics
                 (r'FID mean score:\s*([-\d.eE+]+)', 'FID'),
                 (r'IS mean score:\s*([-\d.eE+]+)', 'IS'),
                 (r'FVD mean score:\s*([-\d.eE+]+)', 'FVD'),
+                # NN-based video quality metrics
+                (r'GSTVQA mean score:\s*([-\d.eE+]+)', 'GSTVQA'),
+                (r"GSTVQA summary:.*'GSTVQA_Mean_Score':\s*([-\d.eE+]+)", 'GSTVQA'),
+                (r'SimpleVQA mean score:\s*([-\d.eE+]+)', 'SimpleVQA'),
+                (r"SimpleVQA summary:.*'SimpleVQA_Mean_Score':\s*([-\d.eE+]+)", 'SimpleVQA'),
+                (r'LightVQA\+ mean score:\s*([-\d.eE+]+)', 'LightVQA+'),
+                (r"LightVQA\+ summary:.*'LightVQA_Plus_Mean_Score':\s*([-\d.eE+]+)", 'LightVQA+'),
             ]
             print("\n   Extracted from stdout:", flush=True)
+            extracted_labels = set()
             for pattern, label in patterns:
+                if label in extracted_labels:
+                    continue  # Skip duplicate patterns for same metric
                 match = re.search(pattern, stdout)
                 if match:
                     try:
@@ -434,6 +451,7 @@ def extract_and_print_metrics(result: Dict[str, Any]) -> Dict[str, Any]:
                         metrics_summary[label] = score
                         print(f"      {label}: {score}", flush=True)
                         found_any = True
+                        extracted_labels.add(label)
                     except ValueError:
                         pass
     

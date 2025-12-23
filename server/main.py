@@ -1497,15 +1497,22 @@ def run_upload(
     logger.info("[%s] Session=%s upload_dir=%s stage_dir=%s saved=%d", rid, session_id, upload_dir, stage_dir, len(saved_files))
 
     # Build args via existing request model helper
-    # ALWAYS compute ALL metrics: FID, IS, FVD from legacy script + CD-FVD variants
+    # Use client-provided metrics and categories (or defaults)
+    # If no metrics specified but categories are, let the script expand categories
+    effective_metrics = metrics if metrics else ""
+    effective_categories = categories if categories else "distribution_based"
+    
+    logger.info("[%s] Metrics configuration: metrics='%s', categories='%s'", 
+                rid, effective_metrics, effective_categories)
+    
     req = PrepareAnnotationsRequest(
         input_dir=upload_dir,
         generated_suffixes=generated_suffixes,
         stage_dataset=stage_dir,
         link=link,
-        compute=True,  # ALWAYS compute legacy metrics (FID, IS, FVD)
-        metrics="fid,is,fvd",  # Explicitly request all distribution-based metrics
-        categories="distribution_based",  # Ensure we get FID, IS, FVD
+        compute=True,  # Always compute the requested metrics
+        metrics=effective_metrics,  # Use client-provided metrics (can be empty)
+        categories=effective_categories,  # Use client-provided categories
         max_len=max_len,
         max_seconds=max_seconds,
         fps=fps,
