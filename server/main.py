@@ -1722,8 +1722,18 @@ def run_upload(
             else:
                 logger.warning("[%s] Attempt %d/%d: FAILURE - Return code %d", rid, attempt, max_retries, proc.returncode)
                 if proc.stderr:
-                    stderr_preview = proc.stderr.strip()[:200] + ("..." if len(proc.stderr.strip()) > 200 else "")
-                    logger.warning("[%s] Attempt %d/%d: Error details: %s", rid, attempt, max_retries, stderr_preview)
+                    # Print FULL stderr for debugging
+                    stderr_full = proc.stderr.strip()
+                    print(f"\n[ERROR] FULL STDERR OUTPUT:\n{'='*60}", flush=True)
+                    print(stderr_full, flush=True)
+                    print(f"{'='*60}\n", flush=True)
+                    logger.warning("[%s] Attempt %d/%d: Error (first 500 chars): %s", rid, attempt, max_retries, stderr_full[:500])
+                if proc.stdout:
+                    # Also print stdout for context
+                    stdout_full = proc.stdout.strip()
+                    print(f"\n[DEBUG] FULL STDOUT OUTPUT:\n{'-'*60}", flush=True)
+                    print(stdout_full[-2000:] if len(stdout_full) > 2000 else stdout_full, flush=True)
+                    print(f"{'-'*60}\n", flush=True)
                 
                 if attempt < max_retries:
                     logger.info("[%s] Attempt %d/%d: Retrying in 2 seconds...", rid, attempt, max_retries)
