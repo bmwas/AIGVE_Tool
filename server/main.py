@@ -1851,8 +1851,9 @@ def run_upload(
     cdfvd_results = {}
     if use_cdfvd:
         logger.info("[%s] Starting CD-FVD computation (explicitly requested)", rid)
-        models = ["i3d"] if not cdfvd_all_flavors else ["i3d", "videomae"]
-        logger.info("[%s] CD-FVD models to compute: %s", rid, models)
+        # Single flavor: use videomae (faster). All flavors: use both models.
+        models = [cdfvd_model] if not cdfvd_all_flavors else ["videomae", "i3d"]
+        logger.info("[%s] CD-FVD models to compute: %s (all_flavors=%s)", rid, models, cdfvd_all_flavors)
     else:
         logger.info("[%s] Skipping CD-FVD computation (use_cdfvd=False) - computing AIGVE native metrics only", rid)
         models = []
