@@ -60,16 +60,32 @@ class FeatureExtractor(nn.Module):
 
 @DATASETS.register_module()
 class GSTVQADataset(Dataset):
-    """Dataset for GSTVQA metric, supports feature extraction using VGG16 or ResNet."""
+    """Dataset for GSTVQA metric, supports feature extraction using VGG16 or ResNet.
+    
+    Memory-optimized: resizes frames during loading and processes in batches.
+    """
 
-    def __init__(self, video_dir, prompt_dir, model_name='vgg16', max_len=500):
+    def __init__(self, video_dir, prompt_dir, model_name='vgg16', max_len=500, 
+                 target_size=(224, 224), batch_size=8):
+        """
+        Args:
+            video_dir: Directory containing video files.
+            prompt_dir: Path to JSON with video annotations.
+            model_name: Feature extractor model ('vgg16' or 'resnet18').
+            max_len: Maximum frames to process.
+            target_size: (H, W) to resize frames to. Smaller = less memory.
+            batch_size: Frames to process at once for feature extraction.
+        """
         super(GSTVQADataset, self).__init__()
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.video_dir = video_dir
         self.prompt_dir = prompt_dir
         self.model_name = model_name
         self.max_len = max_len
+        self.target_size = target_size  # (H, W) - resize frames to save memory
+        self.batch_size = batch_size  # Process frames in batches
         self.feature_extractor = FeatureExtractor(model_name=model_name)
+        self.feature_extractor.to(self.device)  # Move to GPU once
 
         self.prompts, self.video_names = self._read_prompt_videoname()
 
@@ -97,53 +113,89 @@ class GSTVQADataset(Dataset):
                 Padded to self.max_len if the number of frames is less.
             num_frames (int): The number of frames in the video.
             video_name (str): The file name for the video.
+            
+        Memory-optimized: resizes frames during loading and extracts features in batches.
         """
         video_name = self.video_names[index]
         video_path = os.path.join(self.video_dir, video_name)
-        input_frames = []
-
+        
+        # Load and resize frames directly to save CPU memory
         cap = cv2.VideoCapture(video_path)
         frame_count = 0
-
+        all_mean_features = []
+        all_std_features = []
+        batch_frames = []
+        
+        target_h, target_w = self.target_size
+        
         while cap.isOpened() and frame_count < self.max_len:
             ret, frame = cap.read()
             if not ret:
                 break
+            
+            # Resize frame during loading to save memory
             frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            # frame = cv2.resize(frame, self.frame_size)
-            input_frames.append(torch.tensor(frame).float())
+            frame = cv2.resize(frame, (target_w, target_h), interpolation=cv2.INTER_LINEAR)
+            
+            # Convert to tensor and add to batch
+            frame_tensor = torch.tensor(frame).float().permute(2, 0, 1)  # [C, H, W]
+            batch_frames.append(frame_tensor)
             frame_count += 1
-
-        cap.release()
-
-        # Pad or truncate frames to max_len
-        num_frames = len(input_frames)
-        # print('num_frames: ', num_frames)
-        if num_frames < 30:
-            pad_frames = torch.zeros((30 - num_frames, *input_frames[0].shape))
-            input_frames_tensor = torch.cat((torch.stack(input_frames), pad_frames), dim=0)
-            num_frames = 30 # Force min frames to be 30 (since two att_frams=15(kernel_size) used in GSTVQA)
-        elif num_frames < self.max_len:
-            pad_frames = torch.zeros((self.max_len - num_frames, *input_frames[0].shape))
-            input_frames_tensor = torch.cat((torch.stack(input_frames), pad_frames), dim=0)
-        else:
-            input_frames_tensor = torch.stack(input_frames[:self.max_len])
-        # print('input_frames_tensor: ', input_frames_tensor.shape) # shape: toy data [max_len, H(512), W(512), C(3)]
+            
+            # Process batch when full or at end
+            if len(batch_frames) >= self.batch_size:
+                batch_tensor = torch.stack(batch_frames).to(self.device)  # [B, C, H, W]
+                with torch.no_grad():
+                    mean_feat, std_feat = self.feature_extractor(batch_tensor)
+                all_mean_features.append(mean_feat.cpu())
+                all_std_features.append(std_feat.cpu())
+                batch_frames = []
+                # Free GPU memory
+                del batch_tensor
+                if torch.cuda.is_available():
+                    torch.cuda.empty_cache()
         
-        # Convert from [T, H, W, C] to [T, C, H, W]
-        input_frames_tensor = input_frames_tensor.permute(0, 3, 1, 2) 
-
-        # Extract features using the chosen model (VGG16 or ResNet)
-        with torch.no_grad():
-            mean_features, std_features = self.feature_extractor(input_frames_tensor) # Shape: [T, 1472]: [10, 1472]
-
+        cap.release()
+        
+        # Process remaining frames
+        if batch_frames:
+            batch_tensor = torch.stack(batch_frames).to(self.device)
+            with torch.no_grad():
+                mean_feat, std_feat = self.feature_extractor(batch_tensor)
+            all_mean_features.append(mean_feat.cpu())
+            all_std_features.append(std_feat.cpu())
+            del batch_tensor
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+        
+        # Concatenate all features
+        num_frames = frame_count
+        if all_mean_features:
+            mean_features = torch.cat(all_mean_features, dim=0)  # [T, 1472]
+            std_features = torch.cat(all_std_features, dim=0)    # [T, 1472]
+        else:
+            # No frames loaded - create empty tensors
+            mean_features = torch.zeros((0, 1472))
+            std_features = torch.zeros((0, 1472))
+        
+        # Handle minimum frame requirement (GSTVQA needs at least 30 frames)
+        if num_frames < 30:
+            pad_size = 30 - num_frames
+            mean_pad = torch.zeros((pad_size, 1472))
+            std_pad = torch.zeros((pad_size, 1472))
+            mean_features = torch.cat((mean_features, mean_pad), dim=0)
+            std_features = torch.cat((std_features, std_pad), dim=0)
+            num_frames = 30
+        
         # Concatenate to match GSTVQA expected 2944-dim features
         deep_features = torch.cat((mean_features, std_features), dim=1)  # Shape: [T, 2944]
 
         # Ensure output shape [max_len, 2944] (pad if needed)
         if deep_features.shape[0] < self.max_len:
             pad_size = self.max_len - deep_features.shape[0]
-            padding = torch.zeros((pad_size, 2944), device=deep_features.device)
+            padding = torch.zeros((pad_size, 2944))
             deep_features = torch.cat((deep_features, padding), dim=0)
+        elif deep_features.shape[0] > self.max_len:
+            deep_features = deep_features[:self.max_len]
         
         return deep_features, num_frames, video_name
