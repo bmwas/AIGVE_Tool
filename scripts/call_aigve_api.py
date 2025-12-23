@@ -36,9 +36,42 @@ import argparse
 import json
 import os
 import sys
-from typing import Any, Dict, Iterable, List, Optional
+from pathlib import Path
+from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 import requests
+
+
+def get_video_properties(video_path: str) -> Tuple[float, float]:
+    """
+    Get FPS and duration (in seconds) from a video file.
+    
+    Args:
+        video_path: Path to video file
+        
+    Returns:
+        Tuple of (fps, duration_seconds)
+    """
+    try:
+        import cv2
+        cap = cv2.VideoCapture(video_path)
+        if not cap.isOpened():
+            raise ValueError(f"Could not open video: {video_path}")
+        
+        fps = cap.get(cv2.CAP_PROP_FPS)
+        frame_count = cap.get(cv2.CAP_PROP_FRAME_COUNT)
+        duration = frame_count / fps if fps > 0 else 0.0
+        
+        cap.release()
+        
+        if fps <= 0 or duration <= 0:
+            raise ValueError(f"Invalid video properties: fps={fps}, duration={duration}")
+        
+        return float(fps), float(duration)
+    except ImportError:
+        raise ImportError("opencv-python is required for automatic video property detection. Install with: pip install opencv-python")
+    except Exception as e:
+        raise ValueError(f"Failed to read video properties from {video_path}: {e}")
 
 
 def check_health(base_url: str) -> Dict[str, Any]:
@@ -283,10 +316,14 @@ def main(argv: list[str] | None = None) -> int:
                     help="Path to mixed videos. Docker default: /app/data. Local example: ./data")
     ap.add_argument("--stage-dataset", default=os.getenv("AIGVE_STAGE_DATASET", "/app/out/staged"),
                     help="Destination dataset path. Docker default: /app/out/staged. Local example: ./out/staged")
-    ap.add_argument("--max-seconds", type=float, default=8.0,
-                    help="Clip duration in seconds (overrides max_len). Default: 8.0")
-    ap.add_argument("--fps", type=float, default=25.0,
-                    help="FPS used with --max-seconds. Default: 25.0")
+    ap.add_argument("--max-seconds", type=float, default=None,
+                    help="Clip duration in seconds (overrides max_len). If not set and --auto-detect is used, uses full video length. Default: None")
+    ap.add_argument("--fps", type=float, default=None,
+                    help="FPS used with --max-seconds. If not set and --auto-detect is used, detects from reference video. Default: None (uses 25.0)")
+    ap.add_argument("--auto-detect", action="store_true",
+                    help="Automatically detect FPS and duration from the FIRST video (reference video). "
+                         "FPS is always taken from the reference video. "
+                         "Duration uses full video length unless --max-seconds is specified.")
     ap.add_argument("--cpu", action="store_true", help="Force CPU")
     ap.add_argument("--no-help", action="store_true", help="Skip calling /help before /run")
     ap.add_argument("--save-dir", default="./results", help="Directory to save returned result files locally")
@@ -335,6 +372,72 @@ def main(argv: list[str] | None = None) -> int:
         if args.stage_dataset == default_out:
             args.stage_dataset = "./out/staged"
         print(f"[local] Using input_dir={args.input_dir} stage_dataset={args.stage_dataset}", flush=True)
+
+    # Auto-detect video properties from the FIRST video (reference video)
+    # The first video given is always treated as the reference video
+    if args.auto_detect:
+        reference_video = None
+        
+        # The FIRST video in the list is the reference video
+        if args.upload_files and len(args.upload_files) > 0:
+            reference_video = args.upload_files[0]
+            print(f"\n[auto-detect] First video is treated as reference: {os.path.basename(reference_video)}", flush=True)
+        elif args.upload_dir:
+            video_exts = (".mp4", ".mov", ".mkv", ".avi", ".webm", ".m4v")
+            # Get first video file in directory (sorted alphabetically)
+            for video_file in sorted(Path(args.upload_dir).iterdir()):
+                if video_file.suffix.lower() in video_exts:
+                    reference_video = str(video_file)
+                    print(f"\n[auto-detect] First video in directory is treated as reference: {video_file.name}", flush=True)
+                    break
+        
+        if reference_video:
+            if not os.path.exists(reference_video):
+                print(f"[ERROR] Reference video does not exist: {reference_video}", flush=True)
+                sys.exit(1)
+            
+            try:
+                print(f"[auto-detect] Reading video properties from: {os.path.basename(reference_video)}", flush=True)
+                detected_fps, detected_duration = get_video_properties(reference_video)
+                
+                # Calculate total frames for clarity
+                total_frames = int(detected_fps * detected_duration)
+                
+                print(f"[auto-detect] ✅ Detected properties:", flush=True)
+                print(f"              FPS: {detected_fps:.2f}", flush=True)
+                print(f"              Duration: {detected_duration:.2f} seconds", flush=True)
+                print(f"              Total frames: {total_frames}", flush=True)
+                
+                # Always use detected FPS (this is mandatory per user request)
+                args.fps = detected_fps
+                print(f"[auto-detect] Using detected FPS: {args.fps:.2f}", flush=True)
+                
+                # Use full duration if not explicitly overridden
+                if args.max_seconds is None:
+                    args.max_seconds = detected_duration
+                    print(f"[auto-detect] Using full video duration: {args.max_seconds:.2f} seconds ({total_frames} frames)", flush=True)
+                else:
+                    # User specified max_seconds, use it but with detected FPS
+                    effective_frames = int(args.fps * args.max_seconds)
+                    print(f"[auto-detect] Using user-specified duration: {args.max_seconds:.2f} seconds ({effective_frames} frames)", flush=True)
+                    
+            except ImportError as e:
+                print(f"[ERROR] {e}", flush=True)
+                print(f"        Install opencv-python: pip install opencv-python", flush=True)
+                sys.exit(1)
+            except Exception as e:
+                print(f"[ERROR] Failed to auto-detect video properties: {e}", flush=True)
+                sys.exit(1)
+        else:
+            print(f"[ERROR] No video files found for auto-detection.", flush=True)
+            print(f"        Provide videos via --upload-files or --upload-dir", flush=True)
+            sys.exit(1)
+    
+    # Set defaults if not using auto-detect
+    if args.fps is None:
+        args.fps = 25.0
+    if args.max_seconds is None:
+        args.max_seconds = 8.0
 
     # 2) Help (optional)
     if not args.no_help:
