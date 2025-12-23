@@ -161,6 +161,7 @@ def run_distribution_metrics_upload(
     generated_suffixes: str = "synthetic,generated",
     categories: str = "distribution_based",
     metrics: str = "",
+    use_cdfvd: bool = False,  # Default: disabled (slow)
     cdfvd_resolution: int = 128,
     cdfvd_sequence_length: int = 16,
     cdfvd_all_flavors: bool = False,  # Default: single flavor for speed
@@ -226,11 +227,12 @@ def run_distribution_metrics_upload(
         form_data["use_cpu"] = True
     if metrics:
         form_data["metrics"] = metrics
-    # CD-FVD is computed by default with all flavors (I3D + VideoMAE)
-    form_data["use_cdfvd"] = True  # Always compute CD-FVD for complete metrics
-    form_data["cdfvd_resolution"] = cdfvd_resolution
-    form_data["cdfvd_sequence_length"] = cdfvd_sequence_length
-    form_data["cdfvd_all_flavors"] = cdfvd_all_flavors
+    # CD-FVD is optional (disabled by default since it's slow)
+    form_data["use_cdfvd"] = use_cdfvd
+    if use_cdfvd:
+        form_data["cdfvd_resolution"] = cdfvd_resolution
+        form_data["cdfvd_sequence_length"] = cdfvd_sequence_length
+        form_data["cdfvd_all_flavors"] = cdfvd_all_flavors
 
     url = f"{base_url.rstrip('/')}/run_upload"
     opened: List[Any] = []
@@ -571,7 +573,11 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--categories", default="distribution_based",
                     help="Metric categories CSV (e.g., distribution_based,nn_based_video). Default: distribution_based")
     ap.add_argument("--all-metrics", action="store_true",
-                    help="Compute ALL metrics: distribution_based (FID/IS/FVD) + nn_based_video (GSTVQA/SimpleVQA/LightVQA+) + CD-FVD (single fast flavor)")
+                    help="Compute ALL AIGVE metrics: distribution_based (FID/IS/FVD) + nn_based_video (GSTVQA/SimpleVQA/LightVQA+). CD-FVD is OPTIONAL (use --cdfvd to include it)")
+    ap.add_argument("--no-cdfvd", action="store_true",
+                    help="Explicitly disable CD-FVD computation (useful with --all-metrics for faster runs)")
+    ap.add_argument("--cdfvd", action="store_true",
+                    help="Explicitly enable CD-FVD computation (single fast flavor by default)")
     ap.add_argument("--fast", action="store_true",
                     help="Fast mode: use optimized settings for speed (lower resolution, single CD-FVD flavor)")
     ap.add_argument("--metrics", default="",
@@ -596,21 +602,53 @@ def main(argv: list[str] | None = None) -> int:
         args.cdfvd_all_flavors = False  # Single flavor only
         print(f"   📊 CD-FVD: resolution=128, sequence_length=8, single flavor only", flush=True)
     
+    # Determine CD-FVD behavior (default: disabled unless explicitly requested)
+    use_cdfvd = False  # Default: disabled (slow)
+    
     # Handle --all-metrics flag: override categories to include all metric types
     if args.all_metrics:
         args.categories = "distribution_based,nn_based_video"
-        # By default, use single fast CD-FVD flavor unless --cdfvd-all-flavors is set
-        if not args.cdfvd_all_flavors:
-            print(f"\n🎯 --all-metrics flag detected: Computing ALL metrics (FAST mode)", flush=True)
+        
+        # Determine CD-FVD behavior
+        if args.no_cdfvd:
+            # Explicitly disabled
+            use_cdfvd = False
+            print(f"\n🎯 --all-metrics flag detected: Computing ALL AIGVE metrics (NO CD-FVD)", flush=True)
             print(f"   📊 Categories: {args.categories}", flush=True)
             print(f"   🔧 Metrics included:", flush=True)
             print(f"      - distribution_based: FID, IS, FVD (AIGVE native)", flush=True)
             print(f"      - nn_based_video: GSTVQA, SimpleVQA", flush=True)
-            print(f"      - CD-FVD: single flavor (videomae, res={args.cdfvd_resolution}, len={args.cdfvd_sequence_length})", flush=True)
-            print(f"   💡 For all 8 CD-FVD flavors (SLOW), add --cdfvd-all-flavors", flush=True)
+            print(f"      - CD-FVD: ❌ DISABLED (use --cdfvd to enable)", flush=True)
+        elif args.cdfvd:
+            # Explicitly enabled
+            use_cdfvd = True
+            if not args.cdfvd_all_flavors:
+                print(f"\n🎯 --all-metrics + --cdfvd: Computing ALL metrics including CD-FVD (FAST)", flush=True)
+                print(f"   📊 Categories: {args.categories}", flush=True)
+                print(f"   🔧 Metrics included:", flush=True)
+                print(f"      - distribution_based: FID, IS, FVD (AIGVE native)", flush=True)
+                print(f"      - nn_based_video: GSTVQA, SimpleVQA", flush=True)
+                print(f"      - CD-FVD: single flavor (videomae, res={args.cdfvd_resolution}, len={args.cdfvd_sequence_length})", flush=True)
+            else:
+                print(f"\n🎯 --all-metrics + --cdfvd + --cdfvd-all-flavors: Computing ALL metrics with ALL CD-FVD flavors", flush=True)
+                print(f"   ⚠️  This will be SLOW (8 CD-FVD combinations)", flush=True)
         else:
-            print(f"\n🎯 --all-metrics + --cdfvd-all-flavors: Computing ALL metrics with ALL CD-FVD flavors", flush=True)
-            print(f"   ⚠️  This will be SLOW (8 CD-FVD combinations)", flush=True)
+            # Default: NO CD-FVD (since it's slow)
+            use_cdfvd = False
+            print(f"\n🎯 --all-metrics flag detected: Computing ALL AIGVE metrics (CD-FVD disabled by default)", flush=True)
+            print(f"   📊 Categories: {args.categories}", flush=True)
+            print(f"   🔧 Metrics included:", flush=True)
+            print(f"      - distribution_based: FID, IS, FVD (AIGVE native)", flush=True)
+            print(f"      - nn_based_video: GSTVQA, SimpleVQA", flush=True)
+            print(f"      - CD-FVD: ❌ DISABLED (use --cdfvd to enable)", flush=True)
+            print(f"   💡 Tip: Add --cdfvd to include CD-FVD (slower but more complete)", flush=True)
+    else:
+        # Not using --all-metrics, check if CD-FVD was explicitly requested
+        if args.cdfvd:
+            use_cdfvd = True
+        elif args.no_cdfvd:
+            use_cdfvd = False
+        # else: use_cdfvd stays False (default)
 
     base_url = args.base_url
 
@@ -865,6 +903,7 @@ def main(argv: list[str] | None = None) -> int:
             generated_suffixes=args.generated_suffixes,
             categories=args.categories,
             metrics=args.metrics,
+            use_cdfvd=use_cdfvd,  # Pass the determined value
             cdfvd_resolution=args.cdfvd_resolution,
             cdfvd_sequence_length=args.cdfvd_sequence_length,
             cdfvd_all_flavors=args.cdfvd_all_flavors,  # Default: False (single flavor for speed)
