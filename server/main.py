@@ -1643,22 +1643,29 @@ def run_upload(
         metrics_video_dir = upload_dir
         logger.warning("[%s] Using fallback video directory: %s", rid, metrics_video_dir)
     
-    # MANDATORY AIGVE METRICS COMPUTATION - NO TRY-EXCEPT
-    logger.info("[%s] Computing AIGVE metrics: video_dir=%s, annotation=%s", rid, metrics_video_dir, annotation_file)
-    aigve_results = _compute_aigve_metrics(
-        video_dir=metrics_video_dir,
-        annotation_file=annotation_file,
-        max_len=max_len,
-        use_cpu=use_cpu
-    )
+    # AIGVE METRICS COMPUTATION - Only compute distribution_based if requested
+    # Check if distribution_based metrics are requested
+    should_compute_distribution = "distribution_based" in effective_categories.lower() or not effective_categories
     
-    # Save AIGVE results
-    aigve_results_file = os.path.join(stage_dir, "aigve_direct_results.json")
-    os.makedirs(os.path.dirname(aigve_results_file), exist_ok=True)
-    with open(aigve_results_file, 'w') as f:
-        json.dump(aigve_results, f, indent=2, default=str)
-    
-    logger.info("[%s] AIGVE results saved to: %s", rid, aigve_results_file)
+    aigve_results = {}
+    if should_compute_distribution:
+        logger.info("[%s] Computing AIGVE distribution metrics: video_dir=%s, annotation=%s", rid, metrics_video_dir, annotation_file)
+        aigve_results = _compute_aigve_metrics(
+            video_dir=metrics_video_dir,
+            annotation_file=annotation_file,
+            max_len=max_len,
+            use_cpu=use_cpu
+        )
+        
+        # Save AIGVE results
+        aigve_results_file = os.path.join(stage_dir, "aigve_direct_results.json")
+        os.makedirs(os.path.dirname(aigve_results_file), exist_ok=True)
+        with open(aigve_results_file, 'w') as f:
+            json.dump(aigve_results, f, indent=2, default=str)
+        
+        logger.info("[%s] AIGVE results saved to: %s", rid, aigve_results_file)
+    else:
+        logger.info("[%s] Skipping distribution-based metrics (categories='%s' doesn't include distribution_based)", rid, effective_categories)
 
     # Print standard metrics results to console immediately after script execution
     if script_success and proc:
@@ -1851,15 +1858,40 @@ def run_upload(
                 response["artifact_error"] = str(e)
                 logger.warning("[%s] Artifact collection error: %s", rid, e)
     else:
-        # No CD-FVD computation - collect only legacy artifacts (AIGVE native metrics)
-        logger.info("[%s] Collecting AIGVE native artifacts only (FID, IS, FVD)", rid)
-        try:
-            arts = _collect_artifacts(APP_ROOT, proc.stdout or "")
-            response["artifacts"] = arts
-            logger.info("[%s] AIGVE native artifacts collected: %d", rid, len(arts))
-        except Exception as e:
-            response["artifact_error"] = str(e)
-            logger.warning("[%s] Artifact collection error: %s", rid, e)
+        # No CD-FVD computation - collect only legacy artifacts if distribution_based was requested
+        if should_compute_distribution:
+            logger.info("[%s] Collecting AIGVE native artifacts only (FID, IS, FVD)", rid)
+            try:
+                arts = _collect_artifacts(APP_ROOT, proc.stdout or "")
+                response["artifacts"] = arts
+                logger.info("[%s] AIGVE native artifacts collected: %d", rid, len(arts))
+            except Exception as e:
+                response["artifact_error"] = str(e)
+                logger.warning("[%s] Artifact collection error: %s", rid, e)
+        else:
+            logger.info("[%s] Skipping AIGVE native artifact collection (nn_based_video only requested)", rid)
+            # Only collect NN-based metric results if they exist
+            try:
+                # Look for NN-based metric result files
+                nn_result_files = ["gstvqa_results.json", "simplevqa_results.json", "lightvqaplus_results.json"]
+                nn_arts = []
+                for result_file in nn_result_files:
+                    result_path = os.path.join(APP_ROOT, result_file)
+                    if os.path.exists(result_path):
+                        with open(result_path, 'r') as f:
+                            content = json.load(f)
+                        nn_arts.append({
+                            "name": result_file,
+                            "path": result_path,
+                            "content": content,
+                            "source": "nn_based_metrics"
+                        })
+                        logger.info("[%s] Found NN-based result: %s", rid, result_file)
+                response["artifacts"] = nn_arts
+                logger.info("[%s] NN-based artifacts collected: %d", rid, len(nn_arts))
+            except Exception as e:
+                response["artifact_error"] = str(e)
+                logger.warning("[%s] NN artifact collection error: %s", rid, e)
     
     # Final validation: ensure ALL required metrics were computed
     logger.info("[%s] Final processing validation", rid)
