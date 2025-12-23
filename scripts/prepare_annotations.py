@@ -41,6 +41,7 @@ Usage examples:
 from __future__ import annotations
 
 import argparse
+import gc
 import json
 import os
 import shutil
@@ -49,6 +50,8 @@ import sys
 import urllib.request
 from pathlib import Path
 from typing import Dict, List, Tuple, Optional
+
+import torch
 
 
 def _auto_download_model_checkpoint(model_name: str, target_path: Path, 
@@ -386,6 +389,10 @@ def run_reference_metrics(video_dir: Path,
             fid_metric.process(data_batch={}, data_samples=data_samples)
         fid_summary = fid_metric.compute_metrics([])
         print(f"[Metrics] FID summary: {fid_summary}")
+        # Memory cleanup
+        del fid_metric
+        import gc; gc.collect()
+        if torch.cuda.is_available(): torch.cuda.empty_cache()
 
     if 'is' in metrics:
         print("\n[Metrics] Computing IS...")
@@ -395,6 +402,10 @@ def run_reference_metrics(video_dir: Path,
             is_metric.process(data_batch={}, data_samples=data_samples)
         is_summary = is_metric.compute_metrics([])
         print(f"[Metrics] IS summary: {is_summary}")
+        # Memory cleanup
+        del is_metric
+        import gc; gc.collect()
+        if torch.cuda.is_available(): torch.cuda.empty_cache()
 
     if 'fvd' in metrics:
         print("\n[Metrics] Computing FVD...")
@@ -408,70 +419,114 @@ def run_reference_metrics(video_dir: Path,
             fvd_metric.process(data_batch={}, data_samples=data_samples)
         fvd_summary = fvd_metric.compute_metrics([])
         print(f"[Metrics] FVD summary: {fvd_summary}")
+        # Memory cleanup
+        del fvd_metric
+        import gc; gc.collect()
+        if torch.cuda.is_available(): torch.cuda.empty_cache()
 
     # Neural network-based video-only metrics
     root_dir = Path(__file__).resolve().parent.parent
 
     if 'gstvqa' in metrics:
-        print("\n[Metrics] Computing GSTVQA...")
-        from aigve.datasets.gstvqa_dataset import GSTVQADataset
-        from aigve.metrics.video_quality_assessment.nn_based.gstvqa.gstvqa_metric import GstVqa
+        print("\n[Metrics] Computing GSTVQA...", flush=True)
+        try:
+            from aigve.datasets.gstvqa_dataset import GSTVQADataset
+            from aigve.metrics.video_quality_assessment.nn_based.gstvqa.gstvqa_metric import GstVqa
+            import gc
 
-        gstvqa_default = (root_dir / 'aigve/metrics/video_quality_assessment/nn_based/gstvqa/'
-                          'GSTVQA/TCSVT_Release/GVQA_Release/GVQA_Cross/models/'
-                          'training-all-data-GSTVQA-konvid-EXP0-best')
-        gstvqa_path = Path(gstvqa_model).expanduser().resolve() if gstvqa_model else gstvqa_default
-        if not gstvqa_path.exists():
-            print(f"[WARN] GSTVQA model not found at {gstvqa_path}; skipping GSTVQA.")
-        else:
-            dataset = GSTVQADataset(video_dir=str(video_dir),
-                                    prompt_dir=str(prompt_json),
-                                    model_name='vgg16',
-                                    max_len=max_len)
-            metric = GstVqa(model_path=str(gstvqa_path))
-            for idx in range(len(dataset)):
-                deep_features, num_frames, video_name = dataset[idx]
-                data_samples = ((deep_features,), (num_frames,), (video_name,))
-                metric.process(data_batch={}, data_samples=data_samples)
-            summary = metric.compute_metrics([])
-            print(f"[Metrics] GSTVQA summary: {summary}")
+            gstvqa_default = (root_dir / 'aigve/metrics/video_quality_assessment/nn_based/gstvqa/'
+                              'GSTVQA/TCSVT_Release/GVQA_Release/GVQA_Cross/models/'
+                              'training-all-data-GSTVQA-konvid-EXP0-best')
+            gstvqa_path = Path(gstvqa_model).expanduser().resolve() if gstvqa_model else gstvqa_default
+            if not gstvqa_path.exists():
+                print(f"[WARN] GSTVQA model not found at {gstvqa_path}; skipping GSTVQA.", flush=True)
+            else:
+                print(f"[GSTVQA] Model path: {gstvqa_path}", flush=True)
+                print(f"[GSTVQA] Creating dataset (this downloads VGG16 if not cached)...", flush=True)
+                dataset = GSTVQADataset(video_dir=str(video_dir),
+                                        prompt_dir=str(prompt_json),
+                                        model_name='vgg16',
+                                        max_len=max_len)
+                print(f"[GSTVQA] Dataset created with {len(dataset)} samples", flush=True)
+                metric = GstVqa(model_path=str(gstvqa_path))
+                print(f"[GSTVQA] Processing samples...", flush=True)
+                for idx in range(len(dataset)):
+                    deep_features, num_frames, video_name = dataset[idx]
+                    data_samples = ((deep_features,), (num_frames,), (video_name,))
+                    metric.process(data_batch={}, data_samples=data_samples)
+                    print(f"[GSTVQA] Processed sample {idx+1}/{len(dataset)}: {video_name}", flush=True)
+                summary = metric.compute_metrics([])
+                print(f"[Metrics] GSTVQA summary: {summary}", flush=True)
+                
+                # MEMORY CLEANUP: Unload models after use
+                print(f"[GSTVQA] Cleaning up memory...", flush=True)
+                del metric
+                del dataset
+                gc.collect()
+                if torch.cuda.is_available():
+                    torch.cuda.empty_cache()
+                print(f"[GSTVQA] Memory cleaned up ✓", flush=True)
+        except Exception as e:
+            print(f"[ERROR] GSTVQA computation failed: {type(e).__name__}: {e}", flush=True)
+            import traceback
+            traceback.print_exc()
+            print("[WARN] Continuing with remaining metrics...", flush=True)
 
     if 'simplevqa' in metrics:
-        print("\n[Metrics] Computing SimpleVQA...")
-        from aigve.datasets.simplevqa_dataset import SimpleVQADataset
-        from aigve.metrics.video_quality_assessment.nn_based.simplevqa.simplevqa_metric import SimpleVqa
+        print("\n[Metrics] Computing SimpleVQA...", flush=True)
+        try:
+            from aigve.datasets.simplevqa_dataset import SimpleVQADataset
+            from aigve.metrics.video_quality_assessment.nn_based.simplevqa.simplevqa_metric import SimpleVqa
+            import gc
+            import torch
 
-        simplevqa_default = (root_dir / 'aigve/metrics/video_quality_assessment/nn_based/simplevqa/'
-                             'SimpleVQA/ckpts/UGC_BVQA_model.pth')
-        simplevqa_path = Path(simplevqa_model).expanduser().resolve() if simplevqa_model else simplevqa_default
-        
-        # Auto-download SimpleVQA if not found
-        if not simplevqa_path.exists():
-            print(f"[Metrics] SimpleVQA model not found, attempting auto-download...", flush=True)
-            _auto_download_model_checkpoint(
-                "SimpleVQA (UGC_BVQA_model.pth)",
-                simplevqa_path,
-                google_drive_id="137XJdq3reNMJ9tkBNqKUYTY_dTlcwXc3"
-            )
-        
-        if not simplevqa_path.exists():
-            print(f"[ERROR] SimpleVQA model STILL not found after download attempt!", flush=True)
-            print(f"[ERROR] Expected path: {simplevqa_path}", flush=True)
-            print(f"[ERROR] Manual download: https://drive.google.com/file/d/137XJdq3reNMJ9tkBNqKUYTY_dTlcwXc3", flush=True)
-            print(f"[WARN] Skipping SimpleVQA metric.", flush=True)
-        else:
-            dataset = SimpleVQADataset(video_dir=str(video_dir),
-                                       prompt_dir=str(prompt_json),
-                                       min_video_seconds=8)
-            metric = SimpleVqa(model_path=str(simplevqa_path), is_gpu=gpu_flag)
-            for idx in range(len(dataset)):
-                spatial_features, motion_features, video_name = dataset[idx]
-                # Convert list of motion tensors to a list of single-item tuples to emulate batch dim
-                motion_features_batched = [(mf,) for mf in motion_features]
-                data_samples = ((spatial_features,), motion_features_batched, (video_name,))
-                metric.process(data_batch={}, data_samples=data_samples)
-            summary = metric.compute_metrics([])
-            print(f"[Metrics] SimpleVQA summary: {summary}")
+            simplevqa_default = (root_dir / 'aigve/metrics/video_quality_assessment/nn_based/simplevqa/'
+                                 'SimpleVQA/ckpts/UGC_BVQA_model.pth')
+            simplevqa_path = Path(simplevqa_model).expanduser().resolve() if simplevqa_model else simplevqa_default
+            
+            # Auto-download SimpleVQA if not found
+            if not simplevqa_path.exists():
+                print(f"[Metrics] SimpleVQA model not found, attempting auto-download...", flush=True)
+                _auto_download_model_checkpoint(
+                    "SimpleVQA (UGC_BVQA_model.pth)",
+                    simplevqa_path,
+                    google_drive_id="137XJdq3reNMJ9tkBNqKUYTY_dTlcwXc3"
+                )
+            
+            if not simplevqa_path.exists():
+                print(f"[ERROR] SimpleVQA model STILL not found after download attempt!", flush=True)
+                print(f"[ERROR] Expected path: {simplevqa_path}", flush=True)
+                print(f"[ERROR] Manual download: https://drive.google.com/file/d/137XJdq3reNMJ9tkBNqKUYTY_dTlcwXc3", flush=True)
+                print(f"[WARN] Skipping SimpleVQA metric.", flush=True)
+            else:
+                print(f"[SimpleVQA] Model path: {simplevqa_path}", flush=True)
+                dataset = SimpleVQADataset(video_dir=str(video_dir),
+                                           prompt_dir=str(prompt_json),
+                                           min_video_seconds=8)
+                print(f"[SimpleVQA] Dataset created with {len(dataset)} samples", flush=True)
+                metric = SimpleVqa(model_path=str(simplevqa_path), is_gpu=gpu_flag)
+                for idx in range(len(dataset)):
+                    spatial_features, motion_features, video_name = dataset[idx]
+                    motion_features_batched = [(mf,) for mf in motion_features]
+                    data_samples = ((spatial_features,), motion_features_batched, (video_name,))
+                    metric.process(data_batch={}, data_samples=data_samples)
+                    print(f"[SimpleVQA] Processed sample {idx+1}/{len(dataset)}: {video_name}", flush=True)
+                summary = metric.compute_metrics([])
+                print(f"[Metrics] SimpleVQA summary: {summary}", flush=True)
+                
+                # MEMORY CLEANUP: Unload models after use
+                print(f"[SimpleVQA] Cleaning up memory...", flush=True)
+                del metric
+                del dataset
+                gc.collect()
+                if torch.cuda.is_available():
+                    torch.cuda.empty_cache()
+                print(f"[SimpleVQA] Memory cleaned up ✓", flush=True)
+        except Exception as e:
+            print(f"[ERROR] SimpleVQA computation failed: {type(e).__name__}: {e}", flush=True)
+            import traceback
+            traceback.print_exc()
+            print("[WARN] Continuing with remaining metrics...", flush=True)
 
     if 'lightvqa+' in metrics:
         print("\n[Metrics] Computing LightVQA+...")

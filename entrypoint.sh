@@ -8,39 +8,67 @@ set -euo pipefail
 # Resolve working directory
 cd /app
 
+echo "============================================================"
+echo "🔧 PRE-STARTUP PERMISSION CHECK"
+echo "============================================================"
+
+# Directories that need to be writable
+REQUIRED_DIRS="/app/uploads /app/.cache /app/.cache/torch /app/.cache/torch/hub /app/.cache/torch/hub/checkpoints"
+
+for dir in $REQUIRED_DIRS; do
+  if [ ! -d "$dir" ]; then
+    echo "[INFO] Creating $dir..."
+    mkdir -p "$dir" 2>/dev/null || true
+  fi
+done
+
 # Ensure uploads directory exists with proper permissions
 if [ ! -d "/app/uploads" ]; then
   echo "[INFO] Creating /app/uploads directory..."
   mkdir -p /app/uploads
 fi
 
-# Ensure we can write to uploads directory
-if [ ! -w "/app/uploads" ]; then
-  echo "[WARN] /app/uploads is not writable by current user ($(id -u))"
+# Check and fix permissions for all required directories
+PERMISSION_OK=true
+for dir in $REQUIRED_DIRS; do
+  if [ -d "$dir" ] && [ ! -w "$dir" ]; then
+    PERMISSION_OK=false
+    echo "[WARN] $dir is not writable by current user ($(id -u))"
+  fi
+done
+
+if [ "$PERMISSION_OK" = false ]; then
   echo "       Attempting to fix permissions..."
   # Try to fix if running as root, otherwise just warn
   if [ "$(id -u)" -eq 0 ]; then
-    chown -R 1000:1000 /app/uploads
-    chmod 755 /app/uploads
-    echo "[INFO] Fixed permissions as root"
+    for dir in $REQUIRED_DIRS; do
+      if [ -d "$dir" ]; then
+        chown -R 1000:1000 "$dir" 2>/dev/null || true
+        chmod -R 755 "$dir" 2>/dev/null || true
+      fi
+    done
+    echo "[INFO] ✅ Fixed permissions as root"
   else
     echo "[ERROR] Cannot fix permissions - running as non-root user $(id -u)"
     echo ""
-    echo "This is likely due to volume mount ownership issues."
+    echo "╔══════════════════════════════════════════════════════════╗"
+    echo "║  PERMISSION FIX REQUIRED (Run on HOST machine first!)    ║"
+    echo "╠══════════════════════════════════════════════════════════╣"
+    echo "║  Before starting Docker, run:                            ║"
+    echo "║                                                          ║"
+    echo "║  mkdir -p uploads && chmod 777 uploads                   ║"
+    echo "║                                                          ║"
+    echo "║  Or with sudo:                                           ║"
+    echo "║  sudo chown \$(id -u):\$(id -g) uploads                    ║"
+    echo "╚══════════════════════════════════════════════════════════╝"
     echo ""
-    echo "SOLUTION 1: Fix host directory ownership (recommended)"
-    echo "  On the host machine, run:"
-    echo "    sudo chown $(id -u):$(id -g) ./uploads"
-    echo "    sudo chmod 755 ./uploads"
-    echo "    docker-compose restart aigve"
-    echo ""
-    echo "SOLUTION 2: Run pre-startup script"
-    echo "  bash docker-compose-pre-start.sh"
-    echo "  docker-compose up -d --force-recreate"
-    echo ""
-    echo "The API will continue starting but uploads will FAIL."
+    echo "The API will continue starting but uploads may FAIL."
   fi
+else
+  echo "[INFO] ✅ All directories have correct permissions"
 fi
+
+echo "============================================================"
 
 # GPU detection and enforcement (default: require GPU)
 REQUIRE_GPU="${REQUIRE_GPU:-1}"
