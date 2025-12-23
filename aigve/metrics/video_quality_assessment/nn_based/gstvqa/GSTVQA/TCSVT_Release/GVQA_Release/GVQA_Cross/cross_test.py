@@ -22,7 +22,11 @@ from torch.utils.data import Dataset
 import numpy as np
 import random
 from scipy import stats
-from tensorboardX import SummaryWriter
+# tensorboardX is optional - only used for training, not inference
+try:
+    from tensorboardX import SummaryWriter
+except ImportError:
+    SummaryWriter = None  # Not needed for inference
 import datetime
 from .channel_attention import ChannelAttention,ChannelAttention2
 
