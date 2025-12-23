@@ -1006,7 +1006,6 @@ def _compute_cdfvd(upload_dir: str, generated_suffixes: str, model: str = "video
                 
                 try:
                     # Suppress tqdm progress bars for cleaner output
-                    import os
                     os.environ['TQDM_DISABLE'] = '1'
                     
                     # Initialize evaluator for this configuration
@@ -1148,7 +1147,6 @@ def _compute_cdfvd(upload_dir: str, generated_suffixes: str, model: str = "video
             logger.info("[CD-FVD] Computing single flavor with model='%s'", model)
             
             # Suppress tqdm progress bars for cleaner output
-            import os
             os.environ['TQDM_DISABLE'] = '1'
             
             print(f"   ⏳ [Step 1/5] Initializing {model} evaluator...", flush=True)
