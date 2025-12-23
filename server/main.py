@@ -364,7 +364,7 @@ class PrepareAnnotationsRequest(BaseModel):
     cdfvd_model: Optional[str] = Field("videomae", description="CD-FVD model to use: 'videomae' or 'i3d'")
     cdfvd_resolution: Optional[int] = Field(128, description="Resolution for CD-FVD video processing")
     cdfvd_sequence_length: Optional[int] = Field(16, description="Sequence length for CD-FVD video processing")
-    cdfvd_all_flavors: Optional[bool] = Field(True, description="Compute all FVD flavors (both models, multiple resolutions/sequence lengths)")
+    cdfvd_all_flavors: Optional[bool] = Field(False, description="Compute all 8 FVD flavors (both models, multiple resolutions/sequence lengths). SLOW! Default: single flavor")
 
 
 def _build_cli_args(req: PrepareAnnotationsRequest) -> List[str]:
@@ -1494,7 +1494,7 @@ def run_upload(
     cdfvd_model: str = Form("videomae"),
     cdfvd_resolution: int = Form(128),
     cdfvd_sequence_length: int = Form(16),
-    cdfvd_all_flavors: bool = Form(True),
+    cdfvd_all_flavors: bool = Form(False),  # Default: single flavor for speed
 ):
     """
     Accept uploaded video files and run the same pipeline as /run using a
