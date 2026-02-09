@@ -1,0 +1,13 @@
+{
+  "metainfo": {
+    "source": "/app/uploads/fba427b2-1473-4787-9de4-ec89a346b5b5/staged/evaluate",
+    "length": 1
+  },
+  "data_list": [
+    {
+      "prompt_gt": "",
+      "video_path_pd": "ben_short_real_esrgan_scaled_generated.mp4",
+      "video_path_gt": "ben_short_real_esrgan_scaled.mp4"
+    }
+  ]
+}

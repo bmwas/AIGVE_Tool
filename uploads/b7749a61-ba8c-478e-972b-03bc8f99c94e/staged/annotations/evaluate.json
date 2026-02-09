@@ -1,0 +1,13 @@
+{
+  "metainfo": {
+    "source": "/app/uploads/b7749a61-ba8c-478e-972b-03bc8f99c94e/staged/evaluate",
+    "length": 1
+  },
+  "data_list": [
+    {
+      "prompt_gt": "",
+      "video_path_pd": "ben_short_generated.mp4",
+      "video_path_gt": "ben_short.mp4"
+    }
+  ]
+}
